@@ -1,0 +1,23 @@
+{
+  "name": "emergency-dispatch-server",
+  "version": "1.0.0",
+  "description": "Emergency Home Services Auto-Dispatch Backend System",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "seed": "node src/db/seed.js",
+    "test:smoke": "node test-smoke.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "sqlite3": "^5.1.7",
+    "socket.io": "^4.8.1",
+    "uuid": "^11.1.0"
+  }
+}
