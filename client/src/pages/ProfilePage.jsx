@@ -722,7 +722,9 @@ export default function ProfilePage({
                 <div className="flex flex-wrap items-center gap-y-1.5 gap-x-3 sm:gap-x-4 text-xs font-semibold text-slate-600 pt-0.5">
                   <div className="flex items-center gap-1.5 min-w-0">
                     <Mail className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
-                    <span className="truncate max-w-[200px] sm:max-w-none">{profileForm.email}</span>
+                    <span className="truncate max-w-[200px] sm:max-w-none">
+                      {profileForm.email}
+                    </span>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <Phone className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
