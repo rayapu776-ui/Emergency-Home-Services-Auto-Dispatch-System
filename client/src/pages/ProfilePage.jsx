@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   ArrowLeft,
   Calendar,
@@ -56,6 +56,32 @@ export default function ProfilePage({
   // Active Menu Navigation Tab
   // 'overview' | 'bookings' | 'addresses' | 'payments' | 'saved' | 'notifications' | 'offers' | 'support' | 'settings'
   const [activeTab, setActiveTab] = useState("overview");
+
+  // Mobile horizontal scroll navigation references
+  const mobileNavScrollRef = useRef(null);
+  const mobileTabRefs = useRef({});
+
+  const handleTabClick = (tabId) => {
+    setActiveTab(tabId);
+    if (mobileTabRefs.current[tabId]) {
+      mobileTabRefs.current[tabId].scrollIntoView({
+        behavior: "smooth",
+        inline: "center",
+        block: "nearest",
+      });
+    }
+  };
+
+  // Automatically scroll selected tab into view when activeTab changes
+  useEffect(() => {
+    if (mobileTabRefs.current[activeTab]) {
+      mobileTabRefs.current[activeTab].scrollIntoView({
+        behavior: "smooth",
+        inline: "center",
+        block: "nearest",
+      });
+    }
+  }, [activeTab]);
 
   // Booking status filter
   const [bookingFilter, setBookingFilter] = useState("all");
@@ -609,8 +635,13 @@ export default function ProfilePage({
     { id: "settings", label: "Settings", icon: Settings },
   ];
 
+  const mobileNavItems = [
+    ...sidebarMenuItems,
+    { id: "logout", label: "Logout", icon: LogOut },
+  ];
+
   return (
-    <div className="min-h-screen bg-[#f6f7f3] text-slate-950 pb-20 pt-28 sm:pt-32">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#f6f7f3] text-slate-950 pb-20 pt-28 sm:pt-32 box-border">
       {/* Floating Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-xs font-bold text-white shadow-2xl backdrop-blur-md animate-rise-in border border-white/20">
@@ -619,27 +650,28 @@ export default function ProfilePage({
         </div>
       )}
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-8">
+      <div className="mx-auto w-full max-w-7xl px-3.5 sm:px-6 lg:px-8 space-y-6 sm:space-y-8 box-border min-w-0">
         {/* Top Breadcrumb & Navigation Bar */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3 w-full">
           <button
             type="button"
             onClick={onHome}
-            className="inline-flex items-center gap-2.5 text-sm font-bold text-emerald-800 hover:text-emerald-950 transition-colors"
+            className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-emerald-800 hover:text-emerald-950 transition-colors shrink-0"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-4 w-4 shrink-0" />
             <img
               src="/argent-logo.png"
               alt="Argent Your"
-              className="h-5 w-5 rounded-md object-contain shadow-2xs"
+              className="h-5 w-5 rounded-md object-contain shadow-2xs shrink-0"
             />
-            <span>Back to Argent Your Home</span>
+            <span className="hidden sm:inline">Back to Argent Your Home</span>
+            <span className="sm:hidden">Home</span>
           </button>
 
           <button
             type="button"
             onClick={handleLogout}
-            className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50/80 px-3.5 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 transition-colors shadow-2xs"
+            className="inline-flex items-center gap-1.5 sm:gap-2 rounded-xl border border-rose-200 bg-rose-50/80 px-3 sm:px-3.5 py-1.5 sm:py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 transition-colors shadow-2xs shrink-0"
           >
             <LogOut className="h-3.5 w-3.5" />
             <span>Log out</span>
@@ -649,16 +681,16 @@ export default function ProfilePage({
         {/* ===================================================================
             1. PROFILE HEADER CARD
         =================================================================== */}
-        <div className="relative overflow-hidden rounded-3xl border border-white/80 bg-white/90 p-6 sm:p-8 shadow-sm backdrop-blur-xl">
+        <div className="relative overflow-hidden rounded-3xl border border-white/80 bg-white/90 p-4 sm:p-8 shadow-sm backdrop-blur-xl w-full max-w-full box-border">
           {/* Subtle decorative background tint */}
           <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-emerald-100/40 blur-3xl" />
 
-          <div className="relative flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div className="relative flex flex-col md:flex-row items-start md:items-center justify-between gap-5 sm:gap-6">
             {/* Left: Avatar & Identity Details */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 sm:gap-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 w-full md:w-auto">
               {/* Circular Avatar with Camera/Edit Button */}
               <div className="relative group shrink-0">
-                <div className="relative h-24 w-24 sm:h-28 sm:w-28 overflow-hidden rounded-full border-4 border-white bg-slate-900 shadow-xl ring-2 ring-emerald-600/30">
+                <div className="relative h-20 w-20 sm:h-28 sm:w-28 overflow-hidden rounded-full border-4 border-white bg-slate-900 shadow-xl ring-2 ring-emerald-600/30">
                   <img
                     src={profileForm.avatar}
                     alt={profileForm.name}
@@ -668,37 +700,37 @@ export default function ProfilePage({
                 <button
                   type="button"
                   onClick={() => setIsAvatarModalOpen(true)}
-                  className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-slate-950 text-white shadow-md hover:bg-emerald-700 hover:scale-105 transition-all border-2 border-white"
+                  className="absolute bottom-0 right-0 flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-slate-950 text-white shadow-md hover:bg-emerald-700 hover:scale-105 transition-all border-2 border-white"
                   title="Update profile photo"
                 >
-                  <Camera className="h-3.5 w-3.5" />
+                  <Camera className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                 </button>
               </div>
 
               {/* User Details */}
-              <div className="space-y-1.5 min-w-0">
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
+              <div className="space-y-1.5 min-w-0 w-full sm:w-auto">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-xl sm:text-3xl font-black tracking-tight text-slate-900 break-words">
                     {profileForm.name}
                   </h1>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100/80 px-2.5 py-0.5 text-[11px] font-extrabold text-emerald-900 border border-emerald-300/60 shadow-2xs">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100/80 px-2.5 py-0.5 text-[10px] sm:text-[11px] font-extrabold text-emerald-900 border border-emerald-300/60 shadow-2xs">
                     <ShieldCheck className="h-3 w-3 text-emerald-700" />
                     <span>Verified Customer</span>
                   </span>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-y-1.5 gap-x-4 text-xs font-semibold text-slate-600 pt-0.5">
-                  <div className="flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-y-1.5 gap-x-3 sm:gap-x-4 text-xs font-semibold text-slate-600 pt-0.5">
+                  <div className="flex items-center gap-1.5 min-w-0">
                     <Mail className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
-                    <span>{profileForm.email}</span>
+                    <span className="truncate max-w-[200px] sm:max-w-none">{profileForm.email}</span>
                   </div>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <Phone className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
                     <span>{profileForm.phone}</span>
                   </div>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 min-w-0 w-full sm:w-auto">
                     <MapPin className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
-                    <span className="truncate max-w-[260px]">
+                    <span className="truncate max-w-[220px] sm:max-w-[280px]">
                       {profileForm.address}
                     </span>
                   </div>
@@ -707,11 +739,11 @@ export default function ProfilePage({
             </div>
 
             {/* Right: Edit Profile Button */}
-            <div className="flex items-center gap-3 w-full md:w-auto pt-2 md:pt-0">
+            <div className="flex items-center gap-3 w-full md:w-auto pt-1 md:pt-0">
               <button
                 type="button"
                 onClick={() => setIsEditProfileOpen(true)}
-                className="flex-1 md:flex-initial inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-xs sm:text-sm font-bold text-white shadow-md hover:bg-emerald-800 hover:shadow-lg transition-all cursor-pointer active:scale-95"
+                className="w-full md:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-bold text-white shadow-md hover:bg-emerald-800 hover:shadow-lg transition-all cursor-pointer active:scale-95"
               >
                 <Edit3 className="h-4 w-4" />
                 <span>Edit Profile</span>
@@ -723,11 +755,11 @@ export default function ProfilePage({
         {/* ===================================================================
             MAIN LAYOUT: SIDEBAR MENU + CONTENT AREA
         =================================================================== */}
-        <div className="grid gap-8 lg:grid-cols-[260px_1fr] items-start">
+        <div className="w-full max-w-full min-w-0 grid gap-6 lg:gap-8 lg:grid-cols-[260px_1fr] items-start">
           {/* =================================================================
               2. PROFILE SIDEBAR / NAVIGATION MENU
           ================================================================= */}
-          <aside className="space-y-4">
+          <aside className="w-full max-w-full min-w-0 space-y-4">
             {/* Desktop Navigation Menu Card */}
             <div className="rounded-3xl border border-white/80 bg-white/90 p-3.5 shadow-sm backdrop-blur-md hidden lg:block">
               <p className="px-3 pt-2 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">
@@ -790,41 +822,73 @@ export default function ProfilePage({
               </nav>
             </div>
 
-            {/* Mobile Responsive Navigation Slider / Tabs */}
-            <div className="lg:hidden overflow-x-auto pb-2 scrollbar-none">
-              <div className="flex gap-2 min-w-max">
-                {sidebarMenuItems.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = activeTab === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => setActiveTab(item.id)}
-                      className={`inline-flex items-center gap-1.5 rounded-2xl px-3.5 py-2 text-xs font-bold whitespace-nowrap transition-all ${
-                        isActive
-                          ? "bg-slate-950 text-white shadow-md"
-                          : "bg-white/90 text-slate-700 border border-slate-200/80 hover:bg-slate-50"
-                      }`}
-                    >
-                      <Icon
-                        className={`h-3.5 w-3.5 ${isActive ? "text-emerald-300" : "text-slate-500"}`}
-                      />
-                      <span>{item.label}</span>
-                      {item.badge && (
-                        <span
-                          className={`ml-1 px-1.5 py-0.2 rounded-full text-[9px] ${
-                            isActive
-                              ? "bg-white/20 text-white"
-                              : "bg-slate-100 text-slate-700"
+            {/* Mobile Responsive Navigation Slider / Tabs (Horizontally scrollable with ALL 10 items) */}
+            <div className="lg:hidden w-full max-w-full min-w-0">
+              <div
+                ref={mobileNavScrollRef}
+                className="w-full max-w-full overflow-x-auto scrollbar-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden overscroll-x-contain py-1"
+                style={{
+                  WebkitOverflowScrolling: "touch",
+                  touchAction: "pan-x",
+                }}
+              >
+                <div className="flex items-center gap-2 w-max px-0.5 pb-1">
+                  {mobileNavItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = activeTab === item.id;
+                    const isLogout = item.id === "logout";
+
+                    return (
+                      <button
+                        key={item.id}
+                        ref={(el) => {
+                          mobileTabRefs.current[item.id] = el;
+                        }}
+                        type="button"
+                        onClick={() => {
+                          if (isLogout) {
+                            handleLogout();
+                          } else {
+                            handleTabClick(item.id);
+                          }
+                        }}
+                        className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-bold whitespace-nowrap transition-all shadow-2xs touch-manipulation cursor-pointer active:scale-95 shrink-0 ${
+                          isLogout
+                            ? "bg-rose-50/90 text-rose-700 border border-rose-200/80 hover:bg-rose-100"
+                            : isActive
+                              ? "bg-slate-950 text-white shadow-md ring-2 ring-slate-950/10"
+                              : item.highlight
+                                ? "bg-emerald-50/90 text-emerald-950 border border-emerald-300/80 hover:bg-emerald-100/80"
+                                : "bg-white/95 text-slate-700 border border-slate-200/90 hover:bg-white hover:text-slate-950"
+                        }`}
+                      >
+                        <Icon
+                          className={`h-4 w-4 shrink-0 ${
+                            isLogout
+                              ? "text-rose-600"
+                              : isActive
+                                ? "text-emerald-300"
+                                : item.highlight
+                                  ? "text-emerald-700"
+                                  : "text-slate-500"
                           }`}
-                        >
-                          {item.badge}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
+                        />
+                        <span>{item.label}</span>
+                        {item.badge && (
+                          <span
+                            className={`ml-0.5 rounded-full px-2 py-0.5 text-[10px] font-extrabold ${
+                              isActive
+                                ? "bg-white/20 text-white"
+                                : "bg-slate-100 text-slate-700"
+                            }`}
+                          >
+                            {item.badge}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
@@ -858,76 +922,76 @@ export default function ProfilePage({
           {/* =================================================================
               CONTENT AREA (DASHBOARD CARDS, BOOKINGS, ADDRESSES, PAYMENTS, OFFERS)
           ================================================================= */}
-          <main className="space-y-8 min-w-0">
+          <main className="w-full max-w-full min-w-0 space-y-6 sm:space-y-8">
             {/* ===============================================================
                 3. PROFILE DASHBOARD SUMMARY CARDS (4 Cards)
             =============================================================== */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 w-full">
               {/* Card 1: Total Bookings */}
-              <div className="rounded-3xl border border-white/80 bg-white/90 p-4 sm:p-5 shadow-xs backdrop-blur-md hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              <div className="rounded-3xl border border-white/80 bg-white/90 p-3.5 sm:p-5 shadow-xs backdrop-blur-md hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500 truncate">
                     Total Orders
                   </span>
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200/50">
-                    <Calendar className="h-4 w-4" />
+                  <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200/50 shrink-0">
+                    <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   </div>
                 </div>
                 <p className="mt-2 text-2xl sm:text-3xl font-black text-slate-900">
                   {totalBookingsCount}
                 </p>
-                <p className="mt-1 text-[11px] font-semibold text-emerald-700">
+                <p className="mt-1 text-[10px] sm:text-[11px] font-semibold text-emerald-700 truncate">
                   +2 this month
                 </p>
               </div>
 
               {/* Card 2: Upcoming Bookings */}
-              <div className="rounded-3xl border border-white/80 bg-white/90 p-4 sm:p-5 shadow-xs backdrop-blur-md hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              <div className="rounded-3xl border border-white/80 bg-white/90 p-3.5 sm:p-5 shadow-xs backdrop-blur-md hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500 truncate">
                     Upcoming
                   </span>
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-800 border border-amber-200/50">
-                    <Clock className="h-4 w-4" />
+                  <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-800 border border-amber-200/50 shrink-0">
+                    <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   </div>
                 </div>
-                <div className="mt-2 flex items-baseline gap-2">
+                <div className="mt-2 flex items-baseline gap-1.5 sm:gap-2">
                   <p className="text-2xl sm:text-3xl font-black text-slate-900">
                     {upcomingCount}
                   </p>
                   <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                 </div>
-                <p className="mt-1 text-[11px] font-semibold text-slate-500">
+                <p className="mt-1 text-[10px] sm:text-[11px] font-semibold text-slate-500 truncate">
                   Next: Today 3:00 PM
                 </p>
               </div>
 
               {/* Card 3: Completed Bookings */}
-              <div className="rounded-3xl border border-white/80 bg-white/90 p-4 sm:p-5 shadow-xs backdrop-blur-md hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              <div className="rounded-3xl border border-white/80 bg-white/90 p-3.5 sm:p-5 shadow-xs backdrop-blur-md hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500 truncate">
                     Completed
                   </span>
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-50 text-teal-800 border border-teal-200/50">
-                    <CheckCircle2 className="h-4 w-4" />
+                  <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-teal-50 text-teal-800 border border-slate-200/60 shrink-0">
+                    <CheckCircle2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   </div>
                 </div>
                 <p className="mt-2 text-2xl sm:text-3xl font-black text-slate-900">
                   {completedCount}
                 </p>
-                <p className="mt-1 text-[11px] font-semibold text-teal-700">
+                <p className="mt-1 text-[10px] sm:text-[11px] font-semibold text-teal-700 truncate">
                   100% On-time guarantee
                 </p>
               </div>
 
               {/* Card 4: Saved Services */}
-              <div className="rounded-3xl border border-white/80 bg-white/90 p-4 sm:p-5 shadow-xs backdrop-blur-md hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              <div className="rounded-3xl border border-white/80 bg-white/90 p-3.5 sm:p-5 shadow-xs backdrop-blur-md hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500 truncate">
                     Saved Services
                   </span>
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-50 text-rose-700 border border-rose-200/50">
-                    <Heart className="h-4 w-4" />
+                  <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-rose-50 text-rose-700 border border-rose-200/50 shrink-0">
+                    <Heart className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   </div>
                 </div>
                 <p className="mt-2 text-2xl sm:text-3xl font-black text-slate-900">
@@ -936,7 +1000,7 @@ export default function ProfilePage({
                 <button
                   type="button"
                   onClick={() => setActiveTab("saved")}
-                  className="mt-1 text-[11px] font-bold text-emerald-800 hover:underline cursor-pointer"
+                  className="mt-1 text-[10px] sm:text-[11px] font-bold text-emerald-800 hover:underline cursor-pointer truncate block"
                 >
                   Quick Rebook &rarr;
                 </button>
@@ -947,7 +1011,7 @@ export default function ProfilePage({
                 TAB 1: OVERVIEW & RECENT BOOKINGS
             =============================================================== */}
             {(activeTab === "overview" || activeTab === "bookings") && (
-              <section className="space-y-6 animate-rise-in">
+              <section className="space-y-6 animate-rise-in w-full">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
@@ -983,21 +1047,21 @@ export default function ProfilePage({
                 </div>
 
                 {/* Booking Cards Grid / Stack */}
-                <div className="space-y-3.5">
+                <div className="space-y-3.5 w-full">
                   {filteredBookings.map((booking) => (
                     <div
                       key={booking.id}
-                      className="rounded-3xl border border-white/80 bg-white/95 p-4 sm:p-5 shadow-xs backdrop-blur-md hover:border-emerald-200 hover:shadow-md transition-all group"
+                      className="rounded-3xl border border-white/80 bg-white/95 p-3.5 sm:p-5 shadow-xs backdrop-blur-md hover:border-emerald-200 hover:shadow-md transition-all group w-full"
                     >
                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                         {/* Service Thumbnail & Core Details */}
-                        <div className="flex items-center gap-3.5 sm:gap-4 min-w-0">
+                        <div className="flex items-center gap-3 sm:gap-4 min-w-0 w-full sm:w-auto">
                           <img
                             src={booking.image}
                             alt={booking.serviceName}
-                            className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl object-cover border border-slate-200 shrink-0 group-hover:scale-105 transition-transform"
+                            className="h-14 w-14 sm:h-20 sm:w-20 rounded-2xl object-cover border border-slate-200 shrink-0 group-hover:scale-105 transition-transform"
                           />
-                          <div className="min-w-0 space-y-1">
+                          <div className="min-w-0 flex-1 space-y-0.5 sm:space-y-1">
                             <div className="flex items-center gap-2">
                               <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800">
                                 {booking.category}
@@ -1014,20 +1078,20 @@ export default function ProfilePage({
 
                             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 font-medium">
                               <span className="flex items-center gap-1 font-semibold text-slate-700">
-                                <Calendar className="h-3 w-3 text-emerald-700" />
-                                {booking.scheduledDate}
+                                <Calendar className="h-3 w-3 text-emerald-700 shrink-0" />
+                                <span>{booking.scheduledDate}</span>
                               </span>
                               <span className="flex items-center gap-1">
-                                <Clock className="h-3 w-3 text-slate-400" />
-                                {booking.scheduledTime}
+                                <Clock className="h-3 w-3 text-slate-400 shrink-0" />
+                                <span>{booking.scheduledTime}</span>
                               </span>
                             </div>
                           </div>
                         </div>
 
                         {/* Status, Price & Action Buttons */}
-                        <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-2 sm:gap-3 border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-100">
-                          <div className="flex items-center gap-2">
+                        <div className="flex flex-col sm:flex-col items-stretch sm:items-end justify-between w-full sm:w-auto gap-2.5 sm:gap-3 border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-100">
+                          <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
                             <span
                               className={`rounded-full px-2.5 py-0.5 text-[10px] font-extrabold border ${
                                 booking.status === "In Progress"
@@ -1044,13 +1108,13 @@ export default function ProfilePage({
                             </span>
                           </div>
 
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 w-full sm:w-auto">
                             <button
                               type="button"
                               onClick={() =>
                                 setSelectedBookingForDetails(booking)
                               }
-                              className="rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-800 transition-colors"
+                              className="flex-1 sm:flex-initial text-center rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-800 transition-colors cursor-pointer"
                             >
                               View Details
                             </button>
@@ -1071,7 +1135,7 @@ export default function ProfilePage({
                                   onNavigateToService(booking.slug);
                                 }
                               }}
-                              className="rounded-xl bg-slate-950 hover:bg-emerald-800 px-3.5 py-1.5 text-xs font-bold text-white transition-colors shadow-2xs"
+                              className="flex-1 sm:flex-initial text-center rounded-xl bg-slate-950 hover:bg-emerald-800 px-3.5 py-1.5 text-xs font-bold text-white transition-colors shadow-2xs cursor-pointer"
                             >
                               Book Again
                             </button>
@@ -1099,8 +1163,8 @@ export default function ProfilePage({
                 TAB 2: SAVED ADDRESSES
             =============================================================== */}
             {(activeTab === "overview" || activeTab === "addresses") && (
-              <section className="space-y-4 animate-rise-in">
-                <div className="flex items-center justify-between">
+              <section className="space-y-4 animate-rise-in w-full">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
                       Saved Addresses
@@ -1112,7 +1176,7 @@ export default function ProfilePage({
                   <button
                     type="button"
                     onClick={() => setIsAddAddressOpen(true)}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-slate-950 hover:bg-emerald-800 px-3.5 py-2 text-xs font-bold text-white transition-colors shadow-2xs cursor-pointer"
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-950 hover:bg-emerald-800 px-3.5 py-2 text-xs font-bold text-white transition-colors shadow-2xs cursor-pointer self-start sm:self-auto"
                   >
                     <Plus className="h-3.5 w-3.5" />
                     <span>Add New Address</span>
@@ -1189,8 +1253,8 @@ export default function ProfilePage({
                 TAB 3: PAYMENT METHODS
             =============================================================== */}
             {(activeTab === "overview" || activeTab === "payments") && (
-              <section className="space-y-4 animate-rise-in">
-                <div className="flex items-center justify-between">
+              <section className="space-y-4 animate-rise-in w-full">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
                       Payment Methods
@@ -1202,7 +1266,7 @@ export default function ProfilePage({
                   <button
                     type="button"
                     onClick={() => setIsAddPaymentOpen(true)}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-slate-950 hover:bg-emerald-800 px-3.5 py-2 text-xs font-bold text-white transition-colors shadow-2xs cursor-pointer"
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-950 hover:bg-emerald-800 px-3.5 py-2 text-xs font-bold text-white transition-colors shadow-2xs cursor-pointer self-start sm:self-auto"
                   >
                     <Plus className="h-3.5 w-3.5" />
                     <span>Add Payment Method</span>
