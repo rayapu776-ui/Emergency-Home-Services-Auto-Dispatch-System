@@ -89,6 +89,59 @@ export default function ProfilePage({
     setTimeout(() => setToastMessage(""), 3500);
   };
 
+  // Helper to construct cross-platform SMS URL
+  const getSmsUrl = (phone, booking) => {
+    if (!phone) return "#";
+    const cleanNumber = phone.replace(/[^\d+]/g, "");
+    const bookingIdText = booking?.id ? ` (Booking #${booking.id})` : "";
+    const prefilledMessage = `Hi, I'm contacting you regarding my Argent Your service booking${bookingIdText}.`;
+    const encodedMessage = encodeURIComponent(prefilledMessage);
+
+    // iOS uses &body= or ?&body=, Android/others use ?body=
+    const isIOS =
+      typeof navigator !== "undefined" &&
+      /iPad|iPhone|iPod/.test(navigator.userAgent || "");
+    const separator = isIOS ? "&" : "?";
+    return `sms:${cleanNumber}${separator}body=${encodedMessage}`;
+  };
+
+  // Call assigned professional with native trigger and fallback
+  const handleCallTechnician = (e, tech) => {
+    if (!tech || !tech.phone) {
+      e.preventDefault();
+      showToast("Professional contact number is not available.");
+      return;
+    }
+
+    const cleanNumber = tech.phone.replace(/[^\d+]/g, "");
+
+    // Fallback: Copy number to clipboard for devices/browsers without native dialer capability
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(cleanNumber).catch(() => {});
+    }
+
+    showToast(`Connecting call to ${tech.name}... (Dialer opened)`);
+  };
+
+  // SMS assigned professional with native trigger and pre-filled message fallback
+  const handleSmsTechnician = (e, tech, booking) => {
+    if (!tech || !tech.phone) {
+      e.preventDefault();
+      showToast("Professional contact number is not available.");
+      return;
+    }
+
+    const bookingIdText = booking?.id ? ` (Booking #${booking.id})` : "";
+    const prefilledMessage = `Hi, I'm contacting you regarding my Argent Your service booking${bookingIdText}.`;
+
+    // Fallback: Copy pre-filled message to clipboard
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(prefilledMessage).catch(() => {});
+    }
+
+    showToast(`Opening messaging app for ${tech.name}...`);
+  };
+
   useEffect(() => {
     if (user) {
       setProfileForm((prev) => ({
@@ -118,8 +171,7 @@ export default function ProfilePage({
       price: "$35.00",
       totalPaid: "$38.50",
       paymentMethod: "UPI (Google Pay)",
-      address:
-        "Flat 402, Green Glen Heights, Sector 62, Noida, Uttar Pradesh",
+      address: "Flat 402, Green Glen Heights, Sector 62, Noida, Uttar Pradesh",
       technician: {
         name: "Rajesh Kumar",
         rating: "4.9",
@@ -144,8 +196,7 @@ export default function ProfilePage({
       price: "$29.00",
       totalPaid: "$32.50",
       paymentMethod: "Saved Card (•••• 4242)",
-      address:
-        "Flat 402, Green Glen Heights, Sector 62, Noida, Uttar Pradesh",
+      address: "Flat 402, Green Glen Heights, Sector 62, Noida, Uttar Pradesh",
       technician: {
         name: "Amit Sharma",
         rating: "4.8",
@@ -170,8 +221,7 @@ export default function ProfilePage({
       price: "$19.00",
       totalPaid: "$22.50",
       paymentMethod: "Cash on Service",
-      address:
-        "Flat 402, Green Glen Heights, Sector 62, Noida, Uttar Pradesh",
+      address: "Flat 402, Green Glen Heights, Sector 62, Noida, Uttar Pradesh",
       technician: {
         name: "Sunil Verma",
         rating: "5.0",
@@ -196,8 +246,7 @@ export default function ProfilePage({
       price: "$24.00",
       totalPaid: "$27.50",
       paymentMethod: "Saved Card (•••• 8812)",
-      address:
-        "Flat 402, Green Glen Heights, Sector 62, Noida, Uttar Pradesh",
+      address: "Flat 402, Green Glen Heights, Sector 62, Noida, Uttar Pradesh",
       technician: {
         name: "Ravi Shankar",
         rating: "4.9",
@@ -421,9 +470,7 @@ export default function ProfilePage({
 
   // Set Default Address
   const handleSetDefaultAddress = (id) => {
-    setAddresses((prev) =>
-      prev.map((a) => ({ ...a, isDefault: a.id === id })),
-    );
+    setAddresses((prev) => prev.map((a) => ({ ...a, isDefault: a.id === id })));
     showToast("Default delivery address updated.");
   };
 
@@ -552,7 +599,12 @@ export default function ProfilePage({
       icon: Bell,
       badge: notifications.filter((n) => !n.read).length || null,
     },
-    { id: "offers", label: "Offers & Rewards", icon: Sparkles, highlight: true },
+    {
+      id: "offers",
+      label: "Offers & Rewards",
+      icon: Sparkles,
+      highlight: true,
+    },
     { id: "support", label: "Help & Support", icon: HelpCircle },
     { id: "settings", label: "Settings", icon: Settings },
   ];
@@ -787,7 +839,8 @@ export default function ProfilePage({
                 <span>Argent Member Privileges</span>
               </div>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Enjoy zero convenience fees, priority emergency dispatch, and 30-day revisit assurance.
+                Enjoy zero convenience fees, priority emergency dispatch, and
+                30-day revisit assurance.
               </p>
               <div className="pt-1">
                 <button
@@ -901,7 +954,8 @@ export default function ProfilePage({
                       Recent Bookings
                     </h2>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Track active appointments and review completed doorstep services
+                      Track active appointments and review completed doorstep
+                      services
                     </p>
                   </div>
 
@@ -1120,7 +1174,8 @@ export default function ProfilePage({
                           </button>
                         ) : (
                           <span className="text-[11px] font-semibold text-emerald-700 flex items-center gap-1">
-                            <Check className="h-3 w-3" /> Primary Service Address
+                            <Check className="h-3 w-3" /> Primary Service
+                            Address
                           </span>
                         )}
                       </div>
@@ -1386,9 +1441,10 @@ export default function ProfilePage({
                           <button
                             type="button"
                             onClick={() => {
-                              const targetSvc = allServicesCatalog.find(
-                                (s) => s.slug === offer.slug,
-                              ) || allServicesCatalog[0];
+                              const targetSvc =
+                                allServicesCatalog.find(
+                                  (s) => s.slug === offer.slug,
+                                ) || allServicesCatalog[0];
                               if (onBookService) {
                                 onBookService(targetSvc, offer.code);
                               } else if (onNavigateToService) {
@@ -1481,7 +1537,8 @@ export default function ProfilePage({
                     Help & Support
                   </h2>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    We're here to help you 24/7 with any doorstep service inquiry
+                    We're here to help you 24/7 with any doorstep service
+                    inquiry
                   </p>
                 </div>
 
@@ -1509,7 +1566,8 @@ export default function ProfilePage({
                       WhatsApp Quick Assist
                     </h3>
                     <p className="text-xs text-slate-500">
-                      Chat with support agents for instant rescheduling or queries.
+                      Chat with support agents for instant rescheduling or
+                      queries.
                     </p>
                     <p className="text-sm font-mono font-bold text-emerald-800">
                       +91 98765 43210
@@ -1603,14 +1661,18 @@ export default function ProfilePage({
                   </h3>
                   <div className="flex items-center justify-between text-xs">
                     <div>
-                      <p className="font-bold text-slate-900">Account Password</p>
+                      <p className="font-bold text-slate-900">
+                        Account Password
+                      </p>
                       <p className="text-slate-500 mt-0.5">
                         Last changed 3 months ago
                       </p>
                     </div>
                     <button
                       type="button"
-                      onClick={() => showToast("Password reset link sent to email.")}
+                      onClick={() =>
+                        showToast("Password reset link sent to email.")
+                      }
                       className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 font-bold text-slate-800 hover:bg-slate-100"
                     >
                       Update Password
@@ -1648,7 +1710,10 @@ export default function ProfilePage({
               </button>
             </div>
 
-            <form onSubmit={handleSaveProfile} className="mt-5 space-y-4 text-xs">
+            <form
+              onSubmit={handleSaveProfile}
+              className="mt-5 space-y-4 text-xs"
+            >
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
                   Full Name
@@ -1737,10 +1802,11 @@ export default function ProfilePage({
           onClick={() => setSelectedBookingForDetails(null)}
         >
           <div
-            className="w-full max-w-lg rounded-3xl border border-white/80 bg-white p-6 sm:p-7 shadow-2xl max-h-[90vh] overflow-y-auto"
+            className="relative w-full max-w-lg rounded-3xl border border-slate-100 bg-white shadow-2xl max-h-[90vh] flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 sm:px-7 py-4.5 bg-white shrink-0">
               <div>
                 <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800">
                   Booking Receipt
@@ -1752,13 +1818,15 @@ export default function ProfilePage({
               <button
                 type="button"
                 onClick={() => setSelectedBookingForDetails(null)}
-                className="text-slate-400 hover:text-slate-600 p-1"
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 transition-colors"
+                aria-label="Close receipt"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="mt-4 space-y-4 text-xs">
+            {/* Modal Body - Scrollbar completely hidden to eliminate vertical line/strip */}
+            <div className="flex-1 overflow-y-auto px-6 sm:px-7 py-5 space-y-4 text-xs scrollbar-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {/* Service Item Header */}
               <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-100">
                 <img
@@ -1811,36 +1879,79 @@ export default function ProfilePage({
                 </div>
               </div>
 
-              {/* Technician Info Card */}
+              {/* Technician Info Card - Assigned Doorstep Professional with Call & SMS */}
               {selectedBookingForDetails.technician && (
-                <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-3.5 space-y-2">
-                  <p className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-900">
-                    Assigned Doorstep Professional
-                  </p>
+                <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-3.5 sm:p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
+                    <p className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-900">
+                      Assigned Doorstep Professional
+                    </p>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100/80 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                      <ShieldCheck className="h-3 w-3" />
+                      Verified Pro
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-0.5">
+                    <div className="flex items-center gap-3 min-w-0">
                       <img
                         src={selectedBookingForDetails.technician.avatar}
                         alt={selectedBookingForDetails.technician.name}
-                        className="h-10 w-10 rounded-full object-cover border border-white"
+                        className="h-11 w-11 rounded-full object-cover border-2 border-white shadow-sm shrink-0"
                       />
-                      <div>
-                        <p className="font-bold text-slate-900">
+                      <div className="min-w-0">
+                        <p className="font-bold text-slate-900 truncate">
                           {selectedBookingForDetails.technician.name}
                         </p>
-                        <p className="text-[11px] text-slate-500">
-                          ★ {selectedBookingForDetails.technician.rating} (
-                          {selectedBookingForDetails.technician.experience} exp)
+                        <p className="text-[11px] text-slate-500 flex items-center gap-1.5 flex-wrap">
+                          <span className="font-extrabold text-amber-600">
+                            ★ {selectedBookingForDetails.technician.rating}
+                          </span>
+                          <span>·</span>
+                          <span>
+                            {selectedBookingForDetails.technician.experience}{" "}
+                            exp
+                          </span>
                         </p>
                       </div>
                     </div>
-                    <a
-                      href={`tel:${selectedBookingForDetails.technician.phone}`}
-                      className="rounded-xl bg-slate-950 px-3 py-1.5 text-[11px] font-bold text-white hover:bg-emerald-800 transition-colors inline-flex items-center gap-1"
-                    >
-                      <Phone className="h-3 w-3" />
-                      <span>Call</span>
-                    </a>
+
+                    {/* [ 📞 Call ]   [ 💬 SMS ] Buttons */}
+                    <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+                      <a
+                        href={`tel:${selectedBookingForDetails.technician.phone ? selectedBookingForDetails.technician.phone.replace(/[^\d+]/g, "") : ""}`}
+                        onClick={(e) =>
+                          handleCallTechnician(
+                            e,
+                            selectedBookingForDetails.technician,
+                          )
+                        }
+                        className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-950 px-3.5 py-2 text-xs font-bold text-white hover:bg-emerald-800 transition-colors shadow-sm active:scale-95 touch-manipulation min-h-[38px] whitespace-nowrap"
+                        title={`Call ${selectedBookingForDetails.technician.name}`}
+                      >
+                        <Phone className="h-3.5 w-3.5 text-emerald-400" />
+                        <span>Call</span>
+                      </a>
+
+                      <a
+                        href={getSmsUrl(
+                          selectedBookingForDetails.technician.phone,
+                          selectedBookingForDetails,
+                        )}
+                        onClick={(e) =>
+                          handleSmsTechnician(
+                            e,
+                            selectedBookingForDetails.technician,
+                            selectedBookingForDetails,
+                          )
+                        }
+                        className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-300 bg-white px-3.5 py-2 text-xs font-bold text-emerald-900 hover:bg-emerald-50 transition-colors shadow-sm active:scale-95 touch-manipulation min-h-[38px] whitespace-nowrap"
+                        title={`Send SMS to ${selectedBookingForDetails.technician.name}`}
+                      >
+                        <MessageSquare className="h-3.5 w-3.5 text-emerald-700" />
+                        <span>SMS</span>
+                      </a>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1885,7 +1996,7 @@ export default function ProfilePage({
                   onClick={() =>
                     showToast("Receipt downloaded to your device.")
                   }
-                  className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 py-2.5 text-xs font-bold text-slate-800 hover:bg-slate-100"
+                  className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 py-2.5 text-xs font-bold text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
                 >
                   <Download className="h-3.5 w-3.5" />
                   <span>Download Receipt</span>
@@ -1896,7 +2007,7 @@ export default function ProfilePage({
                     setSelectedBookingForDetails(null);
                     setActiveTab("support");
                   }}
-                  className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-bold text-slate-800 hover:bg-slate-100"
+                  className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-bold text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
                 >
                   <span>Need Help?</span>
                 </button>
@@ -1931,7 +2042,10 @@ export default function ProfilePage({
               </button>
             </div>
 
-            <form onSubmit={handleAddAddress} className="mt-4 space-y-3.5 text-xs">
+            <form
+              onSubmit={handleAddAddress}
+              className="mt-4 space-y-3.5 text-xs"
+            >
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
                   Address Type
@@ -2091,7 +2205,10 @@ export default function ProfilePage({
               </button>
             </div>
 
-            <form onSubmit={handleAddPayment} className="mt-4 space-y-3.5 text-xs">
+            <form
+              onSubmit={handleAddPayment}
+              className="mt-4 space-y-3.5 text-xs"
+            >
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
                   Card Number
