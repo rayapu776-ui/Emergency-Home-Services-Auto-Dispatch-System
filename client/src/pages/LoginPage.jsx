@@ -12,10 +12,12 @@ import {
   Fan,
   Flame,
   Hammer,
+  Heart,
   LocateFixed,
   MapPin,
   Menu,
   Paintbrush,
+  Plus,
   Search,
   ShoppingBag,
   Sparkles,
@@ -499,6 +501,216 @@ function DarkImageCards({ onBook }) {
   );
 }
 
+function AllServicesCatalogPage({
+  onHome,
+  onNavigate,
+  onAddToCart,
+  onProfileClick,
+  onCartClick,
+  cartCount = 0,
+  location = "Delhi NCR",
+  onLocationChange,
+  onAuthOpen,
+}) {
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [favoriteSlugs, setFavoriteSlugs] = useState([]);
+
+  const toggleFavorite = (slug) => {
+    setFavoriteSlugs((prev) =>
+      prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug],
+    );
+  };
+
+  const categories = [
+    "All",
+    "Men's Salon & Grooming",
+    "Women's Salon & Spa",
+    "Home Cleaning",
+    "AC & Appliance Repair",
+    "Electrician",
+    "Plumbing",
+    "Carpenter",
+    "Smart Home Products",
+    "Home Painting",
+  ];
+
+  const filteredServices = allServicesCatalog.filter((item) => {
+    const matchesCategory =
+      selectedCategory === "All" || item.category === selectedCategory;
+    const matchesSearch =
+      !searchQuery ||
+      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.category.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
+  return (
+    <div className="min-h-screen bg-[#f6f7f3] text-slate-950 selection:bg-emerald-200">
+      <ArgentNavbar
+        onLogoClick={onHome}
+        onAuthOpen={onAuthOpen}
+        onProfileClick={onProfileClick}
+        onCartClick={onCartClick}
+        cartCount={cartCount}
+        location={location}
+        onLocationChange={onLocationChange}
+        services={allServicesCatalog}
+        onSelectService={(item) => onNavigate(`/services/${item.slug}`)}
+      />
+      <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-20 pt-32 sm:pt-36 space-y-8">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <button
+              onClick={onHome}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 hover:text-emerald-950 mb-3 cursor-pointer"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              <span>Back to Home</span>
+            </button>
+            <p className="eyebrow">Complete Doorstep Catalog</p>
+            <h1 className="display-font mt-1 text-3xl sm:text-4xl lg:text-5xl font-black text-slate-950 tracking-tight">
+              All Argent Your Services
+            </h1>
+            <p className="mt-2 text-xs sm:text-sm text-slate-600 max-w-xl">
+              Certified doorstep experts for home repair, appliance service, deep cleaning, and personal grooming.
+            </p>
+          </div>
+
+          {/* Search Box */}
+          <div className="relative w-full md:w-80">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search 26+ services..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-4 py-2.5 text-xs font-semibold text-slate-900 focus:border-emerald-600 outline-none shadow-2xs"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Category Filter Chips */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-4 px-4 sm:mx-0 sm:px-0">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => setSelectedCategory(cat)}
+              className={`shrink-0 rounded-2xl px-3.5 py-2 text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                selectedCategory === cat
+                  ? "bg-slate-950 text-white shadow-xs scale-102"
+                  : "bg-white text-slate-700 border border-slate-200 hover:border-slate-300"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
+        {/* Responsive Grid: Desktop 3-4 cards, Tablet 2-3 cards, Mobile 1-2 cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          {filteredServices.map((item) => {
+            const isFav = favoriteSlugs.includes(item.slug);
+            return (
+              <div
+                key={item.slug}
+                className="group flex flex-col justify-between overflow-hidden rounded-3xl border border-white/80 bg-white/90 shadow-2xs hover:shadow-md hover:border-emerald-700/30 transition-all"
+              >
+                <div>
+                  <div
+                    onClick={() => onNavigate(`/services/${item.slug}`)}
+                    className="relative aspect-[16/10] bg-slate-100 overflow-hidden cursor-pointer"
+                  >
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                    <span className="absolute top-3 left-3 rounded-md bg-slate-950/80 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-xs">
+                      {item.category}
+                    </span>
+                    <span className="absolute bottom-3 left-3 rounded-md bg-white/90 px-2 py-0.5 text-[10px] font-black text-slate-800 shadow-2xs flex items-center gap-1">
+                      <span>📷 4 Photos</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFavorite(item.slug);
+                      }}
+                      className="absolute top-3 right-3 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-rose-600 shadow-2xs hover:scale-110 transition-transform cursor-pointer"
+                      title={isFav ? "Saved" : "Save service"}
+                    >
+                      <Heart
+                        className={`h-3.5 w-3.5 ${isFav ? "fill-rose-600 text-rose-600" : "text-slate-400"}`}
+                      />
+                    </button>
+                  </div>
+
+                  <div className="p-4 space-y-1.5">
+                    <h3
+                      onClick={() => onNavigate(`/services/${item.slug}`)}
+                      className="cursor-pointer font-bold text-sm text-slate-900 group-hover:text-emerald-900 transition-colors line-clamp-1"
+                    >
+                      {item.name}
+                    </h3>
+                    <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
+                      {item.description}
+                    </p>
+                    <div className="flex items-center justify-between text-xs pt-1">
+                      <div className="flex items-center gap-1 font-bold text-slate-700">
+                        <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                        <span>{item.rating || "4.9"}</span>
+                        <span className="text-[10px] text-slate-400 font-normal">
+                          ({item.reviews || "2.5k"})
+                        </span>
+                      </div>
+                      <span className="text-xs font-black text-emerald-800">
+                        {item.price}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 pt-0 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onNavigate(`/services/${item.slug}`)}
+                    className="flex-1 rounded-xl bg-slate-950 py-2.5 text-xs font-bold text-white hover:bg-emerald-800 transition-colors text-center cursor-pointer shadow-2xs"
+                  >
+                    View & Book
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onAddToCart(item)}
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-slate-700 hover:bg-slate-100 hover:text-emerald-800 transition-colors cursor-pointer"
+                    title="Add to cart"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </main>
+      <Footer onNavigate={(path) => (path === "/" ? onHome() : onNavigate(path))} />
+    </div>
+  );
+}
+
 function DedicatedPage({
   route,
   onHome,
@@ -518,7 +730,8 @@ function DedicatedPage({
   const slug = route.split("/").pop();
   const category = categoryMap[slug];
   const isCategory = route.startsWith("/category/") || Boolean(category);
-  const service = allServices.find((item) => item.slug === slug) || {
+  const service = allServicesCatalog.find((item) => item.slug === slug) ||
+    allServices.find((item) => item.slug === slug) || {
     name: slug.replace(/-/g, " "),
     image: images.home,
     rating: "4.9",
@@ -527,7 +740,7 @@ function DedicatedPage({
     provider: "Argent Your professionals",
   };
   const items = isCategory
-    ? categoryServices[slug] || allServices.slice(0, 5)
+    ? categoryServices[slug] || allServicesCatalog.slice(0, 5)
     : [service];
   const title = isCategory ? category?.name || service.name : service.name;
   const description = isCategory
@@ -544,7 +757,7 @@ function DedicatedPage({
         cartCount={cartCount}
         location={location}
         onLocationChange={setLocation}
-        services={allServices}
+        services={allServicesCatalog}
         onSelectService={(item) => onNavigate(`/services/${item.slug}`)}
       />
       <main className="mx-auto max-w-7xl px-5 pb-20 pt-36 lg:px-8">
@@ -776,6 +989,8 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
         serviceId: item?.slug || item?.id || item?.name,
         couponCode: extra.couponCode || appliedCoupon || "",
         location: extra.location || location,
+        scheduledDate: extra.scheduledDate || item?.selectedDate || "",
+        scheduledTime: extra.scheduledTime || item?.selectedTime || "",
         action: "checkout",
         timestamp: Date.now(),
       };
@@ -783,7 +998,11 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
       setAuthOpen(true);
       return false;
     }
-    setCheckoutService(item);
+    setCheckoutService({
+      ...item,
+      selectedDate: extra.scheduledDate || item?.selectedDate,
+      selectedTime: extra.scheduledTime || item?.selectedTime,
+    });
     if (extra.couponCode) setAppliedCoupon(extra.couponCode);
     navigate("/checkout");
     return true;
@@ -801,6 +1020,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
 
   const isInfoRoute =
     route !== "/" &&
+    route !== "/services" &&
     !route.startsWith("/services/") &&
     !route.startsWith("/category/") &&
     route !== "/profile" &&
@@ -906,7 +1126,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
         <ServiceDetailPage
           service={service}
           onHome={goHome}
-          onBookNow={(item) => handleProtectedBooking(item)}
+          onBookNow={(item, extra) => handleProtectedBooking(item, extra)}
           onAddToCart={(item) => {
             setCartItems((prev) => {
               const exists = prev.find((it) => it.slug === item.slug);
@@ -962,6 +1182,69 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
       </div>
     );
   }
+
+  if (route === "/services")
+    return (
+      <div className="min-h-screen bg-[#f6f7f3] text-slate-950 selection:bg-emerald-200">
+        <AllServicesCatalogPage
+          onHome={goHome}
+          onNavigate={navigate}
+          onAddToCart={(item) => {
+            setCartItems((prev) => {
+              const exists = prev.find((it) => it.slug === item.slug);
+              if (exists) {
+                return prev.map((it) =>
+                  it.slug === item.slug
+                    ? { ...it, quantity: (it.quantity || 1) + 1 }
+                    : it,
+                );
+              }
+              return [...prev, { ...item, quantity: 1 }];
+            });
+            setCartOpen(true);
+          }}
+          onProfileClick={() => navigate("/profile")}
+          onCartClick={() => setCartOpen(true)}
+          cartCount={cartItems.length}
+          location={location}
+          onLocationChange={setLocation}
+          onAuthOpen={() => setAuthOpen(true)}
+        />
+        <CartDrawer
+          isOpen={cartOpen}
+          onClose={() => setCartOpen(false)}
+          items={cartItems}
+          onUpdateQuantity={(key, qty) => {
+            setCartItems((prev) =>
+              prev.map((it) =>
+                it.slug === key || it.name === key
+                  ? { ...it, quantity: qty }
+                  : it,
+              ),
+            );
+          }}
+          onRemoveItem={(key) => {
+            setCartItems((prev) =>
+              prev.filter((it) => it.slug !== key && it.name !== key),
+            );
+          }}
+          onCheckout={() => {
+            if (cartItems.length > 0) {
+              setCartOpen(false);
+              handleProtectedBooking(cartItems[0]);
+            }
+          }}
+        />
+        {authOpen && (
+          <AuthPanel
+            onClose={() => setAuthOpen(false)}
+            onNavigate={navigate}
+            onSuccess={handleAuthSuccess}
+            onCancel={handleAuthCancel}
+          />
+        )}
+      </div>
+    );
 
   if (route === "/profile")
     return (

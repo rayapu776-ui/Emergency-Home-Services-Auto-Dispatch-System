@@ -45,7 +45,6 @@ const infoRoutePrefixes = [
   "/responsible-service",
   "/social/",
   "/app/",
-  "/services",
 ];
 
 function MainApp() {

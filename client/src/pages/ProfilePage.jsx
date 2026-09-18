@@ -1,17 +1,23 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
+  AlertCircle,
   ArrowLeft,
+  Award,
+  Bell,
   Calendar,
   Camera,
   Check,
   CheckCircle2,
+  ChevronDown,
   ChevronRight,
+  ChevronUp,
   Clock,
   Copy,
   CreditCard,
   Download,
   Edit3,
   ExternalLink,
+  Eye,
   Heart,
   HelpCircle,
   History,
@@ -20,27 +26,31 @@ import {
   LogOut,
   Mail,
   MapPin,
+  MessageCircle,
   MessageSquare,
+  Moon,
   PackageCheck,
   Phone,
   Plus,
+  RefreshCw,
   Save,
   Search,
+  Send,
   Settings,
   Share2,
   ShieldCheck,
   Sparkles,
   Star,
+  Sun,
   Tag,
   Trash2,
   User,
   UserCheck,
   Wrench,
   X,
-  Bell,
+  XCircle,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import api from "../services/api";
 import { allServicesCatalog } from "../data/servicesData";
 import { promotionsData } from "../data/promotionsData";
 
@@ -54,7 +64,7 @@ export default function ProfilePage({
   const { user, updateUser, logout } = useAuth();
 
   // Active Menu Navigation Tab
-  // 'overview' | 'bookings' | 'addresses' | 'payments' | 'saved' | 'notifications' | 'offers' | 'support' | 'settings'
+  // 'overview' | 'bookings' | 'addresses' | 'payments' | 'saved' | 'notifications' | 'offers' | 'support' | 'settings' | 'logout'
   const [activeTab, setActiveTab] = useState("overview");
 
   // Mobile horizontal scroll navigation references
@@ -62,6 +72,10 @@ export default function ProfilePage({
   const mobileTabRefs = useRef({});
 
   const handleTabClick = (tabId) => {
+    if (tabId === "logout") {
+      setIsLogoutModalOpen(true);
+      return;
+    }
     setActiveTab(tabId);
     if (mobileTabRefs.current[tabId]) {
       mobileTabRefs.current[tabId].scrollIntoView({
@@ -83,16 +97,22 @@ export default function ProfilePage({
     }
   }, [activeTab]);
 
-  // Booking status filter
-  const [bookingFilter, setBookingFilter] = useState("all");
+  // Booking status filter in My Bookings tab: 'all' | 'upcoming' | 'active' | 'completed' | 'cancelled'
+  const [bookingFilter, setBookingFilter] = useState("upcoming");
 
   // Modals state
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
-  const [selectedBookingForDetails, setSelectedBookingForDetails] =
-    useState(null);
+  const [selectedBookingForDetails, setSelectedBookingForDetails] = useState(null);
+  const [rescheduleBookingTarget, setRescheduleBookingTarget] = useState(null);
+  const [cancelBookingTarget, setCancelBookingTarget] = useState(null);
   const [isAddAddressOpen, setIsAddAddressOpen] = useState(false);
+  const [editAddressTarget, setEditAddressTarget] = useState(null);
   const [isAddPaymentOpen, setIsAddPaymentOpen] = useState(false);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
+  const [isLiveChatOpen, setIsLiveChatOpen] = useState(false);
+  const [isRaiseTicketOpen, setIsRaiseTicketOpen] = useState(false);
+  const [isDeleteAccountOpen, setIsDeleteAccountOpen] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   // Profile Form state
   const [profileForm, setProfileForm] = useState({
@@ -115,59 +135,6 @@ export default function ProfilePage({
     setTimeout(() => setToastMessage(""), 3500);
   };
 
-  // Helper to construct cross-platform SMS URL
-  const getSmsUrl = (phone, booking) => {
-    if (!phone) return "#";
-    const cleanNumber = phone.replace(/[^\d+]/g, "");
-    const bookingIdText = booking?.id ? ` (Booking #${booking.id})` : "";
-    const prefilledMessage = `Hi, I'm contacting you regarding my Argent Your service booking${bookingIdText}.`;
-    const encodedMessage = encodeURIComponent(prefilledMessage);
-
-    // iOS uses &body= or ?&body=, Android/others use ?body=
-    const isIOS =
-      typeof navigator !== "undefined" &&
-      /iPad|iPhone|iPod/.test(navigator.userAgent || "");
-    const separator = isIOS ? "&" : "?";
-    return `sms:${cleanNumber}${separator}body=${encodedMessage}`;
-  };
-
-  // Call assigned professional with native trigger and fallback
-  const handleCallTechnician = (e, tech) => {
-    if (!tech || !tech.phone) {
-      e.preventDefault();
-      showToast("Professional contact number is not available.");
-      return;
-    }
-
-    const cleanNumber = tech.phone.replace(/[^\d+]/g, "");
-
-    // Fallback: Copy number to clipboard for devices/browsers without native dialer capability
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(cleanNumber).catch(() => {});
-    }
-
-    showToast(`Connecting call to ${tech.name}... (Dialer opened)`);
-  };
-
-  // SMS assigned professional with native trigger and pre-filled message fallback
-  const handleSmsTechnician = (e, tech, booking) => {
-    if (!tech || !tech.phone) {
-      e.preventDefault();
-      showToast("Professional contact number is not available.");
-      return;
-    }
-
-    const bookingIdText = booking?.id ? ` (Booking #${booking.id})` : "";
-    const prefilledMessage = `Hi, I'm contacting you regarding my Argent Your service booking${bookingIdText}.`;
-
-    // Fallback: Copy pre-filled message to clipboard
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(prefilledMessage).catch(() => {});
-    }
-
-    showToast(`Opening messaging app for ${tech.name}...`);
-  };
-
   useEffect(() => {
     if (user) {
       setProfileForm((prev) => ({
@@ -181,17 +148,17 @@ export default function ProfilePage({
     }
   }, [user]);
 
-  // Demo Bookings Data
+  // Demo Bookings Data with all 4 states
   const [bookings, setBookings] = useState([
     {
       id: "AY-9402",
-      serviceName: "AC Foam-Jet Service",
+      serviceName: "AC Foam-Jet Deep Service",
       category: "AC & Appliance Repair",
       image:
-        "https://images.unsplash.com/photo-1631545806609-1e3b0a4d7a87?auto=format&fit=crop&w=400&q=85",
+        "https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=400&q=85",
       slug: "ac-foam-jet-service",
-      scheduledDate: "Today, Sep 18",
-      scheduledTime: "3:00 PM - 4:30 PM",
+      scheduledDate: "Today, 19 Sep",
+      scheduledTime: "3:30 PM - 5:00 PM",
       status: "In Progress",
       statusStep: 3, // 1: Requested, 2: Assigned, 3: In Progress, 4: Completed
       price: "$35.00",
@@ -210,12 +177,12 @@ export default function ProfilePage({
     },
     {
       id: "AY-8911",
-      serviceName: "Home Refresh Clean",
+      serviceName: "Home Refresh Deep Cleaning",
       category: "Home Cleaning",
       image:
         "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=400&q=85",
       slug: "home-refresh-clean",
-      scheduledDate: "Tomorrow, Sep 19",
+      scheduledDate: "Tomorrow, 20 Sep",
       scheduledTime: "10:00 AM - 11:30 AM",
       status: "Confirmed",
       statusStep: 2,
@@ -235,10 +202,10 @@ export default function ProfilePage({
     },
     {
       id: "AY-7810",
-      serviceName: "Electrician Visit & Repairs",
-      category: "Home Repair",
+      serviceName: "Electrician Expert Visit",
+      category: "Electrician",
       image:
-        "https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=400&q=85",
+        "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=400&q=85",
       slug: "electrician-visit",
       scheduledDate: "14 Sep 2026",
       scheduledTime: "1:00 PM - 2:00 PM",
@@ -260,8 +227,8 @@ export default function ProfilePage({
     },
     {
       id: "AY-6932",
-      serviceName: "Water Purifier Service",
-      category: "Appliance Repair",
+      serviceName: "Water Purifier (RO/UV) Service",
+      category: "AC & Appliance Repair",
       image:
         "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=400&q=85",
       slug: "water-purifier-service",
@@ -282,6 +249,24 @@ export default function ProfilePage({
         avatar:
           "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=300&q=80",
       },
+    },
+    {
+      id: "AY-5521",
+      serviceName: "Men's Haircut & Styling",
+      category: "Men's Salon & Grooming",
+      image:
+        "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=400&q=85",
+      slug: "mens-haircut",
+      scheduledDate: "28 Aug 2026",
+      scheduledTime: "5:00 PM - 6:00 PM",
+      status: "Cancelled",
+      cancellationReason: "Change of plans / rescheduled to later date",
+      statusStep: 1,
+      price: "$20.00",
+      totalPaid: "$0.00 (Refunded)",
+      paymentMethod: "UPI (PhonePe)",
+      address: "Flat 402, Green Glen Heights, Sector 62, Noida, Uttar Pradesh",
+      technician: null,
     },
   ]);
 
@@ -359,31 +344,31 @@ export default function ProfilePage({
   // Saved / Wishlisted Services
   const [savedServicesList, setSavedServicesList] = useState([
     {
-      name: "At-Home Salon Glow",
+      name: "At-Home Salon Glow Facial",
       category: "Women's Salon & Spa",
-      price: "From $29",
+      price: "From $32",
       rating: "4.9",
-      reviews: "3.4k",
+      reviews: "4.8k",
       slug: "at-home-salon-glow",
       image:
-        "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=500&q=85",
+        "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=500&q=85",
     },
     {
-      name: "AC Foam-Jet Service",
+      name: "AC Foam-Jet Deep Service",
       category: "AC & Appliance Repair",
       price: "From $35",
-      rating: "4.8",
-      reviews: "1.9k",
+      rating: "4.9",
+      reviews: "8.1k",
       slug: "ac-foam-jet-service",
       image:
-        "https://images.unsplash.com/photo-1631545806609-1e3b0a4d7a87?auto=format&fit=crop&w=500&q=85",
+        "https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=500&q=85",
     },
     {
-      name: "Smart Home Setup",
+      name: "Smart Home Setup & Automation",
       category: "Smart Home Products",
       price: "From $39",
       rating: "4.9",
-      reviews: "1.2k",
+      reviews: "1.8k",
       slug: "smart-home-setup",
       image:
         "https://images.unsplash.com/photo-1558008258-3256797b43f3?auto=format&fit=crop&w=500&q=85",
@@ -396,7 +381,7 @@ export default function ProfilePage({
       id: "notif-1",
       title: "Technician En Route",
       message:
-        "Rajesh Kumar has departed and is scheduled to reach your location in 15 mins for AC Foam-Jet Service.",
+        "Rajesh Kumar has departed and is scheduled to reach your location in 15 mins for AC Foam-Jet Deep Service.",
       time: "10 minutes ago",
       read: false,
       type: "service",
@@ -405,7 +390,7 @@ export default function ProfilePage({
       id: "notif-2",
       title: "Booking Confirmed",
       message:
-        "Your booking for Home Refresh Clean (#AY-8911) is confirmed for Tomorrow, 10:00 AM.",
+        "Your booking for Home Refresh Deep Cleaning (#AY-8911) is confirmed for Tomorrow, 10:00 AM.",
       time: "2 hours ago",
       read: true,
       type: "booking",
@@ -414,7 +399,7 @@ export default function ProfilePage({
       id: "notif-3",
       title: "Special Member Discount Unlocked",
       message:
-        "Use coupon code CLEAN20 to get 20% off on your next deep home cleaning appointment.",
+        "Use coupon code ARGENT20 to get 20% off on your next doorstep maintenance appointment.",
       time: "Yesterday",
       read: true,
       type: "promo",
@@ -423,12 +408,47 @@ export default function ProfilePage({
       id: "notif-4",
       title: "Service Completed",
       message:
-        "Electrician Visit (#AY-7810) was successfully completed. Please take a moment to rate Sunil.",
+        "Electrician Expert Visit (#AY-7810) was successfully completed. Please take a moment to rate Sunil.",
       time: "4 days ago",
       read: true,
       type: "service",
     },
   ]);
+
+  // Support Tickets
+  const [supportTickets, setSupportTickets] = useState([
+    {
+      id: "TKT-8491",
+      category: "AC Cooling Inquiry",
+      subject: "Post-service cooling follow-up question",
+      status: "Under Review",
+      created: "Yesterday",
+      priority: "Normal",
+    },
+  ]);
+
+  // Live Chat messages state
+  const [chatMessages, setChatMessages] = useState([
+    {
+      sender: "agent",
+      text: "Hello! Welcome to Argent Your Doorstep Support. How can we assist your home service today?",
+      time: "Just now",
+    },
+  ]);
+  const [inputChatMessage, setInputChatMessage] = useState("");
+  const [isAgentTyping, setIsAgentTyping] = useState(false);
+
+  // Settings State
+  const [settingsState, setSettingsState] = useState({
+    smsUpdates: true,
+    whatsappAlerts: true,
+    promoEmails: false,
+    darkMode: false,
+    language: "English",
+  });
+
+  // Location detection spinner state
+  const [isLocating, setIsLocating] = useState(false);
 
   // Form State for Add Address Modal
   const [newAddressForm, setNewAddressForm] = useState({
@@ -444,14 +464,30 @@ export default function ProfilePage({
   });
 
   // Form State for Add Payment Modal
+  const [paymentTab, setPaymentTab] = useState("card"); // 'card' | 'upi' | 'netbanking'
   const [newPaymentForm, setNewPaymentForm] = useState({
     cardNumber: "",
     cardholder: profileForm.name,
     expiry: "",
     cvv: "",
     brand: "Visa",
+    upiId: "",
+    bankName: "HDFC Bank",
     isDefault: false,
   });
+
+  // Reschedule Form state
+  const [rescheduleDate, setRescheduleDate] = useState("Tomorrow, 20 Sep");
+  const [rescheduleTime, setRescheduleTime] = useState("12:00 PM - 01:30 PM");
+
+  // Cancel Form state
+  const [cancelReason, setCancelReason] = useState("Change of plans");
+  const [cancelNotes, setCancelNotes] = useState("");
+
+  // Raise Ticket Form state
+  const [ticketCategory, setTicketCategory] = useState("Service Quality");
+  const [ticketSubject, setTicketSubject] = useState("");
+  const [ticketDesc, setTicketDesc] = useState("");
 
   // Save Profile Handler
   const handleSaveProfile = (e) => {
@@ -461,10 +497,94 @@ export default function ProfilePage({
     showToast("Profile information updated successfully!");
   };
 
+  // Real GPS Geolocation for Address
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      showToast("Geolocation is not supported by your browser.");
+      return;
+    }
+
+    setIsLocating(true);
+    showToast("Detecting your GPS location...");
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
+            {
+              headers: {
+                "Accept-Language": "en",
+              },
+            },
+          );
+
+          if (!res.ok) throw new Error("Reverse geocoding failed");
+
+          const data = await res.json();
+          const addr = data.address || {};
+
+          const road =
+            addr.road ||
+            addr.street ||
+            addr.neighbourhood ||
+            addr.suburb ||
+            "";
+          const houseNumber = addr.house_number || "";
+          const line1 = houseNumber
+            ? `${houseNumber}, ${road}`
+            : road || "Detected Location";
+          const line2 =
+            addr.suburb ||
+            addr.neighbourhood ||
+            addr.city_district ||
+            "Sector 62";
+          const city =
+            addr.city || addr.town || addr.county || "Noida";
+          const state = addr.state || "Uttar Pradesh";
+          const postalCode = addr.postcode || "201304";
+
+          setNewAddressForm((prev) => ({
+            ...prev,
+            line1: line1 || prev.line1,
+            line2: line2 || prev.line2,
+            city: city || prev.city,
+            state: state || prev.state,
+            postalCode: postalCode || prev.postalCode,
+          }));
+
+          showToast("Address populated from your live GPS location!");
+        } catch (err) {
+          console.error("Geocoding lookup error:", err);
+          showToast("GPS detected! Please enter street name.");
+        } finally {
+          setIsLocating(false);
+        }
+      },
+      (error) => {
+        setIsLocating(false);
+        if (error.code === error.PERMISSION_DENIED) {
+          showToast(
+            "Location permission was denied. Please enter address manually.",
+          );
+        } else {
+          showToast(
+            "Unable to get GPS fix. Please enter address details manually.",
+          );
+        }
+      },
+      { timeout: 10000, enableHighAccuracy: true },
+    );
+  };
+
   // Add Address Handler
   const handleAddAddress = (e) => {
     e.preventDefault();
-    if (!newAddressForm.line1 || !newAddressForm.postalCode) return;
+    if (!newAddressForm.line1 || !newAddressForm.postalCode) {
+      showToast("Please fill in the required address fields.");
+      return;
+    }
 
     const newAddr = {
       id: `addr-${Date.now()}`,
@@ -491,13 +611,29 @@ export default function ProfilePage({
       postalCode: "",
       isDefault: false,
     });
-    showToast("New service address added!");
+    showToast("New service address added successfully!");
+  };
+
+  // Update Address Handler
+  const handleUpdateAddress = (e) => {
+    e.preventDefault();
+    if (!editAddressTarget) return;
+
+    setAddresses((prev) =>
+      prev.map((a) =>
+        a.id === editAddressTarget.id ? { ...editAddressTarget } : a,
+      ),
+    );
+    setEditAddressTarget(null);
+    showToast("Address updated successfully.");
   };
 
   // Set Default Address
   const handleSetDefaultAddress = (id) => {
-    setAddresses((prev) => prev.map((a) => ({ ...a, isDefault: a.id === id })));
-    showToast("Default delivery address updated.");
+    setAddresses((prev) =>
+      prev.map((a) => ({ ...a, isDefault: a.id === id })),
+    );
+    showToast("Default service address updated.");
   };
 
   // Delete Address
@@ -509,26 +645,57 @@ export default function ProfilePage({
   // Add Payment Method Handler
   const handleAddPayment = (e) => {
     e.preventDefault();
-    const cleanNum = newPaymentForm.cardNumber.replace(/\s+/g, "");
-    if (cleanNum.length < 12) return;
 
-    const last4 = cleanNum.slice(-4);
-    const newCard = {
-      id: `card-${Date.now()}`,
-      brand: newPaymentForm.brand,
-      maskedNumber: `•••• •••• •••• ${last4}`,
-      cardholder: newPaymentForm.cardholder || profileForm.name,
-      expiry: newPaymentForm.expiry || "12/29",
-      isDefault: newPaymentForm.isDefault,
-      type: "Credit / Debit Card",
-    };
+    let newPaymentItem = null;
+
+    if (paymentTab === "card") {
+      const cleanNum = newPaymentForm.cardNumber.replace(/\s+/g, "");
+      if (cleanNum.length < 12) {
+        showToast("Please enter a valid 16-digit card number.");
+        return;
+      }
+      const last4 = cleanNum.slice(-4);
+      newPaymentItem = {
+        id: `card-${Date.now()}`,
+        brand: newPaymentForm.brand || "Visa",
+        maskedNumber: `•••• •••• •••• ${last4}`,
+        cardholder: newPaymentForm.cardholder || profileForm.name,
+        expiry: newPaymentForm.expiry || "12/29",
+        isDefault: newPaymentForm.isDefault,
+        type: "Credit / Debit Card",
+      };
+    } else if (paymentTab === "upi") {
+      if (!newPaymentForm.upiId || !newPaymentForm.upiId.includes("@")) {
+        showToast("Please enter a valid UPI ID (e.g. name@okaxis).");
+        return;
+      }
+      newPaymentItem = {
+        id: `upi-${Date.now()}`,
+        brand: "UPI",
+        maskedNumber: newPaymentForm.upiId,
+        cardholder: profileForm.name,
+        expiry: "N/A",
+        isDefault: newPaymentForm.isDefault,
+        type: "UPI ID",
+      };
+    } else {
+      newPaymentItem = {
+        id: `nb-${Date.now()}`,
+        brand: "Net Banking",
+        maskedNumber: newPaymentForm.bankName,
+        cardholder: profileForm.name,
+        expiry: "Active",
+        isDefault: newPaymentForm.isDefault,
+        type: "Net Banking",
+      };
+    }
 
     if (newPaymentForm.isDefault) {
       setPaymentMethods((prev) =>
-        prev.map((p) => ({ ...p, isDefault: false })).concat(newCard),
+        prev.map((p) => ({ ...p, isDefault: false })).concat(newPaymentItem),
       );
     } else {
-      setPaymentMethods((prev) => [...prev, newCard]);
+      setPaymentMethods((prev) => [...prev, newPaymentItem]);
     }
 
     setIsAddPaymentOpen(false);
@@ -538,9 +705,11 @@ export default function ProfilePage({
       expiry: "",
       cvv: "",
       brand: "Visa",
+      upiId: "",
+      bankName: "HDFC Bank",
       isDefault: false,
     });
-    showToast("Payment method added securely.");
+    showToast("Payment method securely saved.");
   };
 
   // Set Default Payment
@@ -557,9 +726,121 @@ export default function ProfilePage({
     showToast("Payment method removed.");
   };
 
+  // Reschedule Booking Handler
+  const handleConfirmReschedule = () => {
+    if (!rescheduleBookingTarget) return;
+
+    setBookings((prev) =>
+      prev.map((b) =>
+        b.id === rescheduleBookingTarget.id
+          ? {
+              ...b,
+              scheduledDate: rescheduleDate,
+              scheduledTime: rescheduleTime,
+              status: "Confirmed",
+            }
+          : b,
+      ),
+    );
+
+    showToast(
+      `Booking #${rescheduleBookingTarget.id} rescheduled to ${rescheduleDate} (${rescheduleTime})!`,
+    );
+    setRescheduleBookingTarget(null);
+  };
+
+  // Cancel Booking Handler
+  const handleConfirmCancellation = () => {
+    if (!cancelBookingTarget) return;
+
+    setBookings((prev) =>
+      prev.map((b) =>
+        b.id === cancelBookingTarget.id
+          ? {
+              ...b,
+              status: "Cancelled",
+              cancellationReason: cancelReason,
+              statusStep: 1,
+            }
+          : b,
+      ),
+    );
+
+    showToast(
+      `Booking #${cancelBookingTarget.id} has been cancelled. Refund initiated if applicable.`,
+    );
+    setCancelBookingTarget(null);
+  };
+
+  // Live Chat Send Message Handler
+  const handleSendChatMessage = (e) => {
+    e.preventDefault();
+    if (!inputChatMessage.trim()) return;
+
+    const userText = inputChatMessage.trim();
+    setChatMessages((prev) => [
+      ...prev,
+      { sender: "user", text: userText, time: "Just now" },
+    ]);
+    setInputChatMessage("");
+    setIsAgentTyping(true);
+
+    setTimeout(() => {
+      let reply =
+        "Thank you for contacting Argent Your. Our support team is looking into this and a representative will follow up shortly.";
+      const lower = userText.toLowerCase();
+
+      if (lower.includes("technician") || lower.includes("arriving") || lower.includes("reach")) {
+        reply =
+          "Your assigned technician is tracked via live GPS and is on schedule. You can also tap the 'Call' or 'SMS' button directly on your booking card.";
+      } else if (lower.includes("cancel") || lower.includes("refund")) {
+        reply =
+          "You can cancel any booking up to 2 hours before the slot with zero fee from 'My Bookings'. Refunds are credited back within 2-4 business hours.";
+      } else if (lower.includes("invoice") || lower.includes("receipt") || lower.includes("bill")) {
+        reply =
+          "Your official GST tax invoice is generated upon service completion. You can view and download it anytime from the Booking Receipt.";
+      } else if (lower.includes("discount") || lower.includes("coupon") || lower.includes("offer")) {
+        reply =
+          "You have an exclusive 20% discount coupon 'ARGENT20' active! Apply it during checkout to save instantly.";
+      }
+
+      setChatMessages((prev) => [
+        ...prev,
+        { sender: "agent", text: reply, time: "Just now" },
+      ]);
+      setIsAgentTyping(false);
+    }, 700);
+  };
+
+  // Submit Support Ticket Handler
+  const handleRaiseTicket = (e) => {
+    e.preventDefault();
+    if (!ticketSubject || !ticketDesc) {
+      showToast("Please provide subject and description.");
+      return;
+    }
+
+    const newTicket = {
+      id: `TKT-${Math.floor(1000 + Math.random() * 9000)}`,
+      category: ticketCategory,
+      subject: ticketSubject,
+      status: "Under Review",
+      created: "Today",
+      priority: "Normal",
+    };
+
+    setSupportTickets((prev) => [newTicket, ...prev]);
+    setIsRaiseTicketOpen(false);
+    setTicketSubject("");
+    setTicketDesc("");
+    showToast(`Support Ticket #${newTicket.id} registered! We'll reply in 2 hours.`);
+  };
+
   // Copy Coupon Code Handler
   const handleCopyCoupon = (code) => {
-    navigator.clipboard.writeText(code);
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(code);
+    }
     setCopiedCoupon(code);
     showToast(`Coupon code ${code} copied to clipboard!`);
     setTimeout(() => setCopiedCoupon(""), 2500);
@@ -568,1103 +849,1460 @@ export default function ProfilePage({
   // Remove Saved Service
   const handleRemoveSavedService = (slug) => {
     setSavedServicesList((prev) => prev.filter((s) => s.slug !== slug));
-    showToast("Service removed from saved list.");
+    showToast("Service removed from saved bookmarks.");
+  };
+
+  // Mark all notifications as read
+  const handleMarkAllNotificationsRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    showToast("All notifications marked as read.");
+  };
+
+  // Clear all notifications
+  const handleClearNotifications = () => {
+    setNotifications([]);
+    showToast("Notifications cleared.");
+  };
+
+  // Delete individual notification
+  const handleDeleteNotification = (id) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
   };
 
   // Handle Logout
   const handleLogout = () => {
+    setIsLogoutModalOpen(false);
     logout();
     onHome?.();
   };
 
-  // Filtered Bookings
+  // Filtered Bookings for My Bookings tab
   const filteredBookings = bookings.filter((b) => {
     if (bookingFilter === "upcoming")
-      return b.status === "In Progress" || b.status === "Confirmed";
+      return b.status === "Confirmed" || b.status === "Scheduled";
+    if (bookingFilter === "active")
+      return b.status === "In Progress" || b.status === "Assigned";
     if (bookingFilter === "completed") return b.status === "Completed";
     if (bookingFilter === "cancelled") return b.status === "Cancelled";
-    return true;
+    return true; // 'all'
   });
 
-  const totalBookingsCount = 12;
+  const totalBookingsCount = bookings.length + 8; // Including past archive
   const upcomingCount = bookings.filter(
     (b) => b.status === "In Progress" || b.status === "Confirmed",
   ).length;
-  const completedCount = 10;
+  const completedCount = bookings.filter((b) => b.status === "Completed").length + 8;
   const savedCount = savedServicesList.length;
+  const unreadNotificationsCount = notifications.filter((n) => !n.read).length;
 
   const sidebarMenuItems = [
     { id: "overview", label: "My Profile", icon: User },
     {
       id: "bookings",
       label: "My Bookings",
-      icon: Calendar,
-      badge: upcomingCount > 0 ? `${upcomingCount} Active` : null,
+      icon: Clock,
+      badge: upcomingCount > 0 ? `${upcomingCount}` : null,
     },
-    {
-      id: "addresses",
-      label: "Addresses",
-      icon: MapPin,
-      badge: addresses.length,
-    },
-    {
-      id: "payments",
-      label: "Payment Methods",
-      icon: CreditCard,
-      badge: paymentMethods.length,
-    },
+    { id: "addresses", label: "Addresses", icon: MapPin },
+    { id: "payments", label: "Payment Methods", icon: CreditCard },
     {
       id: "saved",
       label: "Saved Services",
       icon: Heart,
-      badge: savedServicesList.length,
+      badge: savedCount > 0 ? `${savedCount}` : null,
     },
     {
       id: "notifications",
       label: "Notifications",
       icon: Bell,
-      badge: notifications.filter((n) => !n.read).length || null,
+      badge: unreadNotificationsCount > 0 ? `${unreadNotificationsCount}` : null,
     },
-    {
-      id: "offers",
-      label: "Offers & Rewards",
-      icon: Sparkles,
-      highlight: true,
-    },
+    { id: "offers", label: "Offers & Rewards", icon: Tag, highlight: true },
     { id: "support", label: "Help & Support", icon: HelpCircle },
     { id: "settings", label: "Settings", icon: Settings },
+    { id: "logout", label: "Logout", icon: LogOut, isDanger: true },
   ];
 
-  const mobileNavItems = [
-    ...sidebarMenuItems,
-    { id: "logout", label: "Logout", icon: LogOut },
-  ];
+  // Call assigned technician helper
+  const handleCallTechnician = (e, tech) => {
+    if (!tech || !tech.phone) {
+      e.preventDefault();
+      showToast("Professional contact number is not available.");
+      return;
+    }
+    const cleanNumber = tech.phone.replace(/[^\d+]/g, "");
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(cleanNumber).catch(() => {});
+    }
+    showToast(`Connecting call to ${tech.name}... (Dialer opened)`);
+  };
+
+  // SMS assigned technician helper
+  const handleSmsTechnician = (e, tech, booking) => {
+    if (!tech || !tech.phone) {
+      e.preventDefault();
+      showToast("Professional contact number is not available.");
+      return;
+    }
+    const bookingIdText = booking?.id ? ` (Booking #${booking.id})` : "";
+    const prefilledMessage = `Hi, I'm contacting you regarding my Argent Your service booking${bookingIdText}.`;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(prefilledMessage).catch(() => {});
+    }
+    showToast(`Opening messaging app for ${tech.name}...`);
+  };
 
   return (
-    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#f6f7f3] text-slate-950 pb-20 pt-28 sm:pt-32 box-border">
-      {/* Floating Toast Notification */}
+    <div className="min-h-screen bg-[#f6f7f3] text-slate-950 pb-20 pt-28 sm:pt-32">
+      {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-xs font-bold text-white shadow-2xl backdrop-blur-md animate-rise-in border border-white/20">
-          <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-xs font-bold text-white shadow-2xl border border-slate-800 animate-rise-in max-w-sm">
+          <Sparkles className="h-4 w-4 text-emerald-400 shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}
 
-      <div className="mx-auto w-full max-w-7xl px-3.5 sm:px-6 lg:px-8 space-y-6 sm:space-y-8 box-border min-w-0">
-        {/* Top Breadcrumb & Navigation Bar */}
-        <div className="flex items-center justify-between gap-3 w-full">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-8">
+        {/* Top Breadcrumb Navigation */}
+        <div className="flex items-center justify-between">
           <button
-            type="button"
             onClick={onHome}
-            className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-emerald-800 hover:text-emerald-950 transition-colors shrink-0"
+            className="inline-flex items-center gap-2 text-sm font-bold text-emerald-800 hover:text-emerald-950 transition-colors cursor-pointer"
           >
-            <ArrowLeft className="h-4 w-4 shrink-0" />
+            <ArrowLeft className="h-4 w-4" />
             <img
               src="/argent-logo.png"
               alt="Argent Your"
-              className="h-5 w-5 rounded-md object-contain shadow-2xs shrink-0"
+              className="h-5 w-5 rounded-md object-contain shadow-2xs"
             />
-            <span className="hidden sm:inline">Back to Argent Your Home</span>
-            <span className="sm:hidden">Home</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="inline-flex items-center gap-1.5 sm:gap-2 rounded-xl border border-rose-200 bg-rose-50/80 px-3 sm:px-3.5 py-1.5 sm:py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 transition-colors shadow-2xs shrink-0"
-          >
-            <LogOut className="h-3.5 w-3.5" />
-            <span>Log out</span>
+            <span>Back to Argent Your Home</span>
           </button>
         </div>
 
-        {/* ===================================================================
-            1. PROFILE HEADER CARD
-        =================================================================== */}
-        <div className="relative overflow-hidden rounded-3xl border border-white/80 bg-white/90 p-4 sm:p-8 shadow-sm backdrop-blur-xl w-full max-w-full box-border">
-          {/* Subtle decorative background tint */}
-          <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-emerald-100/40 blur-3xl" />
-
-          <div className="relative flex flex-col md:flex-row items-start md:items-center justify-between gap-5 sm:gap-6">
-            {/* Left: Avatar & Identity Details */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 w-full md:w-auto">
-              {/* Circular Avatar with Camera/Edit Button */}
+        {/* Profile Master Header Card */}
+        <div className="relative overflow-hidden rounded-3xl border border-white/80 bg-white/80 p-5 sm:p-7 shadow-sm backdrop-blur-md">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+            <div className="flex items-center gap-4 sm:gap-5">
+              {/* Avatar with Camera Overlay */}
               <div className="relative group shrink-0">
-                <div className="relative h-20 w-20 sm:h-28 sm:w-28 overflow-hidden rounded-full border-4 border-white bg-slate-900 shadow-xl ring-2 ring-emerald-600/30">
-                  <img
-                    src={profileForm.avatar}
-                    alt={profileForm.name}
-                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  />
-                </div>
+                <img
+                  src={profileForm.avatar}
+                  alt={profileForm.name}
+                  className="h-16 w-16 sm:h-20 sm:w-20 rounded-full object-cover border-3 border-white shadow-md transition-transform group-hover:scale-105"
+                />
                 <button
                   type="button"
                   onClick={() => setIsAvatarModalOpen(true)}
-                  className="absolute bottom-0 right-0 flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-slate-950 text-white shadow-md hover:bg-emerald-700 hover:scale-105 transition-all border-2 border-white"
-                  title="Update profile photo"
+                  className="absolute bottom-0 right-0 flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full bg-slate-950 text-white shadow-sm hover:bg-emerald-800 transition-colors cursor-pointer"
+                  title="Change avatar"
                 >
                   <Camera className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                 </button>
               </div>
 
               {/* User Details */}
-              <div className="space-y-1.5 min-w-0 w-full sm:w-auto">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="text-xl sm:text-3xl font-black tracking-tight text-slate-900 break-words">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <h1 className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight">
                     {profileForm.name}
                   </h1>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100/80 px-2.5 py-0.5 text-[10px] sm:text-[11px] font-extrabold text-emerald-900 border border-emerald-300/60 shadow-2xs">
-                    <ShieldCheck className="h-3 w-3 text-emerald-700" />
-                    <span>Verified Customer</span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100/90 px-2.5 py-0.5 text-[10px] font-black text-emerald-900 shadow-2xs">
+                    <CheckCircle2 className="h-3 w-3 text-emerald-700" />
+                    Verified Customer
                   </span>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-y-1.5 gap-x-3 sm:gap-x-4 text-xs font-semibold text-slate-600 pt-0.5">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <Mail className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
-                    <span className="truncate max-w-[200px] sm:max-w-none">
-                      {profileForm.email}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <Phone className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
-                    <span>{profileForm.phone}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 min-w-0 w-full sm:w-auto">
-                    <MapPin className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
-                    <span className="truncate max-w-[220px] sm:max-w-[280px]">
-                      {profileForm.address}
-                    </span>
-                  </div>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600 font-medium">
+                  <span className="flex items-center gap-1">
+                    <Mail className="h-3.5 w-3.5 text-slate-400" />
+                    {profileForm.email}
+                  </span>
+                  <span className="text-slate-300 hidden sm:inline">•</span>
+                  <span className="flex items-center gap-1">
+                    <Phone className="h-3.5 w-3.5 text-slate-400" />
+                    {profileForm.phone}
+                  </span>
                 </div>
+
+                <p className="flex items-center gap-1 text-[11px] text-slate-500 font-medium pt-0.5">
+                  <MapPin className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
+                  <span className="truncate max-w-xs sm:max-w-md">
+                    {profileForm.address}
+                  </span>
+                </p>
               </div>
             </div>
 
-            {/* Right: Edit Profile Button */}
-            <div className="flex items-center gap-3 w-full md:w-auto pt-1 md:pt-0">
+            {/* Quick Action Button: Edit Profile */}
+            <div className="flex items-center gap-2.5 self-start sm:self-center">
               <button
                 type="button"
                 onClick={() => setIsEditProfileOpen(true)}
-                className="w-full md:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-bold text-white shadow-md hover:bg-emerald-800 hover:shadow-lg transition-all cursor-pointer active:scale-95"
+                className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-800 transition-colors cursor-pointer"
               >
-                <Edit3 className="h-4 w-4" />
+                <Edit3 className="h-3.5 w-3.5" />
                 <span>Edit Profile</span>
               </button>
             </div>
           </div>
         </div>
 
-        {/* ===================================================================
-            MAIN LAYOUT: SIDEBAR MENU + CONTENT AREA
-        =================================================================== */}
-        <div className="w-full max-w-full min-w-0 grid gap-6 lg:gap-8 lg:grid-cols-[260px_1fr] items-start">
-          {/* =================================================================
-              2. PROFILE SIDEBAR / NAVIGATION MENU
-          ================================================================= */}
-          <aside className="w-full max-w-full min-w-0 space-y-4">
-            {/* Desktop Navigation Menu Card */}
-            <div className="rounded-3xl border border-white/80 bg-white/90 p-3.5 shadow-sm backdrop-blur-md hidden lg:block">
-              <p className="px-3 pt-2 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                Dashboard Menu
-              </p>
-              <nav className="space-y-1">
-                {sidebarMenuItems.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = activeTab === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => setActiveTab(item.id)}
-                      className={`flex w-full items-center justify-between gap-3 rounded-2xl px-3.5 py-3 text-xs font-bold transition-all text-left ${
+        {/* Mobile Horizontally Scrollable 10-Tab Navigation Strip */}
+        <div className="md:hidden">
+          <div
+            ref={mobileNavScrollRef}
+            className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-4 px-4 sm:mx-0 sm:px-0"
+          >
+            {sidebarMenuItems.map((item) => {
+              const isActive = activeTab === item.id;
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  ref={(el) => (mobileTabRefs.current[item.id] = el)}
+                  type="button"
+                  onClick={() => handleTabClick(item.id)}
+                  className={`shrink-0 flex items-center gap-2 rounded-2xl px-3.5 py-2.5 text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                    isActive
+                      ? "bg-slate-950 text-white shadow-md scale-102"
+                      : item.isDanger
+                        ? "bg-rose-50 text-rose-700 border border-rose-200/60"
+                        : "bg-white/80 text-slate-700 border border-slate-200/80 hover:bg-white"
+                  }`}
+                >
+                  <Icon
+                    className={`h-3.5 w-3.5 ${
+                      isActive
+                        ? "text-emerald-400"
+                        : item.isDanger
+                          ? "text-rose-600"
+                          : "text-slate-500"
+                    }`}
+                  />
+                  <span>{item.label}</span>
+                  {item.badge && (
+                    <span
+                      className={`rounded-full px-1.5 py-0.2 text-[9px] font-black ${
                         isActive
-                          ? "bg-slate-950 text-white shadow-md"
-                          : item.highlight
-                            ? "text-emerald-900 bg-emerald-50/70 hover:bg-emerald-100/70 border border-emerald-200/50"
-                            : "text-slate-700 hover:bg-slate-50 hover:text-slate-950"
+                          ? "bg-emerald-500 text-slate-950"
+                          : "bg-slate-100 text-slate-800"
                       }`}
                     >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <Icon
-                          className={`h-4 w-4 shrink-0 ${
-                            isActive
-                              ? "text-emerald-300"
-                              : item.highlight
-                                ? "text-emerald-700"
-                                : "text-slate-500"
-                          }`}
-                        />
-                        <span className="truncate">{item.label}</span>
-                      </div>
-                      {item.badge && (
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold shrink-0 ${
-                            isActive
-                              ? "bg-white/20 text-white"
-                              : "bg-slate-100 text-slate-700"
-                          }`}
-                        >
-                          {item.badge}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
+                      {item.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-                <div className="my-2 border-t border-slate-100 pt-2">
+        {/* Main 2-Column Dashboard Layout: Desktop Sidebar + Dynamic Tab Content */}
+        <div className="grid gap-8 md:grid-cols-[260px_1fr] items-start">
+          {/* Desktop Left Sidebar Menu */}
+          <aside className="hidden md:block space-y-2 sticky top-32">
+            <div className="rounded-3xl border border-white/80 bg-white/80 p-3 shadow-xs backdrop-blur-md space-y-1">
+              {sidebarMenuItems.map((item) => {
+                const isActive = activeTab === item.id;
+                const Icon = item.icon;
+                return (
                   <button
+                    key={item.id}
                     type="button"
-                    onClick={handleLogout}
-                    className="flex w-full items-center gap-2.5 rounded-2xl px-3.5 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors text-left"
+                    onClick={() => handleTabClick(item.id)}
+                    className={`w-full flex items-center justify-between rounded-2xl px-4 py-3 text-xs font-bold transition-all cursor-pointer ${
+                      isActive
+                        ? "bg-slate-950 text-white shadow-md"
+                        : item.isDanger
+                          ? "text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                          : "text-slate-700 hover:bg-slate-100/80 hover:text-slate-950"
+                    }`}
                   >
-                    <LogOut className="h-4 w-4 shrink-0" />
-                    <span>Logout</span>
-                  </button>
-                </div>
-              </nav>
-            </div>
-
-            {/* Mobile Responsive Navigation Slider / Tabs (Horizontally scrollable with ALL 10 items) */}
-            <div className="lg:hidden w-full max-w-full min-w-0">
-              <div
-                ref={mobileNavScrollRef}
-                className="w-full max-w-full overflow-x-auto scrollbar-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden overscroll-x-contain py-1"
-                style={{
-                  WebkitOverflowScrolling: "touch",
-                  touchAction: "pan-x",
-                }}
-              >
-                <div className="flex items-center gap-2 w-max px-0.5 pb-1">
-                  {mobileNavItems.map((item) => {
-                    const Icon = item.icon;
-                    const isActive = activeTab === item.id;
-                    const isLogout = item.id === "logout";
-
-                    return (
-                      <button
-                        key={item.id}
-                        ref={(el) => {
-                          mobileTabRefs.current[item.id] = el;
-                        }}
-                        type="button"
-                        onClick={() => {
-                          if (isLogout) {
-                            handleLogout();
-                          } else {
-                            handleTabClick(item.id);
-                          }
-                        }}
-                        className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-bold whitespace-nowrap transition-all shadow-2xs touch-manipulation cursor-pointer active:scale-95 shrink-0 ${
-                          isLogout
-                            ? "bg-rose-50/90 text-rose-700 border border-rose-200/80 hover:bg-rose-100"
-                            : isActive
-                              ? "bg-slate-950 text-white shadow-md ring-2 ring-slate-950/10"
-                              : item.highlight
-                                ? "bg-emerald-50/90 text-emerald-950 border border-emerald-300/80 hover:bg-emerald-100/80"
-                                : "bg-white/95 text-slate-700 border border-slate-200/90 hover:bg-white hover:text-slate-950"
+                    <div className="flex items-center gap-3">
+                      <Icon
+                        className={`h-4 w-4 ${
+                          isActive
+                            ? "text-emerald-400"
+                            : item.isDanger
+                              ? "text-rose-600"
+                              : "text-slate-500"
+                        }`}
+                      />
+                      <span>{item.label}</span>
+                    </div>
+                    {item.badge && (
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
+                          isActive
+                            ? "bg-emerald-500 text-slate-950"
+                            : "bg-slate-100 text-slate-800"
                         }`}
                       >
-                        <Icon
-                          className={`h-4 w-4 shrink-0 ${
-                            isLogout
-                              ? "text-rose-600"
-                              : isActive
-                                ? "text-emerald-300"
-                                : item.highlight
-                                  ? "text-emerald-700"
-                                  : "text-slate-500"
-                          }`}
-                        />
-                        <span>{item.label}</span>
-                        {item.badge && (
-                          <span
-                            className={`ml-0.5 rounded-full px-2 py-0.5 text-[10px] font-extrabold ${
-                              isActive
-                                ? "bg-white/20 text-white"
-                                : "bg-slate-100 text-slate-700"
-                            }`}
-                          >
-                            {item.badge}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+                        {item.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
 
-            {/* Quick Membership & Trust Guarantee Card */}
-            <div className="rounded-3xl border border-emerald-200/70 bg-gradient-to-br from-emerald-50/80 to-teal-50/60 p-5 shadow-xs backdrop-blur-md space-y-3 hidden lg:block">
-              <div className="flex items-center gap-2 text-xs font-black text-emerald-950">
-                <img
-                  src="/argent-logo.png"
-                  alt="Argent Your"
-                  className="h-4 w-4 object-contain"
-                />
-                <span>Argent Member Privileges</span>
+            {/* Helpline Quick Card in Sidebar */}
+            <div className="rounded-3xl border border-emerald-200/60 bg-emerald-50/70 p-4 space-y-2">
+              <div className="flex items-center gap-2 text-xs font-extrabold text-emerald-900">
+                <LifeBuoy className="h-4 w-4 text-emerald-700" />
+                <span>24/7 Argent Support</span>
               </div>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Enjoy zero convenience fees, priority emergency dispatch, and
-                30-day revisit assurance.
+              <p className="text-[11px] text-slate-600 leading-normal">
+                Need urgent assistance with an active booking? Our team is live.
               </p>
-              <div className="pt-1">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("offers")}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 hover:text-emerald-950 transition-colors"
-                >
-                  <span>View Member Rewards</span>
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setIsLiveChatOpen(true)}
+                className="w-full rounded-xl bg-white px-3 py-2 text-xs font-bold text-emerald-900 shadow-2xs hover:bg-emerald-100/70 transition-colors text-center cursor-pointer border border-emerald-200"
+              >
+                Chat with Agent
+              </button>
             </div>
           </aside>
 
-          {/* =================================================================
-              CONTENT AREA (DASHBOARD CARDS, BOOKINGS, ADDRESSES, PAYMENTS, OFFERS)
-          ================================================================= */}
-          <main className="w-full max-w-full min-w-0 space-y-6 sm:space-y-8">
+          {/* Dynamic Content Area for Each Dedicated Section */}
+          <main className="min-w-0 space-y-8">
             {/* ===============================================================
-                3. PROFILE DASHBOARD SUMMARY CARDS (4 Cards)
+                SECTION 1: MY PROFILE (OVERVIEW DASHBOARD)
             =============================================================== */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 w-full">
-              {/* Card 1: Total Bookings */}
-              <div className="rounded-3xl border border-white/80 bg-white/90 p-3.5 sm:p-5 shadow-xs backdrop-blur-md hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between gap-1">
-                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500 truncate">
-                    Total Orders
-                  </span>
-                  <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200/50 shrink-0">
-                    <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            {activeTab === "overview" && (
+              <div className="space-y-8 animate-rise-in">
+                {/* 4 Summary Metric Cards */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                  {/* Card 1: Total Bookings */}
+                  <div
+                    onClick={() => setActiveTab("bookings")}
+                    className="rounded-3xl border border-white/80 bg-white/90 p-4 shadow-xs backdrop-blur-md hover:shadow-md transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        Total Orders
+                      </span>
+                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-700 group-hover:bg-slate-950 group-hover:text-white transition-colors">
+                        <PackageCheck className="h-4 w-4" />
+                      </div>
+                    </div>
+                    <p className="mt-2 text-2xl sm:text-3xl font-black text-slate-900">
+                      {totalBookingsCount}
+                    </p>
+                    <span className="mt-1 text-[11px] font-bold text-emerald-800 group-hover:underline block">
+                      View booking history &rarr;
+                    </span>
+                  </div>
+
+                  {/* Card 2: Upcoming */}
+                  <div
+                    onClick={() => {
+                      setBookingFilter("upcoming");
+                      setActiveTab("bookings");
+                    }}
+                    className="rounded-3xl border border-white/80 bg-white/90 p-4 shadow-xs backdrop-blur-md hover:shadow-md transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        Upcoming
+                      </span>
+                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-50 text-amber-800 group-hover:bg-amber-500 group-hover:text-white transition-colors">
+                        <Clock className="h-4 w-4" />
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-baseline gap-2">
+                      <p className="text-2xl sm:text-3xl font-black text-slate-900">
+                        {upcomingCount}
+                      </p>
+                      <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                    </div>
+                    <span className="mt-1 text-[11px] font-bold text-emerald-800 group-hover:underline block truncate">
+                      Track active slot &rarr;
+                    </span>
+                  </div>
+
+                  {/* Card 3: Completed */}
+                  <div
+                    onClick={() => {
+                      setBookingFilter("completed");
+                      setActiveTab("bookings");
+                    }}
+                    className="rounded-3xl border border-white/80 bg-white/90 p-4 shadow-xs backdrop-blur-md hover:shadow-md transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        Completed
+                      </span>
+                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-teal-50 text-teal-800 group-hover:bg-teal-700 group-hover:text-white transition-colors">
+                        <CheckCircle2 className="h-4 w-4" />
+                      </div>
+                    </div>
+                    <p className="mt-2 text-2xl sm:text-3xl font-black text-slate-900">
+                      {completedCount}
+                    </p>
+                    <span className="mt-1 text-[11px] font-bold text-emerald-800 group-hover:underline block">
+                      100% Guaranteed &rarr;
+                    </span>
+                  </div>
+
+                  {/* Card 4: Saved Services */}
+                  <div
+                    onClick={() => setActiveTab("saved")}
+                    className="rounded-3xl border border-white/80 bg-white/90 p-4 shadow-xs backdrop-blur-md hover:shadow-md transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        Saved
+                      </span>
+                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-50 text-rose-700 group-hover:bg-rose-500 group-hover:text-white transition-colors">
+                        <Heart className="h-4 w-4" />
+                      </div>
+                    </div>
+                    <p className="mt-2 text-2xl sm:text-3xl font-black text-slate-900">
+                      {savedCount}
+                    </p>
+                    <span className="mt-1 text-[11px] font-bold text-emerald-800 group-hover:underline block">
+                      Quick rebook &rarr;
+                    </span>
                   </div>
                 </div>
-                <p className="mt-2 text-2xl sm:text-3xl font-black text-slate-900">
-                  {totalBookingsCount}
-                </p>
-                <p className="mt-1 text-[10px] sm:text-[11px] font-semibold text-emerald-700 truncate">
-                  +2 this month
-                </p>
-              </div>
 
-              {/* Card 2: Upcoming Bookings */}
-              <div className="rounded-3xl border border-white/80 bg-white/90 p-3.5 sm:p-5 shadow-xs backdrop-blur-md hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between gap-1">
-                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500 truncate">
-                    Upcoming
-                  </span>
-                  <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-800 border border-amber-200/50 shrink-0">
-                    <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                {/* Active Offers Preview Banner */}
+                <div className="relative overflow-hidden rounded-3xl border border-emerald-200/80 bg-gradient-to-r from-emerald-900 to-slate-950 p-6 sm:p-7 text-white shadow-lg">
+                  <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+                    <div className="space-y-1 max-w-lg">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-200 backdrop-blur-sm">
+                        <Sparkles className="h-3 w-3" />
+                        Exclusive Member Privilege
+                      </span>
+                      <h3 className="text-xl sm:text-2xl font-extrabold tracking-tight">
+                        Flat 20% OFF on All Doorstep Services
+                      </h3>
+                      <p className="text-xs text-slate-300">
+                        Use code <strong className="text-white">ARGENT20</strong>{" "}
+                        for immediate discount at checkout. Valid until 30 Sep.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => handleCopyCoupon("ARGENT20")}
+                        className="rounded-2xl bg-white/10 px-4 py-2.5 text-xs font-bold text-white border border-white/20 hover:bg-white/20 transition-all cursor-pointer flex items-center gap-1.5"
+                      >
+                        {copiedCoupon === "ARGENT20" ? (
+                          <>
+                            <Check className="h-3.5 w-3.5 text-emerald-400" />
+                            <span>Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3.5 w-3.5" />
+                            <span>Copy ARGENT20</span>
+                          </>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("offers")}
+                        className="rounded-2xl bg-white px-4 py-2.5 text-xs font-bold text-slate-950 hover:bg-emerald-100 transition-all shadow-md cursor-pointer"
+                      >
+                        View All Offers
+                      </button>
+                    </div>
                   </div>
                 </div>
-                <div className="mt-2 flex items-baseline gap-1.5 sm:gap-2">
-                  <p className="text-2xl sm:text-3xl font-black text-slate-900">
-                    {upcomingCount}
-                  </p>
-                  <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                </div>
-                <p className="mt-1 text-[10px] sm:text-[11px] font-semibold text-slate-500 truncate">
-                  Next: Today 3:00 PM
-                </p>
-              </div>
 
-              {/* Card 3: Completed Bookings */}
-              <div className="rounded-3xl border border-white/80 bg-white/90 p-3.5 sm:p-5 shadow-xs backdrop-blur-md hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between gap-1">
-                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500 truncate">
-                    Completed
-                  </span>
-                  <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-teal-50 text-teal-800 border border-slate-200/60 shrink-0">
-                    <CheckCircle2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                {/* Next Upcoming Appointment Highlight */}
+                {bookings.find((b) => b.status === "In Progress" || b.status === "Confirmed") && (
+                  <div className="rounded-3xl border border-white/80 bg-white/90 p-5 sm:p-6 shadow-xs backdrop-blur-md space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-ping" />
+                        <h3 className="text-base font-black text-slate-900">
+                          Next Upcoming Service Appointment
+                        </h3>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("bookings")}
+                        className="text-xs font-bold text-emerald-800 hover:underline cursor-pointer"
+                      >
+                        See All ({upcomingCount})
+                      </button>
+                    </div>
+
+                    {(() => {
+                      const nextBooking = bookings.find(
+                        (b) => b.status === "In Progress" || b.status === "Confirmed",
+                      );
+                      if (!nextBooking) return null;
+                      return (
+                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+                          <div className="flex items-center gap-3.5">
+                            <img
+                              src={nextBooking.image}
+                              alt={nextBooking.serviceName}
+                              className="h-16 w-16 rounded-2xl object-cover shadow-2xs shrink-0"
+                            />
+                            <div>
+                              <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800">
+                                #{nextBooking.id} · {nextBooking.category}
+                              </span>
+                              <h4 className="text-sm font-bold text-slate-900">
+                                {nextBooking.serviceName}
+                              </h4>
+                              <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">
+                                <Calendar className="h-3.5 w-3.5 text-emerald-700" />
+                                <span>{nextBooking.scheduledDate}</span>
+                                <span>·</span>
+                                <Clock className="h-3.5 w-3.5 text-emerald-700" />
+                                <span>{nextBooking.scheduledTime}</span>
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedBookingForDetails(nextBooking)}
+                              className="rounded-xl bg-slate-950 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800 transition-colors shadow-2xs cursor-pointer"
+                            >
+                              Track & Details
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setRescheduleBookingTarget(nextBooking)}
+                              className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                            >
+                              Reschedule
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
-                </div>
-                <p className="mt-2 text-2xl sm:text-3xl font-black text-slate-900">
-                  {completedCount}
-                </p>
-                <p className="mt-1 text-[10px] sm:text-[11px] font-semibold text-teal-700 truncate">
-                  100% On-time guarantee
-                </p>
-              </div>
+                )}
 
-              {/* Card 4: Saved Services */}
-              <div className="rounded-3xl border border-white/80 bg-white/90 p-3.5 sm:p-5 shadow-xs backdrop-blur-md hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between gap-1">
-                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500 truncate">
-                    Saved Services
-                  </span>
-                  <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-rose-50 text-rose-700 border border-rose-200/50 shrink-0">
-                    <Heart className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  </div>
-                </div>
-                <p className="mt-2 text-2xl sm:text-3xl font-black text-slate-900">
-                  {savedCount}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("saved")}
-                  className="mt-1 text-[10px] sm:text-[11px] font-bold text-emerald-800 hover:underline cursor-pointer truncate block"
-                >
-                  Quick Rebook &rarr;
-                </button>
-              </div>
-            </div>
-
-            {/* ===============================================================
-                TAB 1: OVERVIEW & RECENT BOOKINGS
-            =============================================================== */}
-            {(activeTab === "overview" || activeTab === "bookings") && (
-              <section className="space-y-6 animate-rise-in w-full">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                      Recent Bookings
-                    </h2>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Track active appointments and review completed doorstep
-                      services
+                {/* Quick Access Grid to Key Sections */}
+                <div className="grid sm:grid-cols-3 gap-4">
+                  <div
+                    onClick={() => setActiveTab("addresses")}
+                    className="rounded-3xl border border-white/80 bg-white/80 p-5 shadow-xs hover:shadow-md transition-all cursor-pointer group"
+                  >
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-800 group-hover:bg-slate-950 group-hover:text-white transition-colors">
+                      <MapPin className="h-5 w-5" />
+                    </div>
+                    <h4 className="text-sm font-bold text-slate-900 mt-3">
+                      Manage Addresses
+                    </h4>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {addresses.length} saved doorstep service locations
                     </p>
                   </div>
 
-                  {/* Filter chips */}
-                  <div className="flex items-center gap-1.5 rounded-2xl bg-slate-200/60 p-1 text-xs font-bold text-slate-700 self-start sm:self-auto">
+                  <div
+                    onClick={() => setActiveTab("payments")}
+                    className="rounded-3xl border border-white/80 bg-white/80 p-5 shadow-xs hover:shadow-md transition-all cursor-pointer group"
+                  >
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-800 group-hover:bg-slate-950 group-hover:text-white transition-colors">
+                      <CreditCard className="h-5 w-5" />
+                    </div>
+                    <h4 className="text-sm font-bold text-slate-900 mt-3">
+                      Payment Methods
+                    </h4>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {paymentMethods.length} securely saved cards & UPI
+                    </p>
+                  </div>
+
+                  <div
+                    onClick={() => setActiveTab("support")}
+                    className="rounded-3xl border border-white/80 bg-white/80 p-5 shadow-xs hover:shadow-md transition-all cursor-pointer group"
+                  >
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-800 group-hover:bg-slate-950 group-hover:text-white transition-colors">
+                      <HelpCircle className="h-5 w-5" />
+                    </div>
+                    <h4 className="text-sm font-bold text-slate-900 mt-3">
+                      Help & Live Support
+                    </h4>
+                    <p className="text-xs text-slate-500 mt-1">
+                      FAQs, live agent chat & WhatsApp assist
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ===============================================================
+                SECTION 2: MY BOOKINGS
+            =============================================================== */}
+            {activeTab === "bookings" && (
+              <div className="space-y-6 animate-rise-in">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                      My Bookings
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Review, reschedule, track, or cancel your doorstep service appointments
+                    </p>
+                  </div>
+
+                  {/* 4 Status Tabs: Upcoming, Active, Completed, Cancelled */}
+                  <div className="flex items-center gap-1 rounded-2xl bg-slate-200/70 p-1 text-xs font-bold text-slate-700 self-start sm:self-auto overflow-x-auto">
                     {[
-                      { id: "all", label: "All" },
                       { id: "upcoming", label: "Upcoming" },
+                      { id: "active", label: "Active / In Progress" },
                       { id: "completed", label: "Completed" },
-                    ].map((chip) => (
+                      { id: "cancelled", label: "Cancelled" },
+                      { id: "all", label: "All" },
+                    ].map((tab) => (
                       <button
-                        key={chip.id}
+                        key={tab.id}
                         type="button"
-                        onClick={() => setBookingFilter(chip.id)}
-                        className={`rounded-xl px-3 py-1.5 transition-colors cursor-pointer ${
-                          bookingFilter === chip.id
+                        onClick={() => setBookingFilter(tab.id)}
+                        className={`rounded-xl px-3 py-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+                          bookingFilter === tab.id
                             ? "bg-white text-slate-950 shadow-xs"
                             : "hover:text-slate-950"
                         }`}
                       >
-                        {chip.label}
+                        {tab.label}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Booking Cards Grid / Stack */}
-                <div className="space-y-3.5 w-full">
-                  {filteredBookings.map((booking) => (
-                    <div
-                      key={booking.id}
-                      className="rounded-3xl border border-white/80 bg-white/95 p-3.5 sm:p-5 shadow-xs backdrop-blur-md hover:border-emerald-200 hover:shadow-md transition-all group w-full"
-                    >
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        {/* Service Thumbnail & Core Details */}
-                        <div className="flex items-center gap-3 sm:gap-4 min-w-0 w-full sm:w-auto">
-                          <img
-                            src={booking.image}
-                            alt={booking.serviceName}
-                            className="h-14 w-14 sm:h-20 sm:w-20 rounded-2xl object-cover border border-slate-200 shrink-0 group-hover:scale-105 transition-transform"
-                          />
-                          <div className="min-w-0 flex-1 space-y-0.5 sm:space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800">
-                                {booking.category}
-                              </span>
-                              <span className="text-slate-300">•</span>
-                              <span className="text-[10px] font-mono font-bold text-slate-400">
-                                #{booking.id}
-                              </span>
-                            </div>
+                {/* Bookings List */}
+                <div className="space-y-4">
+                  {filteredBookings.length === 0 ? (
+                    <div className="rounded-3xl border border-white/80 bg-white/80 p-12 text-center space-y-3">
+                      <Clock className="h-10 w-10 text-slate-300 mx-auto" />
+                      <h4 className="text-base font-bold text-slate-800">
+                        No {bookingFilter} bookings found
+                      </h4>
+                      <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                        You have no appointments currently under this filter.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={onHome}
+                        className="rounded-2xl bg-slate-950 px-5 py-2.5 text-xs font-bold text-white hover:bg-emerald-800 transition-colors shadow-sm cursor-pointer"
+                      >
+                        Book a Service Now
+                      </button>
+                    </div>
+                  ) : (
+                    filteredBookings.map((b) => (
+                      <div
+                        key={b.id}
+                        className="rounded-3xl border border-white/80 bg-white/90 p-5 sm:p-6 shadow-xs backdrop-blur-md space-y-4 hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                          <div className="flex items-center gap-3">
+                            <span className="rounded-xl bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-800">
+                              #{b.id}
+                            </span>
+                            <span
+                              className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${
+                                b.status === "In Progress"
+                                  ? "bg-amber-100 text-amber-900"
+                                  : b.status === "Confirmed"
+                                    ? "bg-emerald-100 text-emerald-900"
+                                    : b.status === "Completed"
+                                      ? "bg-teal-100 text-teal-900"
+                                      : "bg-rose-100 text-rose-900"
+                              }`}
+                            >
+                              {b.status}
+                            </span>
+                          </div>
 
-                            <h3 className="text-sm sm:text-base font-bold text-slate-900 truncate">
-                              {booking.serviceName}
-                            </h3>
-
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 font-medium">
-                              <span className="flex items-center gap-1 font-semibold text-slate-700">
-                                <Calendar className="h-3 w-3 text-emerald-700 shrink-0" />
-                                <span>{booking.scheduledDate}</span>
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Clock className="h-3 w-3 text-slate-400 shrink-0" />
-                                <span>{booking.scheduledTime}</span>
-                              </span>
-                            </div>
+                          <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                            <span>Paid {b.totalPaid}</span>
+                            <span className="text-slate-300">•</span>
+                            <span className="text-[11px] text-slate-500 font-normal">
+                              {b.paymentMethod}
+                            </span>
                           </div>
                         </div>
 
-                        {/* Status, Price & Action Buttons */}
-                        <div className="flex flex-col sm:flex-col items-stretch sm:items-end justify-between w-full sm:w-auto gap-2.5 sm:gap-3 border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-100">
-                          <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
-                            <span
-                              className={`rounded-full px-2.5 py-0.5 text-[10px] font-extrabold border ${
-                                booking.status === "In Progress"
-                                  ? "bg-amber-50 text-amber-900 border-amber-200"
-                                  : booking.status === "Confirmed"
-                                    ? "bg-emerald-50 text-emerald-900 border-emerald-200"
-                                    : "bg-slate-100 text-slate-800 border-slate-200"
-                              }`}
-                            >
-                              {booking.status}
-                            </span>
-                            <span className="text-sm sm:text-base font-black text-slate-900">
-                              {booking.price}
-                            </span>
+                        {/* Service Item details */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                          <div className="flex items-center gap-4">
+                            <img
+                              src={b.image}
+                              alt={b.serviceName}
+                              className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl object-cover shadow-2xs shrink-0"
+                            />
+                            <div className="space-y-1">
+                              <h3 className="text-base font-bold text-slate-900">
+                                {b.serviceName}
+                              </h3>
+                              <p className="text-xs text-slate-500">
+                                Category: {b.category}
+                              </p>
+                              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                                <span className="flex items-center gap-1 font-semibold text-emerald-900">
+                                  <Calendar className="h-3.5 w-3.5 text-emerald-700" />
+                                  {b.scheduledDate}
+                                </span>
+                                <span>·</span>
+                                <span className="flex items-center gap-1 text-slate-600">
+                                  <Clock className="h-3.5 w-3.5 text-slate-400" />
+                                  {b.scheduledTime}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-slate-400 truncate max-w-sm">
+                                {b.address}
+                              </p>
+                            </div>
                           </div>
 
-                          <div className="flex items-center gap-2 w-full sm:w-auto">
+                          {/* Technician preview if assigned */}
+                          {b.technician && (
+                            <div className="flex items-center gap-3 rounded-2xl bg-emerald-50/60 border border-emerald-100 p-3 self-start sm:self-auto">
+                              <img
+                                src={b.technician.avatar}
+                                alt={b.technician.name}
+                                className="h-10 w-10 rounded-full object-cover border-2 border-white shadow-xs shrink-0"
+                              />
+                              <div className="text-xs">
+                                <p className="font-bold text-slate-900">
+                                  {b.technician.name}
+                                </p>
+                                <p className="text-[11px] text-slate-500 flex items-center gap-1">
+                                  <span className="font-extrabold text-amber-600">
+                                    ★ {b.technician.rating}
+                                  </span>
+                                  <span>· Assigned Pro</span>
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Cancellation note if cancelled */}
+                        {b.status === "Cancelled" && b.cancellationReason && (
+                          <div className="rounded-2xl bg-rose-50 border border-rose-100 p-3 text-xs text-rose-800">
+                            <strong>Reason for cancellation:</strong>{" "}
+                            {b.cancellationReason}
+                          </div>
+                        )}
+
+                        {/* Action Buttons */}
+                        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
+                          {/* View Details: opens Receipt & Tracking modal */}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedBookingForDetails(b)}
+                            className="rounded-xl bg-slate-950 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800 transition-colors shadow-2xs cursor-pointer"
+                          >
+                            View Details / Receipt
+                          </button>
+
+                          {/* Reschedule Button (for active or confirmed) */}
+                          {(b.status === "Confirmed" || b.status === "In Progress") && (
                             <button
                               type="button"
-                              onClick={() =>
-                                setSelectedBookingForDetails(booking)
-                              }
-                              className="flex-1 sm:flex-initial text-center rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-800 transition-colors cursor-pointer"
+                              onClick={() => setRescheduleBookingTarget(b)}
+                              className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
                             >
-                              View Details
+                              Reschedule
                             </button>
+                          )}
+
+                          {/* Cancel Button (for active or confirmed) */}
+                          {(b.status === "Confirmed" || b.status === "In Progress") && (
                             <button
                               type="button"
-                              onClick={() => {
-                                const matched = allServicesCatalog.find(
-                                  (s) => s.slug === booking.slug,
-                                ) || {
-                                  name: booking.serviceName,
-                                  image: booking.image,
-                                  slug: booking.slug,
-                                  price: booking.price,
-                                };
-                                if (onBookService) {
-                                  onBookService(matched);
-                                } else if (onNavigateToService) {
-                                  onNavigateToService(booking.slug);
-                                }
-                              }}
-                              className="flex-1 sm:flex-initial text-center rounded-xl bg-slate-950 hover:bg-emerald-800 px-3.5 py-1.5 text-xs font-bold text-white transition-colors shadow-2xs cursor-pointer"
+                              onClick={() => setCancelBookingTarget(b)}
+                              className="rounded-xl border border-rose-200 bg-white px-3.5 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer"
+                            >
+                              Cancel Booking
+                            </button>
+                          )}
+
+                          {/* Book Again (for completed or cancelled) */}
+                          {(b.status === "Completed" || b.status === "Cancelled") && (
+                            <button
+                              type="button"
+                              onClick={() => onNavigateToService?.(b.slug)}
+                              className="rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-900 hover:bg-emerald-100 transition-colors cursor-pointer"
                             >
                               Book Again
                             </button>
-                          </div>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  ))}
-
-                  {filteredBookings.length === 0 && (
-                    <div className="rounded-3xl border border-dashed border-slate-200 bg-white/60 p-8 text-center space-y-2">
-                      <p className="text-sm font-bold text-slate-800">
-                        No bookings found under this filter
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        Explore our home services catalog to schedule a service.
-                      </p>
-                    </div>
+                    ))
                   )}
                 </div>
-              </section>
+              </div>
             )}
 
             {/* ===============================================================
-                TAB 2: SAVED ADDRESSES
+                SECTION 3: ADDRESSES
             =============================================================== */}
-            {(activeTab === "overview" || activeTab === "addresses") && (
-              <section className="space-y-4 animate-rise-in w-full">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            {activeTab === "addresses" && (
+              <div className="space-y-6 animate-rise-in">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                      Saved Addresses
+                      Manage Addresses
                     </h2>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Manage your doorstep service delivery locations
+                      Doorstep service locations for appointments and equipment delivery
                     </p>
                   </div>
+
                   <button
                     type="button"
                     onClick={() => setIsAddAddressOpen(true)}
-                    className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-950 hover:bg-emerald-800 px-3.5 py-2 text-xs font-bold text-white transition-colors shadow-2xs cursor-pointer self-start sm:self-auto"
+                    className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-800 transition-colors shadow-sm cursor-pointer self-start sm:self-auto"
                   >
-                    <Plus className="h-3.5 w-3.5" />
+                    <Plus className="h-4 w-4" />
                     <span>Add New Address</span>
                   </button>
                 </div>
 
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                <div className="grid gap-4 sm:grid-cols-2">
                   {addresses.map((addr) => (
                     <div
                       key={addr.id}
-                      className={`relative rounded-3xl border p-5 shadow-xs backdrop-blur-md transition-all ${
+                      className={`relative rounded-3xl border p-5 sm:p-6 backdrop-blur-md transition-all ${
                         addr.isDefault
-                          ? "border-emerald-300 bg-white/95 ring-2 ring-emerald-600/10"
-                          : "border-white/80 bg-white/85 hover:bg-white"
+                          ? "border-emerald-600/40 bg-white shadow-sm ring-1 ring-emerald-500/20"
+                          : "border-white/80 bg-white/80 hover:shadow-sm"
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-2 mb-2.5">
+                      <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <span className="rounded-lg bg-slate-100 px-2.5 py-0.5 text-xs font-black text-slate-800">
+                          <span className="rounded-xl bg-slate-100 px-3 py-1 text-xs font-extrabold text-slate-800">
                             {addr.type}
                           </span>
                           {addr.isDefault && (
-                            <span className="rounded-full bg-emerald-100 px-2 py-0.2 text-[10px] font-extrabold text-emerald-900">
+                            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800">
                               Default
                             </span>
                           )}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteAddress(addr.id)}
-                          className="text-slate-400 hover:text-rose-600 p-1"
-                          title="Delete address"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setEditAddressTarget(addr)}
+                            className="p-1.5 text-slate-400 hover:text-slate-800 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                            title="Edit Address"
+                          >
+                            <Edit3 className="h-4 w-4" />
+                          </button>
+                          {!addr.isDefault && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteAddress(addr.id)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
+                              title="Delete Address"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
                       </div>
 
-                      <h4 className="text-xs font-bold text-slate-900 truncate">
-                        {addr.recipient}
-                      </h4>
-                      <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                        {addr.line1}
-                        <br />
-                        {addr.line2 && <>{addr.line2}, </>}
-                        {addr.city}, {addr.state} - {addr.postalCode}
-                      </p>
-                      <p className="text-[11px] text-slate-400 mt-2 font-medium">
-                        Ph: {addr.phone}
-                      </p>
+                      <div className="mt-4 space-y-1 text-xs">
+                        <p className="font-bold text-slate-900 text-sm">
+                          {addr.recipient}
+                        </p>
+                        <p className="text-slate-600">{addr.line1}</p>
+                        {addr.line2 && (
+                          <p className="text-slate-500">{addr.line2}</p>
+                        )}
+                        <p className="text-slate-600">
+                          {addr.city}, {addr.state} - {addr.postalCode}
+                        </p>
+                        <p className="text-slate-500 pt-1 flex items-center gap-1 font-medium">
+                          <Phone className="h-3 w-3 text-slate-400" />
+                          {addr.phone}
+                        </p>
+                      </div>
 
-                      <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs">
-                        {!addr.isDefault ? (
+                      {!addr.isDefault && (
+                        <div className="mt-4 pt-3 border-t border-slate-100">
                           <button
                             type="button"
                             onClick={() => handleSetDefaultAddress(addr.id)}
-                            className="font-bold text-emerald-800 hover:text-emerald-950 transition-colors"
+                            className="text-xs font-bold text-emerald-800 hover:underline cursor-pointer"
                           >
                             Set as Default
                           </button>
-                        ) : (
-                          <span className="text-[11px] font-semibold text-emerald-700 flex items-center gap-1">
-                            <Check className="h-3 w-3" /> Primary Service
-                            Address
-                          </span>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
-              </section>
+              </div>
             )}
 
             {/* ===============================================================
-                TAB 3: PAYMENT METHODS
+                SECTION 4: PAYMENT METHODS
             =============================================================== */}
-            {(activeTab === "overview" || activeTab === "payments") && (
-              <section className="space-y-4 animate-rise-in w-full">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            {activeTab === "payments" && (
+              <div className="space-y-6 animate-rise-in">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
                       Payment Methods
                     </h2>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Secure payment options for faster doorstep bookings
+                      Secure payment options with bank-grade encryption & masked card data
                     </p>
                   </div>
+
                   <button
                     type="button"
                     onClick={() => setIsAddPaymentOpen(true)}
-                    className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-950 hover:bg-emerald-800 px-3.5 py-2 text-xs font-bold text-white transition-colors shadow-2xs cursor-pointer self-start sm:self-auto"
+                    className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-800 transition-colors shadow-sm cursor-pointer self-start sm:self-auto"
                   >
-                    <Plus className="h-3.5 w-3.5" />
+                    <Plus className="h-4 w-4" />
                     <span>Add Payment Method</span>
                   </button>
                 </div>
 
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                <div className="grid gap-4 sm:grid-cols-2">
                   {paymentMethods.map((pm) => (
                     <div
                       key={pm.id}
-                      className={`rounded-3xl border p-5 shadow-xs backdrop-blur-md transition-all ${
+                      className={`relative rounded-3xl border p-5 sm:p-6 backdrop-blur-md transition-all ${
                         pm.isDefault
-                          ? "border-emerald-300 bg-white/95 ring-2 ring-emerald-600/10"
-                          : "border-white/80 bg-white/85 hover:bg-white"
+                          ? "border-emerald-600/40 bg-white shadow-sm ring-1 ring-emerald-500/20"
+                          : "border-white/80 bg-white/80 hover:shadow-sm"
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-2 mb-3">
+                      <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <CreditCard className="h-4 w-4 text-emerald-700" />
-                          <span className="font-bold text-xs text-slate-900">
+                          <span className="rounded-xl bg-slate-100 px-3 py-1 text-xs font-black text-slate-800">
                             {pm.brand}
                           </span>
+                          {pm.isDefault && (
+                            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800">
+                              Default
+                            </span>
+                          )}
                         </div>
-                        {pm.isDefault && (
-                          <span className="rounded-full bg-emerald-100 px-2 py-0.2 text-[10px] font-extrabold text-emerald-900">
-                            Default
-                          </span>
+
+                        {!pm.isDefault && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePayment(pm.id)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
+                            title="Remove Payment Method"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         )}
                       </div>
 
-                      {/* STRICT SECURITY: Never display full card numbers */}
-                      <p className="font-mono text-sm font-black text-slate-900 tracking-widest">
-                        {pm.maskedNumber}
-                      </p>
-
-                      <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500 font-medium">
-                        <span>{pm.cardholder}</span>
-                        {pm.expiry !== "N/A" && <span>Exp: {pm.expiry}</span>}
+                      <div className="mt-4 space-y-1 text-xs">
+                        <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">
+                          {pm.type}
+                        </p>
+                        <p className="font-mono text-base font-black text-slate-900 tracking-wider">
+                          {pm.maskedNumber}
+                        </p>
+                        <div className="flex items-center justify-between text-slate-500 pt-2">
+                          <span>{pm.cardholder}</span>
+                          {pm.expiry !== "N/A" && <span>Expires {pm.expiry}</span>}
+                        </div>
                       </div>
 
-                      <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs">
-                        {!pm.isDefault ? (
+                      {!pm.isDefault && (
+                        <div className="mt-4 pt-3 border-t border-slate-100">
                           <button
                             type="button"
                             onClick={() => handleSetDefaultPayment(pm.id)}
-                            className="font-bold text-emerald-800 hover:text-emerald-950 transition-colors"
+                            className="text-xs font-bold text-emerald-800 hover:underline cursor-pointer"
                           >
-                            Set Default
+                            Set as Default
                           </button>
-                        ) : (
-                          <span className="text-[11px] font-semibold text-emerald-700">
-                            Default Payment
-                          </span>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => handleDeletePayment(pm.id)}
-                          className="text-slate-400 hover:text-rose-600 transition-colors"
-                        >
-                          Remove
-                        </button>
-                      </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
-              </section>
+
+                {/* Additional Payment Info */}
+                <div className="rounded-3xl border border-slate-200/60 bg-white/60 p-5 flex items-start gap-3.5 text-xs text-slate-600">
+                  <ShieldCheck className="h-5 w-5 text-emerald-700 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold text-slate-900">
+                      PCI-DSS Compliant 256-Bit SSL Protection
+                    </p>
+                    <p className="text-slate-500 mt-0.5">
+                      Your full card numbers are never stored on Argent Your servers. We use RBI & PCI-DSS tokenization to secure all transactions.
+                    </p>
+                  </div>
+                </div>
+              </div>
             )}
 
             {/* ===============================================================
-                TAB 4: SAVED SERVICES
+                SECTION 5: SAVED SERVICES
             =============================================================== */}
-            {(activeTab === "overview" || activeTab === "saved") && (
-              <section className="space-y-4 animate-rise-in">
+            {activeTab === "saved" && (
+              <div className="space-y-6 animate-rise-in">
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
                       Saved Services
                     </h2>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Your bookmarked and most requested home care favorites
+                      Your bookmarked home services for one-tap booking
                     </p>
+                  </div>
+                  <span className="text-xs font-bold text-slate-500">
+                    {savedServicesList.length} saved
+                  </span>
+                </div>
+
+                {savedServicesList.length === 0 ? (
+                  <div className="rounded-3xl border border-white/80 bg-white/80 p-12 text-center space-y-3">
+                    <Heart className="h-10 w-10 text-slate-300 mx-auto" />
+                    <h4 className="text-base font-bold text-slate-800">
+                      No saved services yet
+                    </h4>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                      Bookmark your favorite doorstep maintenance and grooming services to access them quickly here.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={onHome}
+                      className="rounded-2xl bg-slate-950 px-5 py-2.5 text-xs font-bold text-white hover:bg-emerald-800 transition-colors shadow-sm cursor-pointer"
+                    >
+                      Browse Service Catalog
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {savedServicesList.map((srv) => (
+                      <div
+                        key={srv.slug}
+                        className="rounded-3xl border border-white/80 bg-white shadow-2xs overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow"
+                      >
+                        <div>
+                          <div className="relative aspect-[16/10] bg-slate-100 overflow-hidden">
+                            <img
+                              src={srv.image}
+                              alt={srv.name}
+                              className="h-full w-full object-cover"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSavedService(srv.slug)}
+                              className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-rose-600 shadow-sm hover:scale-110 transition-transform cursor-pointer"
+                              title="Remove from saved"
+                            >
+                              <Heart className="h-4 w-4 fill-rose-600" />
+                            </button>
+                            <span className="absolute bottom-3 left-3 rounded-md bg-slate-950/80 px-2 py-0.5 text-[10px] font-bold text-white">
+                              {srv.category}
+                            </span>
+                          </div>
+
+                          <div className="p-4 space-y-1.5">
+                            <h3 className="font-bold text-sm text-slate-900 line-clamp-1">
+                              {srv.name}
+                            </h3>
+                            <div className="flex items-center gap-1 text-xs font-semibold text-slate-600">
+                              <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                              <span>{srv.rating}</span>
+                              <span className="text-slate-400 font-normal">
+                                ({srv.reviews})
+                              </span>
+                            </div>
+                            <p className="text-sm font-black text-emerald-800">
+                              {srv.price}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="p-4 pt-0">
+                          <button
+                            type="button"
+                            onClick={() => onNavigateToService?.(srv.slug)}
+                            className="w-full rounded-xl bg-slate-950 py-2.5 text-xs font-bold text-white hover:bg-emerald-800 transition-colors shadow-2xs text-center cursor-pointer"
+                          >
+                            Book Now
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ===============================================================
+                SECTION 6: NOTIFICATIONS
+            =============================================================== */}
+            {activeTab === "notifications" && (
+              <div className="space-y-6 animate-rise-in">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                        Notifications
+                      </h2>
+                      {unreadNotificationsCount > 0 && (
+                        <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-black text-white">
+                          {unreadNotificationsCount} unread
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Real-time updates regarding service bookings, technician dispatch & offers
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-start sm:self-auto">
+                    {unreadNotificationsCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleMarkAllNotificationsRead}
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                      >
+                        Mark all as read
+                      </button>
+                    )}
+                    {notifications.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleClearNotifications}
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer"
+                      >
+                        Clear all
+                      </button>
+                    )}
                   </div>
                 </div>
 
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                  {savedServicesList.map((svc) => (
-                    <div
-                      key={svc.slug}
-                      className="group rounded-3xl border border-white/80 bg-white/90 p-4 shadow-xs backdrop-blur-md hover:shadow-md transition-all flex flex-col justify-between"
-                    >
-                      <div>
-                        <div className="relative aspect-[16/10] overflow-hidden rounded-2xl mb-3 bg-slate-100">
-                          <img
-                            src={svc.image}
-                            alt={svc.name}
-                            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveSavedService(svc.slug)}
-                            className="absolute top-2.5 right-2.5 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-rose-600 shadow-sm hover:scale-110 transition-transform"
-                            title="Remove from saved"
+                <div className="space-y-3">
+                  {notifications.length === 0 ? (
+                    <div className="rounded-3xl border border-white/80 bg-white/80 p-12 text-center space-y-3">
+                      <Bell className="h-10 w-10 text-slate-300 mx-auto" />
+                      <h4 className="text-base font-bold text-slate-800">
+                        No notifications right now
+                      </h4>
+                      <p className="text-xs text-slate-500">
+                        We'll alert you here when your technician is assigned or when new offers drop!
+                      </p>
+                    </div>
+                  ) : (
+                    notifications.map((n) => (
+                      <div
+                        key={n.id}
+                        className={`flex items-start justify-between gap-4 rounded-3xl border p-4 sm:p-5 backdrop-blur-md transition-all ${
+                          n.read
+                            ? "border-white/80 bg-white/70"
+                            : "border-emerald-500/30 bg-white shadow-xs ring-1 ring-emerald-500/15"
+                        }`}
+                      >
+                        <div className="flex items-start gap-3.5">
+                          <div
+                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
+                              n.type === "service"
+                                ? "bg-amber-50 text-amber-800"
+                                : n.type === "promo"
+                                  ? "bg-rose-50 text-rose-700"
+                                  : "bg-emerald-50 text-emerald-800"
+                            }`}
                           >
-                            <Heart className="h-3.5 w-3.5 fill-rose-600" />
-                          </button>
-                        </div>
-                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800">
-                          {svc.category}
-                        </span>
-                        <h3 className="text-sm font-bold text-slate-900 truncate mt-0.5">
-                          {svc.name}
-                        </h3>
-                        <div className="flex items-center gap-1 text-[11px] font-bold text-slate-700 mt-1">
-                          <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-                          <span>{svc.rating}</span>
-                          <span className="text-slate-400 font-normal">
-                            ({svc.reviews})
-                          </span>
-                        </div>
-                      </div>
+                            <Bell className="h-4 w-4" />
+                          </div>
 
-                      <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
-                        <span className="text-xs font-black text-slate-900">
-                          {svc.price}
-                        </span>
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-bold text-sm text-slate-900">
+                                {n.title}
+                              </h4>
+                              {!n.read && (
+                                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-600 leading-relaxed">
+                              {n.message}
+                            </p>
+                            <span className="text-[10px] text-slate-400 font-medium block">
+                              {n.time}
+                            </span>
+                          </div>
+                        </div>
+
                         <button
                           type="button"
-                          onClick={() => {
-                            if (onBookService) {
-                              onBookService(svc);
-                            } else if (onNavigateToService) {
-                              onNavigateToService(svc.slug);
-                            }
-                          }}
-                          className="rounded-xl bg-slate-950 hover:bg-emerald-800 px-3.5 py-1.5 text-xs font-bold text-white transition-colors shadow-2xs"
+                          onClick={() => handleDeleteNotification(n.id)}
+                          className="text-slate-300 hover:text-slate-500 p-1 rounded-lg transition-colors cursor-pointer shrink-0"
+                          title="Dismiss notification"
                         >
-                          Book Now
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ===============================================================
+                SECTION 7: OFFERS & REWARDS
+            =============================================================== */}
+            {activeTab === "offers" && (
+              <div className="space-y-6 animate-rise-in">
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                    Offers & Reward Coupons
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Exclusive promo discount vouchers available for your doorstep services
+                  </p>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {[
+                    {
+                      code: "ARGENT20",
+                      discount: "Flat 20% OFF",
+                      title: "Universal Doorstep Discount",
+                      desc: "Applicable on all Home Cleaning, AC, Electrical & Plumbing services",
+                      validUntil: "30 Sep 2026",
+                      minOrder: "$25",
+                      color: "emerald",
+                    },
+                    {
+                      code: "CLEAN15",
+                      discount: "$15 OFF",
+                      title: "Deep Home Clean Refresh",
+                      desc: "Special discount on Kitchen, Bathroom & Full Home Refresh clean",
+                      validUntil: "15 Oct 2026",
+                      minOrder: "$30",
+                      color: "teal",
+                    },
+                    {
+                      code: "SUMMERAC",
+                      discount: "Free AC Inspection",
+                      title: "AC Foam-Jet Combo Deal",
+                      desc: "Free gas pressure & electrical load audit with every AC service",
+                      validUntil: "31 Oct 2026",
+                      minOrder: "$35",
+                      color: "amber",
+                    },
+                    {
+                      code: "FIRST50",
+                      discount: "Flat $10 OFF",
+                      title: "Welcome Bonus Voucher",
+                      desc: "Special new customer token valid on your next appointment",
+                      validUntil: "31 Dec 2026",
+                      minOrder: "$20",
+                      color: "purple",
+                    },
+                  ].map((coupon) => (
+                    <div
+                      key={coupon.code}
+                      className="rounded-3xl border border-white/80 bg-white/90 p-5 sm:p-6 shadow-xs backdrop-blur-md flex flex-col justify-between space-y-4 hover:shadow-md transition-shadow"
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="rounded-xl bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-900">
+                            {coupon.discount}
+                          </span>
+                          <span className="text-[11px] text-slate-400 font-medium">
+                            Min Order {coupon.minOrder}
+                          </span>
+                        </div>
+
+                        <h3 className="font-extrabold text-base text-slate-900">
+                          {coupon.title}
+                        </h3>
+                        <p className="text-xs text-slate-600 leading-relaxed">
+                          {coupon.desc}
+                        </p>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs font-black text-slate-900 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+                            {coupon.code}
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            Expires {coupon.validUntil}
+                          </span>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleCopyCoupon(coupon.code)}
+                          className="flex items-center gap-1 rounded-xl bg-slate-950 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-800 transition-colors shadow-2xs cursor-pointer"
+                        >
+                          {copiedCoupon === coupon.code ? (
+                            <>
+                              <Check className="h-3 w-3 text-emerald-400" />
+                              <span>Copied</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-3 w-3" />
+                              <span>Copy</span>
+                            </>
+                          )}
                         </button>
                       </div>
                     </div>
                   ))}
                 </div>
-              </section>
+              </div>
             )}
 
             {/* ===============================================================
-                7. OFFERS & REWARDS SECTION
-            =============================================================== */}
-            {(activeTab === "overview" || activeTab === "offers") && (
-              <section className="space-y-4 animate-rise-in">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-100 text-emerald-800">
-                      <Sparkles className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                        Exclusive Offers for You
-                      </h2>
-                      <p className="text-xs text-slate-500">
-                        Handpicked discounts and promo codes for your account
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid md:grid-cols-3 gap-4">
-                  {[
-                    {
-                      id: "off-1",
-                      title: "20% OFF on Home Cleaning",
-                      discount: "20% OFF",
-                      code: "CLEAN20",
-                      description:
-                        "Deep scrubbing, bathroom & kitchen sanitization with verified cleaners.",
-                      validity: "Valid until 30 Sep",
-                      slug: "home-refresh-clean",
-                    },
-                    {
-                      id: "off-2",
-                      title: "Flat ₹200 OFF First Order",
-                      discount: "FLAT ₹200 OFF",
-                      code: "FIRST200",
-                      description:
-                        "Valid across all AC repair, appliance maintenance, and salon services.",
-                      validity: "For verified members",
-                      slug: "ac-foam-jet-service",
-                    },
-                    {
-                      id: "off-3",
-                      title: "25% OFF Men's Grooming",
-                      discount: "25% OFF",
-                      code: "MENSTYLE25",
-                      description:
-                        "Barbershop styling, haircut & stress relief head massage in comfort of home.",
-                      validity: "Limited slots today",
-                      slug: "mens-grooming-package",
-                    },
-                  ].map((offer) => (
-                    <div
-                      key={offer.id}
-                      className="rounded-3xl border border-emerald-200/80 bg-gradient-to-br from-white via-white to-emerald-50/50 p-5 shadow-xs backdrop-blur-md flex flex-col justify-between space-y-4 hover:shadow-md transition-shadow"
-                    >
-                      <div className="space-y-2">
-                        <span className="inline-block rounded-lg bg-emerald-100 px-2.5 py-0.5 text-xs font-black text-emerald-900">
-                          {offer.discount}
-                        </span>
-                        <h3 className="text-base font-bold text-slate-900">
-                          {offer.title}
-                        </h3>
-                        <p className="text-xs text-slate-600 leading-relaxed">
-                          {offer.description}
-                        </p>
-                      </div>
-
-                      <div className="space-y-3 pt-2 border-t border-slate-100">
-                        {/* Coupon Code Chip with Click-to-Copy */}
-                        <div className="flex items-center justify-between gap-2 rounded-xl bg-slate-100/80 px-3 py-2 border border-dashed border-emerald-400">
-                          <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-slate-900">
-                            <Tag className="h-3.5 w-3.5 text-emerald-700" />
-                            <span>{offer.code}</span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleCopyCoupon(offer.code)}
-                            className="text-[11px] font-bold text-emerald-800 hover:text-emerald-950 transition-colors"
-                          >
-                            {copiedCoupon === offer.code ? "Copied!" : "Copy"}
-                          </button>
-                        </div>
-
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-[10px] text-slate-400 font-medium">
-                            {offer.validity}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const targetSvc =
-                                allServicesCatalog.find(
-                                  (s) => s.slug === offer.slug,
-                                ) || allServicesCatalog[0];
-                              if (onBookService) {
-                                onBookService(targetSvc, offer.code);
-                              } else if (onNavigateToService) {
-                                onNavigateToService(offer.slug);
-                              }
-                            }}
-                            className="rounded-xl bg-slate-950 px-3.5 py-1.5 font-bold text-white hover:bg-emerald-800 transition-colors"
-                          >
-                            Use Coupon
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* ===============================================================
-                TAB 5: NOTIFICATIONS TAB
-            =============================================================== */}
-            {activeTab === "notifications" && (
-              <section className="space-y-4 animate-rise-in">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                      Notifications
-                    </h2>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Important updates regarding your appointments and account
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setNotifications((prev) =>
-                        prev.map((n) => ({ ...n, read: true })),
-                      );
-                      showToast("All notifications marked as read.");
-                    }}
-                    className="text-xs font-bold text-emerald-800 hover:underline"
-                  >
-                    Mark all as read
-                  </button>
-                </div>
-
-                <div className="space-y-3">
-                  {notifications.map((notif) => (
-                    <div
-                      key={notif.id}
-                      className={`rounded-2xl border p-4 shadow-xs backdrop-blur-md transition-all ${
-                        !notif.read
-                          ? "border-emerald-200 bg-white/95 ring-1 ring-emerald-500/20"
-                          : "border-white/80 bg-white/80"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-start gap-3">
-                          <div
-                            className={`mt-0.5 h-2 w-2 rounded-full shrink-0 ${
-                              !notif.read ? "bg-emerald-600" : "bg-transparent"
-                            }`}
-                          />
-                          <div className="space-y-1">
-                            <h4 className="text-xs sm:text-sm font-bold text-slate-900">
-                              {notif.title}
-                            </h4>
-                            <p className="text-xs text-slate-600 leading-relaxed">
-                              {notif.message}
-                            </p>
-                            <span className="text-[10px] text-slate-400 font-medium">
-                              {notif.time}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* ===============================================================
-                TAB 6: HELP & SUPPORT TAB
+                SECTION 8: HELP & SUPPORT
             =============================================================== */}
             {activeTab === "support" && (
-              <section className="space-y-6 animate-rise-in">
+              <div className="space-y-6 animate-rise-in">
                 <div>
                   <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
                     Help & Support
                   </h2>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    We're here to help you 24/7 with any doorstep service
-                    inquiry
+                    Frequently asked questions, live chat assistant & ticket tracking
                   </p>
                 </div>
 
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="rounded-3xl border border-white/80 bg-white/90 p-5 shadow-xs space-y-2">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-800">
+                {/* Quick Contact Cards */}
+                <div className="grid sm:grid-cols-4 gap-3">
+                  <a
+                    href="tel:+918000500200"
+                    className="flex flex-col items-center justify-center p-4 rounded-3xl border border-white/80 bg-white/90 hover:bg-white text-center shadow-xs transition-all cursor-pointer"
+                  >
+                    <div className="h-10 w-10 rounded-2xl bg-emerald-50 text-emerald-800 flex items-center justify-center mb-2">
                       <Phone className="h-5 w-5" />
                     </div>
-                    <h3 className="font-bold text-sm text-slate-900">
-                      24/7 Priority Helpline
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      Direct phone access to our dedicated service care team.
-                    </p>
-                    <p className="text-sm font-mono font-bold text-emerald-800">
-                      +91 1800 200 4000
-                    </p>
-                  </div>
+                    <span className="text-xs font-bold text-slate-900">
+                      24/7 Helpline
+                    </span>
+                    <span className="text-[10px] text-slate-500">
+                      +91 8000 500 200
+                    </span>
+                  </a>
 
-                  <div className="rounded-3xl border border-white/80 bg-white/90 p-5 shadow-xs space-y-2">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-800">
+                  <a
+                    href="https://wa.me/918000500200"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex flex-col items-center justify-center p-4 rounded-3xl border border-white/80 bg-white/90 hover:bg-white text-center shadow-xs transition-all cursor-pointer"
+                  >
+                    <div className="h-10 w-10 rounded-2xl bg-emerald-50 text-emerald-800 flex items-center justify-center mb-2">
                       <MessageSquare className="h-5 w-5" />
                     </div>
-                    <h3 className="font-bold text-sm text-slate-900">
-                      WhatsApp Quick Assist
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      Chat with support agents for instant rescheduling or
-                      queries.
-                    </p>
-                    <p className="text-sm font-mono font-bold text-emerald-800">
-                      +91 98765 43210
-                    </p>
-                  </div>
+                    <span className="text-xs font-bold text-slate-900">
+                      WhatsApp Assist
+                    </span>
+                    <span className="text-[10px] text-slate-500">
+                      Instant response
+                    </span>
+                  </a>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsLiveChatOpen(true)}
+                    className="flex flex-col items-center justify-center p-4 rounded-3xl border border-white/80 bg-white/90 hover:bg-white text-center shadow-xs transition-all cursor-pointer"
+                  >
+                    <div className="h-10 w-10 rounded-2xl bg-slate-100 text-slate-800 flex items-center justify-center mb-2">
+                      <MessageCircle className="h-5 w-5" />
+                    </div>
+                    <span className="text-xs font-bold text-slate-900">
+                      Live Chat
+                    </span>
+                    <span className="text-[10px] text-slate-500">
+                      Chat with Agent
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsRaiseTicketOpen(true)}
+                    className="flex flex-col items-center justify-center p-4 rounded-3xl border border-white/80 bg-white/90 hover:bg-white text-center shadow-xs transition-all cursor-pointer"
+                  >
+                    <div className="h-10 w-10 rounded-2xl bg-amber-50 text-amber-800 flex items-center justify-center mb-2">
+                      <AlertCircle className="h-5 w-5" />
+                    </div>
+                    <span className="text-xs font-bold text-slate-900">
+                      Raise Ticket
+                    </span>
+                    <span className="text-[10px] text-slate-500">
+                      Track resolution
+                    </span>
+                  </button>
                 </div>
 
-                <div className="rounded-3xl border border-white/80 bg-white/90 p-6 shadow-xs space-y-4">
-                  <h3 className="font-bold text-sm text-slate-900">
+                {/* Active Tickets Tracker */}
+                {supportTickets.length > 0 && (
+                  <div className="rounded-3xl border border-white/80 bg-white/90 p-5 sm:p-6 shadow-xs backdrop-blur-md space-y-3">
+                    <h3 className="text-sm font-bold text-slate-900">
+                      Your Active Support Tickets
+                    </h3>
+                    <div className="space-y-2">
+                      {supportTickets.map((t) => (
+                        <div
+                          key={t.id}
+                          className="flex items-center justify-between p-3 rounded-2xl border border-slate-100 bg-slate-50 text-xs"
+                        >
+                          <div>
+                            <span className="font-bold text-slate-900">
+                              #{t.id} · {t.category}
+                            </span>
+                            <p className="text-slate-500 text-[11px]">
+                              {t.subject}
+                            </p>
+                          </div>
+                          <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-extrabold text-amber-900">
+                            {t.status}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* FAQ Accordion */}
+                <div className="rounded-3xl border border-white/80 bg-white/90 p-5 sm:p-6 shadow-xs backdrop-blur-md space-y-4">
+                  <h3 className="text-base font-bold text-slate-900">
                     Frequently Asked Questions
                   </h3>
-                  <div className="space-y-3 text-xs">
+
+                  <div className="divide-y divide-slate-100 text-xs">
                     {[
                       {
-                        q: "How do I reschedule a booked service?",
-                        a: "You can reschedule for free up to 2 hours before your scheduled appointment directly from the My Bookings section.",
+                        q: "How does the Argent 30-day warranty work?",
+                        a: "Every doorstep service booked through Argent Your includes a complimentary 30-day warranty. If any issue arises from the work executed, we dispatch a senior expert for a free revisit.",
                       },
                       {
-                        q: "What does the 30-Day Argent Warranty cover?",
-                        a: "If any repair or service issue re-occurs within 30 days of the appointment, a verified technician will visit and resolve it at zero extra charge.",
+                        q: "Can I reschedule or cancel my appointment?",
+                        a: "Yes! You can reschedule or cancel for free up to 2 hours before the scheduled slot directly from the 'My Bookings' section with zero cancellation fee.",
                       },
                       {
-                        q: "How are Argent Your professionals vetted?",
-                        a: "All service professionals undergo 3-tier background checks, police verification, skill test certification, and identity validation.",
+                        q: "How are prices calculated?",
+                        a: "All prices shown are completely upfront and all-inclusive of service charges, standard equipment, and taxes. If specialized spare parts are required, our professional shares an upfront quotation before beginning.",
+                      },
+                      {
+                        q: "Are the doorstep professionals verified?",
+                        a: "Yes! Every single professional undergoes police verification, criminal background checks, identity matching, and hands-on technical skill certification.",
                       },
                     ].map((faq, i) => (
-                      <div
-                        key={i}
-                        className="rounded-2xl bg-slate-50/70 p-3.5 border border-slate-100"
-                      >
-                        <p className="font-bold text-slate-900">{faq.q}</p>
+                      <div key={i} className="py-3">
+                        <p className="font-bold text-slate-900 text-sm">
+                          {faq.q}
+                        </p>
                         <p className="text-slate-600 mt-1 leading-relaxed">
                           {faq.a}
                         </p>
@@ -1672,80 +2310,198 @@ export default function ProfilePage({
                     ))}
                   </div>
                 </div>
-              </section>
+              </div>
             )}
 
             {/* ===============================================================
-                TAB 7: SETTINGS TAB
+                SECTION 9: SETTINGS
             =============================================================== */}
             {activeTab === "settings" && (
-              <section className="space-y-6 animate-rise-in">
+              <div className="space-y-6 animate-rise-in">
                 <div>
                   <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                    Account Settings
+                    Account Settings & Preferences
                   </h2>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Manage security credentials and communication preferences
+                    Manage notification alerts, language, and security
                   </p>
                 </div>
 
-                <div className="rounded-3xl border border-white/80 bg-white/90 p-6 shadow-xs space-y-5">
-                  <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-3">
-                    Communication Preferences
+                {/* Notifications Preferences */}
+                <div className="rounded-3xl border border-white/80 bg-white/90 p-5 sm:p-6 shadow-xs backdrop-blur-md space-y-4">
+                  <h3 className="text-base font-bold text-slate-900">
+                    Notification Preferences
                   </h3>
-                  <div className="space-y-3 text-xs font-semibold text-slate-700">
-                    <label className="flex items-center justify-between cursor-pointer">
-                      <span>SMS & WhatsApp status updates</span>
+
+                  <div className="space-y-3 divide-y divide-slate-100 text-xs">
+                    <div className="flex items-center justify-between pt-2">
+                      <div>
+                        <p className="font-bold text-slate-900">SMS Notifications</p>
+                        <p className="text-slate-500 text-[11px]">
+                          Receive appointment confirmations and OTPs via SMS
+                        </p>
+                      </div>
                       <input
                         type="checkbox"
-                        defaultChecked
-                        className="h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
+                        checked={settingsState.smsUpdates}
+                        onChange={(e) =>
+                          setSettingsState((prev) => ({
+                            ...prev,
+                            smsUpdates: e.target.checked,
+                          }))
+                        }
+                        className="h-4 w-4 accent-emerald-600 cursor-pointer"
                       />
-                    </label>
-                    <label className="flex items-center justify-between cursor-pointer">
-                      <span>Promotional discounts & coupon alerts</span>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-3">
+                      <div>
+                        <p className="font-bold text-slate-900">
+                          WhatsApp Order Alerts
+                        </p>
+                        <p className="text-slate-500 text-[11px]">
+                          Get live technician tracking links and receipts on WhatsApp
+                        </p>
+                      </div>
                       <input
                         type="checkbox"
-                        defaultChecked
-                        className="h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
+                        checked={settingsState.whatsappAlerts}
+                        onChange={(e) =>
+                          setSettingsState((prev) => ({
+                            ...prev,
+                            whatsappAlerts: e.target.checked,
+                          }))
+                        }
+                        className="h-4 w-4 accent-emerald-600 cursor-pointer"
                       />
-                    </label>
-                    <label className="flex items-center justify-between cursor-pointer">
-                      <span>Email invoices & service receipts</span>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-3">
+                      <div>
+                        <p className="font-bold text-slate-900">
+                          Promotional Emails & Discounts
+                        </p>
+                        <p className="text-slate-500 text-[11px]">
+                          Occasional updates on seasonal discounts and member rewards
+                        </p>
+                      </div>
                       <input
                         type="checkbox"
-                        defaultChecked
-                        className="h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
+                        checked={settingsState.promoEmails}
+                        onChange={(e) =>
+                          setSettingsState((prev) => ({
+                            ...prev,
+                            promoEmails: e.target.checked,
+                          }))
+                        }
+                        className="h-4 w-4 accent-emerald-600 cursor-pointer"
                       />
-                    </label>
+                    </div>
                   </div>
                 </div>
 
-                <div className="rounded-3xl border border-white/80 bg-white/90 p-6 shadow-xs space-y-4">
-                  <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-3">
-                    Security & Login
+                {/* Language & Appearance */}
+                <div className="rounded-3xl border border-white/80 bg-white/90 p-5 sm:p-6 shadow-xs backdrop-blur-md space-y-4">
+                  <h3 className="text-base font-bold text-slate-900">
+                    Regional & Appearance
                   </h3>
-                  <div className="flex items-center justify-between text-xs">
+
+                  <div className="grid sm:grid-cols-2 gap-4 text-xs">
                     <div>
-                      <p className="font-bold text-slate-900">
-                        Account Password
-                      </p>
-                      <p className="text-slate-500 mt-0.5">
-                        Last changed 3 months ago
+                      <label className="font-bold text-slate-700 block mb-1">
+                        Preferred Language
+                      </label>
+                      <select
+                        value={settingsState.language}
+                        onChange={(e) => {
+                          setSettingsState((prev) => ({
+                            ...prev,
+                            language: e.target.value,
+                          }));
+                          showToast(`Language set to ${e.target.value}`);
+                        }}
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-900 focus:border-emerald-600 outline-none cursor-pointer"
+                      >
+                        <option value="English">English</option>
+                        <option value="Hindi">हिन्दी (Hindi)</option>
+                        <option value="Bengali">বাংলা (Bengali)</option>
+                        <option value="Marathi">मराठी (Marathi)</option>
+                        <option value="Tamil">தமிழ் (Tamil)</option>
+                        <option value="Telugu">తెలుగు (Telugu)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="font-bold text-slate-700 block mb-1">
+                        Display Theme
+                      </label>
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSettingsState((prev) => ({
+                              ...prev,
+                              darkMode: false,
+                            }));
+                            showToast("Light mode active");
+                          }}
+                          className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-2 px-3 border font-bold text-xs cursor-pointer ${
+                            !settingsState.darkMode
+                              ? "bg-slate-950 text-white border-slate-950"
+                              : "bg-white text-slate-700 border-slate-200"
+                          }`}
+                        >
+                          <Sun className="h-3.5 w-3.5" />
+                          <span>Light</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSettingsState((prev) => ({
+                              ...prev,
+                              darkMode: true,
+                            }));
+                            showToast("Dark mode preference saved");
+                          }}
+                          className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-2 px-3 border font-bold text-xs cursor-pointer ${
+                            settingsState.darkMode
+                              ? "bg-slate-950 text-white border-slate-950"
+                              : "bg-white text-slate-700 border-slate-200"
+                          }`}
+                        >
+                          <Moon className="h-3.5 w-3.5" />
+                          <span>Dark</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Account Security & Danger Zone */}
+                <div className="rounded-3xl border border-rose-100 bg-rose-50/40 p-5 sm:p-6 space-y-4">
+                  <h3 className="text-base font-bold text-rose-950">
+                    Security & Danger Zone
+                  </h3>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                    <div>
+                      <p className="font-bold text-slate-900">Delete Account</p>
+                      <p className="text-slate-500">
+                        Permanently delete your profile, saved addresses, and booking history.
                       </p>
                     </div>
+
                     <button
                       type="button"
-                      onClick={() =>
-                        showToast("Password reset link sent to email.")
-                      }
-                      className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 font-bold text-slate-800 hover:bg-slate-100"
+                      onClick={() => setIsDeleteAccountOpen(true)}
+                      className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-700 transition-colors shadow-2xs self-start sm:self-auto cursor-pointer"
                     >
-                      Update Password
+                      Delete Account
                     </button>
                   </div>
                 </div>
-              </section>
+              </div>
             )}
           </main>
         </div>
@@ -1760,28 +2516,25 @@ export default function ProfilePage({
           onClick={() => setIsEditProfileOpen(false)}
         >
           <div
-            className="w-full max-w-lg rounded-3xl border border-white/80 bg-white p-6 sm:p-8 shadow-2xl"
+            className="relative w-full max-w-md rounded-3xl border border-slate-100 bg-white p-6 sm:p-7 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-lg font-black text-slate-900">
-                Edit Profile Details
+                Edit Profile Information
               </h3>
               <button
                 type="button"
                 onClick={() => setIsEditProfileOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1"
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form
-              onSubmit={handleSaveProfile}
-              className="mt-5 space-y-4 text-xs"
-            >
+            <form onSubmit={handleSaveProfile} className="mt-4 space-y-4 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">
+                <label className="font-bold text-slate-700 block mb-1">
                   Full Name
                 </label>
                 <input
@@ -1791,12 +2544,12 @@ export default function ProfilePage({
                   onChange={(e) =>
                     setProfileForm({ ...profileForm, name: e.target.value })
                   }
-                  className="w-full rounded-xl border border-slate-200 p-3 text-slate-900 outline-none focus:border-emerald-700"
+                  className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-semibold text-slate-900 focus:border-emerald-600 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">
+                <label className="font-bold text-slate-700 block mb-1">
                   Email Address
                 </label>
                 <input
@@ -1806,13 +2559,13 @@ export default function ProfilePage({
                   onChange={(e) =>
                     setProfileForm({ ...profileForm, email: e.target.value })
                   }
-                  className="w-full rounded-xl border border-slate-200 p-3 text-slate-900 outline-none focus:border-emerald-700"
+                  className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-semibold text-slate-900 focus:border-emerald-600 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Phone Number
+                <label className="font-bold text-slate-700 block mb-1">
+                  Mobile Number
                 </label>
                 <input
                   type="tel"
@@ -1821,12 +2574,12 @@ export default function ProfilePage({
                   onChange={(e) =>
                     setProfileForm({ ...profileForm, phone: e.target.value })
                   }
-                  className="w-full rounded-xl border border-slate-200 p-3 text-slate-900 outline-none focus:border-emerald-700"
+                  className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-semibold text-slate-900 focus:border-emerald-600 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">
+                <label className="font-bold text-slate-700 block mb-1">
                   Primary Location / Address
                 </label>
                 <textarea
@@ -1835,21 +2588,21 @@ export default function ProfilePage({
                   onChange={(e) =>
                     setProfileForm({ ...profileForm, address: e.target.value })
                   }
-                  className="w-full rounded-xl border border-slate-200 p-3 text-slate-900 outline-none focus:border-emerald-700 resize-none"
+                  className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-semibold text-slate-900 focus:border-emerald-600 outline-none"
                 />
               </div>
 
-              <div className="pt-2 flex items-center justify-end gap-3">
+              <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setIsEditProfileOpen(false)}
-                  className="rounded-xl border border-slate-200 px-4 py-2.5 font-bold text-slate-700 hover:bg-slate-50"
+                  className="rounded-xl border border-slate-200 px-4 py-2.5 font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="rounded-xl bg-slate-950 px-5 py-2.5 font-bold text-white hover:bg-emerald-800 transition-colors shadow-sm"
+                  className="rounded-xl bg-slate-950 px-5 py-2.5 font-bold text-white hover:bg-emerald-800 transition-colors shadow-sm cursor-pointer"
                 >
                   Save Changes
                 </button>
@@ -1860,7 +2613,7 @@ export default function ProfilePage({
       )}
 
       {/* ===================================================================
-          MODAL 2: BOOKING DETAILS MODAL
+          MODAL 2: BOOKING RECEIPT & LIVE TRACKING MODAL (With Call & SMS)
       =================================================================== */}
       {selectedBookingForDetails && (
         <div
@@ -1884,14 +2637,14 @@ export default function ProfilePage({
               <button
                 type="button"
                 onClick={() => setSelectedBookingForDetails(null)}
-                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 transition-colors"
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
                 aria-label="Close receipt"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            {/* Modal Body - Scrollbar completely hidden to eliminate vertical line/strip */}
+            {/* Modal Body - Clean scrollbar */}
             <div className="flex-1 overflow-y-auto px-6 sm:px-7 py-5 space-y-4 text-xs scrollbar-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {/* Service Item Header */}
               <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-100">
@@ -1945,7 +2698,7 @@ export default function ProfilePage({
                 </div>
               </div>
 
-              {/* Technician Info Card - Assigned Doorstep Professional with Call & SMS */}
+              {/* Assigned Doorstep Professional Card with Call & SMS */}
               {selectedBookingForDetails.technician && (
                 <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-3.5 sm:p-4 space-y-3">
                   <div className="flex items-center justify-between">
@@ -1975,8 +2728,7 @@ export default function ProfilePage({
                           </span>
                           <span>·</span>
                           <span>
-                            {selectedBookingForDetails.technician.experience}{" "}
-                            exp
+                            {selectedBookingForDetails.technician.experience} exp
                           </span>
                         </p>
                       </div>
@@ -2000,10 +2752,7 @@ export default function ProfilePage({
                       </a>
 
                       <a
-                        href={getSmsUrl(
-                          selectedBookingForDetails.technician.phone,
-                          selectedBookingForDetails,
-                        )}
+                        href={`sms:${selectedBookingForDetails.technician.phone ? selectedBookingForDetails.technician.phone.replace(/[^\d+]/g, "") : ""}?body=Hi%20${encodeURIComponent(selectedBookingForDetails.technician.name)}%2C%20I%20am%20contacting%20you%20regarding%20my%20Argent%20Your%20booking%20%23${selectedBookingForDetails.id}.`}
                         onClick={(e) =>
                           handleSmsTechnician(
                             e,
@@ -2011,10 +2760,10 @@ export default function ProfilePage({
                             selectedBookingForDetails,
                           )
                         }
-                        className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-300 bg-white px-3.5 py-2 text-xs font-bold text-emerald-900 hover:bg-emerald-50 transition-colors shadow-sm active:scale-95 touch-manipulation min-h-[38px] whitespace-nowrap"
-                        title={`Send SMS to ${selectedBookingForDetails.technician.name}`}
+                        className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-800 hover:bg-slate-50 hover:border-slate-400 transition-colors shadow-2xs active:scale-95 touch-manipulation min-h-[38px] whitespace-nowrap"
+                        title={`SMS ${selectedBookingForDetails.technician.name}`}
                       >
-                        <MessageSquare className="h-3.5 w-3.5 text-emerald-700" />
+                        <MessageSquare className="h-3.5 w-3.5 text-emerald-800" />
                         <span>SMS</span>
                       </a>
                     </div>
@@ -2024,58 +2773,163 @@ export default function ProfilePage({
 
               {/* Service Address */}
               <div className="space-y-1 pt-2 border-t border-slate-100">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Service Address
+                <p className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">
+                  Service Location
                 </p>
-                <p className="text-slate-800 font-semibold">
+                <p className="text-slate-600 leading-relaxed">
                   {selectedBookingForDetails.address}
                 </p>
               </div>
 
-              {/* Price Breakdown */}
-              <div className="space-y-1.5 pt-2 border-t border-slate-100 text-slate-600">
-                <div className="flex justify-between">
-                  <span>Item Subtotal</span>
-                  <span className="font-bold text-slate-900">
-                    {selectedBookingForDetails.price}
-                  </span>
+              {/* Payment Summary Breakdown */}
+              <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                <p className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">
+                  Payment Summary
+                </p>
+                <div className="flex justify-between text-slate-600">
+                  <span>Item Total</span>
+                  <span>{selectedBookingForDetails.price}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Safety & Convenience Fee</span>
-                  <span className="font-bold text-slate-900">$3.50</span>
+                <div className="flex justify-between text-slate-600">
+                  <span>Safety & Equipment Fee</span>
+                  <span>$2.50</span>
                 </div>
-                <div className="flex justify-between font-black text-slate-900 border-t border-slate-100 pt-1.5 text-sm">
-                  <span>Total Paid</span>
+                <div className="flex justify-between text-slate-600">
+                  <span>Taxes & GST</span>
+                  <span>$1.00</span>
+                </div>
+                <div className="flex justify-between font-bold text-slate-900 pt-1 border-t border-slate-100">
+                  <span>Total Amount</span>
                   <span className="text-emerald-800">
                     {selectedBookingForDetails.totalPaid}
                   </span>
                 </div>
-                <p className="text-[10px] text-slate-400">
+                <p className="text-[10px] text-slate-400 pt-0.5">
                   Paid via {selectedBookingForDetails.paymentMethod}
                 </p>
               </div>
+            </div>
 
-              {/* Bottom Buttons */}
-              <div className="pt-3 flex gap-2">
+            {/* Modal Footer */}
+            <div className="border-t border-slate-100 px-6 sm:px-7 py-3 bg-slate-50 shrink-0 flex items-center justify-between">
+              <span className="text-[11px] text-slate-500 font-medium">
+                Argent Safety Guarantee Included
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedBookingForDetails(null)}
+                className="rounded-xl bg-slate-950 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800 transition-colors cursor-pointer"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================
+          MODAL 3: RESCHEDULE BOOKING MODAL
+      =================================================================== */}
+      {rescheduleBookingTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm animate-rise-in"
+          onClick={() => setRescheduleBookingTarget(null)}
+        >
+          <div
+            className="relative w-full max-w-md rounded-3xl border border-slate-100 bg-white p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800">
+                  Reschedule Appointment
+                </span>
+                <h3 className="text-base font-black text-slate-900">
+                  #{rescheduleBookingTarget.id} · {rescheduleBookingTarget.serviceName}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRescheduleBookingTarget(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-4 text-xs">
+              <div>
+                <label className="font-bold text-slate-700 block mb-1.5">
+                  Select New Date
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    "Tomorrow, 20 Sep",
+                    "Sat, 21 Sep",
+                    "Sun, 22 Sep",
+                    "Mon, 23 Sep",
+                  ].map((dateOption) => (
+                    <button
+                      key={dateOption}
+                      type="button"
+                      onClick={() => setRescheduleDate(dateOption)}
+                      className={`rounded-2xl p-2.5 font-bold border transition-all text-center cursor-pointer ${
+                        rescheduleDate === dateOption
+                          ? "bg-slate-950 text-white border-slate-950"
+                          : "bg-white text-slate-700 border-slate-200 hover:border-slate-300"
+                      }`}
+                    >
+                      {dateOption}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1.5">
+                  Select New Time Slot
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    "09:00 AM - 10:30 AM",
+                    "12:00 PM - 01:30 PM",
+                    "03:30 PM - 05:00 PM",
+                    "06:00 PM - 07:30 PM",
+                  ].map((timeOption) => (
+                    <button
+                      key={timeOption}
+                      type="button"
+                      onClick={() => setRescheduleTime(timeOption)}
+                      className={`rounded-2xl p-2.5 font-bold border transition-all text-center cursor-pointer ${
+                        rescheduleTime === timeOption
+                          ? "bg-emerald-800 text-white border-emerald-800"
+                          : "bg-white text-slate-700 border-slate-200 hover:border-slate-300"
+                      }`}
+                    >
+                      {timeOption}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-slate-50 p-3 text-[11px] text-slate-500">
+                Rescheduling is 100% free up to 2 hours before the appointment.
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() =>
-                    showToast("Receipt downloaded to your device.")
-                  }
-                  className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 py-2.5 text-xs font-bold text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
+                  onClick={() => setRescheduleBookingTarget(null)}
+                  className="rounded-xl border border-slate-200 px-4 py-2.5 font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
                 >
-                  <Download className="h-3.5 w-3.5" />
-                  <span>Download Receipt</span>
+                  Keep Original Slot
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setSelectedBookingForDetails(null);
-                    setActiveTab("support");
-                  }}
-                  className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-bold text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
+                  onClick={handleConfirmReschedule}
+                  className="rounded-xl bg-slate-950 px-5 py-2.5 font-bold text-white hover:bg-emerald-800 transition-colors shadow-sm cursor-pointer"
                 >
-                  <span>Need Help?</span>
+                  Confirm Reschedule
                 </button>
               </div>
             </div>
@@ -2084,7 +2938,92 @@ export default function ProfilePage({
       )}
 
       {/* ===================================================================
-          MODAL 3: ADD NEW ADDRESS MODAL
+          MODAL 4: CANCEL BOOKING MODAL
+      =================================================================== */}
+      {cancelBookingTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm animate-rise-in"
+          onClick={() => setCancelBookingTarget(null)}
+        >
+          <div
+            className="relative w-full max-w-md rounded-3xl border border-slate-100 bg-white p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-rose-700">
+                  Cancel Booking
+                </span>
+                <h3 className="text-base font-black text-slate-900">
+                  #{cancelBookingTarget.id} · {cancelBookingTarget.serviceName}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCancelBookingTarget(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-4 text-xs">
+              <p className="text-slate-600">
+                Please let us know why you need to cancel this doorstep booking:
+              </p>
+
+              <div className="space-y-2">
+                {[
+                  "Change of plans / Not available at home",
+                  "Found another alternate solution",
+                  "Emergency / Rescheduling later",
+                  "Booked wrong service by mistake",
+                  "Other reason",
+                ].map((reason) => (
+                  <label
+                    key={reason}
+                    className="flex items-center gap-2.5 p-2.5 rounded-2xl border border-slate-200 hover:bg-slate-50 cursor-pointer font-medium"
+                  >
+                    <input
+                      type="radio"
+                      name="cancelReason"
+                      value={reason}
+                      checked={cancelReason === reason}
+                      onChange={(e) => setCancelReason(e.target.value)}
+                      className="accent-rose-600"
+                    />
+                    <span className="text-slate-800">{reason}</span>
+                  </label>
+                ))}
+              </div>
+
+              <div className="rounded-2xl bg-rose-50 border border-rose-100 p-3 text-[11px] text-rose-800">
+                Any prepaid amount will be refunded immediately to your original payment method.
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setCancelBookingTarget(null)}
+                  className="rounded-xl border border-slate-200 px-4 py-2.5 font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  Keep Booking
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmCancellation}
+                  className="rounded-xl bg-rose-600 px-5 py-2.5 font-bold text-white hover:bg-rose-700 transition-colors shadow-sm cursor-pointer"
+                >
+                  Confirm Cancellation
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================
+          MODAL 5: ADD ADDRESS MODAL (With REAL Geolocation GPS Button)
       =================================================================== */}
       {isAddAddressOpen && (
         <div
@@ -2092,53 +3031,101 @@ export default function ProfilePage({
           onClick={() => setIsAddAddressOpen(false)}
         >
           <div
-            className="w-full max-w-md rounded-3xl border border-white/80 bg-white p-6 sm:p-7 shadow-2xl"
+            className="relative w-full max-w-lg rounded-3xl border border-slate-100 bg-white p-6 sm:p-7 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-base font-black text-slate-900">
-                Add New Service Address
+              <h3 className="text-lg font-black text-slate-900">
+                Add New Doorstep Address
               </h3>
               <button
                 type="button"
                 onClick={() => setIsAddAddressOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1"
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form
-              onSubmit={handleAddAddress}
-              className="mt-4 space-y-3.5 text-xs"
-            >
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Address Type
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {["Home", "Work", "Other"].map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() =>
-                        setNewAddressForm({ ...newAddressForm, type: t })
-                      }
-                      className={`py-2 text-center rounded-xl font-bold border transition-colors ${
-                        newAddressForm.type === t
-                          ? "border-emerald-700 bg-emerald-50 text-emerald-900"
-                          : "border-slate-200 text-slate-700 hover:bg-slate-50"
-                      }`}
-                    >
-                      {t}
-                    </button>
-                  ))}
+            <form onSubmit={handleAddAddress} className="mt-4 space-y-4 text-xs">
+              {/* Real GPS Geolocation Trigger */}
+              <div className="flex items-center justify-between p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200">
+                <div className="flex items-center gap-2 text-xs">
+                  <MapPin className="h-4 w-4 text-emerald-700" />
+                  <span className="font-bold text-emerald-950">
+                    Auto-detect via GPS
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleUseCurrentLocation}
+                  disabled={isLocating}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-slate-950 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-800 transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
+                >
+                  <RefreshCw
+                    className={`h-3.5 w-3.5 ${isLocating ? "animate-spin" : ""}`}
+                  />
+                  <span>{isLocating ? "Locating..." : "Use Current Location"}</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                {["Home", "Work", "Other"].map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setNewAddressForm({ ...newAddressForm, type: t })}
+                    className={`rounded-2xl py-2 font-bold border transition-all cursor-pointer text-center ${
+                      newAddressForm.type === t
+                        ? "bg-slate-950 text-white border-slate-950"
+                        : "bg-white text-slate-700 border-slate-200 hover:border-slate-300"
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">
+                    Contact Person Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newAddressForm.recipient}
+                    onChange={(e) =>
+                      setNewAddressForm({
+                        ...newAddressForm,
+                        recipient: e.target.value,
+                      })
+                    }
+                    className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-semibold text-slate-900 focus:border-emerald-600 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">
+                    Phone Number
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={newAddressForm.phone}
+                    onChange={(e) =>
+                      setNewAddressForm({
+                        ...newAddressForm,
+                        phone: e.target.value,
+                      })
+                    }
+                    className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-semibold text-slate-900 focus:border-emerald-600 outline-none"
+                  />
                 </div>
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  House / Flat / Building No.
+                <label className="font-bold text-slate-700 block mb-1">
+                  House / Flat No. & Building Name (Line 1)
                 </label>
                 <input
                   type="text"
@@ -2146,36 +3133,30 @@ export default function ProfilePage({
                   placeholder="e.g. Flat 402, Green Glen Heights"
                   value={newAddressForm.line1}
                   onChange={(e) =>
-                    setNewAddressForm({
-                      ...newAddressForm,
-                      line1: e.target.value,
-                    })
+                    setNewAddressForm({ ...newAddressForm, line1: e.target.value })
                   }
-                  className="w-full rounded-xl border border-slate-200 p-2.5 text-slate-900 outline-none focus:border-emerald-700"
+                  className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-semibold text-slate-900 focus:border-emerald-600 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Street / Area / Locality
+                <label className="font-bold text-slate-700 block mb-1">
+                  Street / Area / Landmark (Line 2)
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Sector 62"
+                  placeholder="e.g. Sector 62, Near Metro Station"
                   value={newAddressForm.line2}
                   onChange={(e) =>
-                    setNewAddressForm({
-                      ...newAddressForm,
-                      line2: e.target.value,
-                    })
+                    setNewAddressForm({ ...newAddressForm, line2: e.target.value })
                   }
-                  className="w-full rounded-xl border border-slate-200 p-2.5 text-slate-900 outline-none focus:border-emerald-700"
+                  className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-semibold text-slate-900 focus:border-emerald-600 outline-none"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">
+                  <label className="font-bold text-slate-700 block mb-1">
                     City
                   </label>
                   <input
@@ -2183,22 +3164,32 @@ export default function ProfilePage({
                     required
                     value={newAddressForm.city}
                     onChange={(e) =>
-                      setNewAddressForm({
-                        ...newAddressForm,
-                        city: e.target.value,
-                      })
+                      setNewAddressForm({ ...newAddressForm, city: e.target.value })
                     }
-                    className="w-full rounded-xl border border-slate-200 p-2.5 text-slate-900 outline-none focus:border-emerald-700"
+                    className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-semibold text-slate-900 focus:border-emerald-600 outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">
+                  <label className="font-bold text-slate-700 block mb-1">
+                    State
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newAddressForm.state}
+                    onChange={(e) =>
+                      setNewAddressForm({ ...newAddressForm, state: e.target.value })
+                    }
+                    className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-semibold text-slate-900 focus:border-emerald-600 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">
                     Pincode
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. 201304"
                     value={newAddressForm.postalCode}
                     onChange={(e) =>
                       setNewAddressForm({
@@ -2206,12 +3197,12 @@ export default function ProfilePage({
                         postalCode: e.target.value,
                       })
                     }
-                    className="w-full rounded-xl border border-slate-200 p-2.5 text-slate-900 outline-none focus:border-emerald-700"
+                    className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-semibold text-slate-900 focus:border-emerald-600 outline-none"
                   />
                 </div>
               </div>
 
-              <label className="flex items-center gap-2 cursor-pointer pt-1 text-slate-700">
+              <label className="flex items-center gap-2 pt-1 font-semibold text-slate-800 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={newAddressForm.isDefault}
@@ -2221,22 +3212,22 @@ export default function ProfilePage({
                       isDefault: e.target.checked,
                     })
                   }
-                  className="rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
+                  className="accent-emerald-600 h-4 w-4 rounded cursor-pointer"
                 />
-                <span>Set as default service delivery address</span>
+                <span>Set as default doorstep service address</span>
               </label>
 
-              <div className="pt-2 flex items-center justify-end gap-2">
+              <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setIsAddAddressOpen(false)}
-                  className="rounded-xl border border-slate-200 px-4 py-2 font-bold text-slate-700"
+                  className="rounded-xl border border-slate-200 px-4 py-2.5 font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="rounded-xl bg-slate-950 px-5 py-2 font-bold text-white hover:bg-emerald-800"
+                  className="rounded-xl bg-slate-950 px-5 py-2.5 font-bold text-white hover:bg-emerald-800 transition-colors shadow-sm cursor-pointer"
                 >
                   Save Address
                 </button>
@@ -2247,7 +3238,179 @@ export default function ProfilePage({
       )}
 
       {/* ===================================================================
-          MODAL 4: ADD PAYMENT METHOD MODAL
+          MODAL 6: EDIT ADDRESS TARGET MODAL
+      =================================================================== */}
+      {editAddressTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm animate-rise-in"
+          onClick={() => setEditAddressTarget(null)}
+        >
+          <div
+            className="relative w-full max-w-lg rounded-3xl border border-slate-100 bg-white p-6 sm:p-7 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-lg font-black text-slate-900">
+                Edit Service Address
+              </h3>
+              <button
+                type="button"
+                onClick={() => setEditAddressTarget(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateAddress} className="mt-4 space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">
+                    Recipient Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editAddressTarget.recipient}
+                    onChange={(e) =>
+                      setEditAddressTarget({
+                        ...editAddressTarget,
+                        recipient: e.target.value,
+                      })
+                    }
+                    className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-semibold text-slate-900 outline-none focus:border-emerald-600"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">
+                    Phone
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={editAddressTarget.phone}
+                    onChange={(e) =>
+                      setEditAddressTarget({
+                        ...editAddressTarget,
+                        phone: e.target.value,
+                      })
+                    }
+                    className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-semibold text-slate-900 outline-none focus:border-emerald-600"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">
+                  Address Line 1
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editAddressTarget.line1}
+                  onChange={(e) =>
+                    setEditAddressTarget({
+                      ...editAddressTarget,
+                      line1: e.target.value,
+                    })
+                  }
+                  className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-semibold text-slate-900 outline-none focus:border-emerald-600"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">
+                  Address Line 2
+                </label>
+                <input
+                  type="text"
+                  value={editAddressTarget.line2}
+                  onChange={(e) =>
+                    setEditAddressTarget({
+                      ...editAddressTarget,
+                      line2: e.target.value,
+                    })
+                  }
+                  className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-semibold text-slate-900 outline-none focus:border-emerald-600"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">
+                    City
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editAddressTarget.city}
+                    onChange={(e) =>
+                      setEditAddressTarget({
+                        ...editAddressTarget,
+                        city: e.target.value,
+                      })
+                    }
+                    className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-semibold text-slate-900 outline-none focus:border-emerald-600"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">
+                    State
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editAddressTarget.state}
+                    onChange={(e) =>
+                      setEditAddressTarget({
+                        ...editAddressTarget,
+                        state: e.target.value,
+                      })
+                    }
+                    className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-semibold text-slate-900 outline-none focus:border-emerald-600"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">
+                    Pincode
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editAddressTarget.postalCode}
+                    onChange={(e) =>
+                      setEditAddressTarget({
+                        ...editAddressTarget,
+                        postalCode: e.target.value,
+                      })
+                    }
+                    className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-semibold text-slate-900 outline-none focus:border-emerald-600"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditAddressTarget(null)}
+                  className="rounded-xl border border-slate-200 px-4 py-2.5 font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-xl bg-slate-950 px-5 py-2.5 font-bold text-white hover:bg-emerald-800 transition-colors shadow-sm cursor-pointer"
+                >
+                  Update Address
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================
+          MODAL 7: ADD PAYMENT METHOD MODAL (3 Tabs: Card, UPI, Net Banking)
       =================================================================== */}
       {isAddPaymentOpen && (
         <div
@@ -2255,106 +3418,189 @@ export default function ProfilePage({
           onClick={() => setIsAddPaymentOpen(false)}
         >
           <div
-            className="w-full max-w-md rounded-3xl border border-white/80 bg-white p-6 sm:p-7 shadow-2xl"
+            className="relative w-full max-w-md rounded-3xl border border-slate-100 bg-white p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-base font-black text-slate-900">
-                Add New Payment Method
+              <h3 className="text-lg font-black text-slate-900">
+                Add Payment Method
               </h3>
               <button
                 type="button"
                 onClick={() => setIsAddPaymentOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1"
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form
-              onSubmit={handleAddPayment}
-              className="mt-4 space-y-3.5 text-xs"
-            >
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Card Number
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="4242 •••• •••• 4242"
-                  maxLength={19}
-                  value={newPaymentForm.cardNumber}
-                  onChange={(e) =>
-                    setNewPaymentForm({
-                      ...newPaymentForm,
-                      cardNumber: e.target.value,
-                    })
-                  }
-                  className="w-full rounded-xl border border-slate-200 p-2.5 font-mono text-slate-900 outline-none focus:border-emerald-700"
-                />
-              </div>
+            {/* 3 Tabs: Card, UPI, Net Banking */}
+            <div className="flex rounded-2xl bg-slate-100 p-1 mt-4 text-xs font-bold text-slate-700">
+              {[
+                { id: "card", label: "Credit/Debit Card" },
+                { id: "upi", label: "UPI ID" },
+                { id: "netbanking", label: "Net Banking" },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setPaymentTab(tab.id)}
+                  className={`flex-1 rounded-xl py-2 transition-all cursor-pointer ${
+                    paymentTab === tab.id
+                      ? "bg-white text-slate-950 shadow-xs"
+                      : "hover:text-slate-950"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
 
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Cardholder Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newPaymentForm.cardholder}
-                  onChange={(e) =>
-                    setNewPaymentForm({
-                      ...newPaymentForm,
-                      cardholder: e.target.value,
-                    })
-                  }
-                  className="w-full rounded-xl border border-slate-200 p-2.5 text-slate-900 outline-none focus:border-emerald-700"
-                />
-              </div>
+            <form onSubmit={handleAddPayment} className="mt-4 space-y-4 text-xs">
+              {paymentTab === "card" && (
+                <>
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">
+                      Card Number
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="4532 •••• •••• 4242"
+                      maxLength={19}
+                      value={newPaymentForm.cardNumber}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "").slice(0, 16);
+                        const formatted = val.replace(/(.{4})/g, "$1 ").trim();
+                        setNewPaymentForm({ ...newPaymentForm, cardNumber: formatted });
+                      }}
+                      className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-mono font-semibold text-slate-900 focus:border-emerald-600 outline-none"
+                    />
+                  </div>
 
-              <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">
+                      Cardholder Name
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={newPaymentForm.cardholder}
+                      onChange={(e) =>
+                        setNewPaymentForm({
+                          ...newPaymentForm,
+                          cardholder: e.target.value,
+                        })
+                      }
+                      className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-semibold text-slate-900 focus:border-emerald-600 outline-none"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="font-bold text-slate-700 block mb-1">
+                        Expiry (MM/YY)
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="MM/YY"
+                        maxLength={5}
+                        value={newPaymentForm.expiry}
+                        onChange={(e) =>
+                          setNewPaymentForm({
+                            ...newPaymentForm,
+                            expiry: e.target.value,
+                          })
+                        }
+                        className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-mono font-semibold text-slate-900 focus:border-emerald-600 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="font-bold text-slate-700 block mb-1">
+                        CVV / CVC
+                      </label>
+                      <input
+                        type="password"
+                        required
+                        placeholder="•••"
+                        maxLength={4}
+                        value={newPaymentForm.cvv}
+                        onChange={(e) =>
+                          setNewPaymentForm({
+                            ...newPaymentForm,
+                            cvv: e.target.value,
+                          })
+                        }
+                        className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-mono font-semibold text-slate-900 focus:border-emerald-600 outline-none"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {paymentTab === "upi" && (
+                <>
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">
+                      Virtual Payment Address (UPI ID)
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. yourname@okhdfcbank"
+                      value={newPaymentForm.upiId}
+                      onChange={(e) =>
+                        setNewPaymentForm({ ...newPaymentForm, upiId: e.target.value })
+                      }
+                      className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-semibold text-slate-900 focus:border-emerald-600 outline-none"
+                    />
+                  </div>
+
+                  {/* Quick UPI Handle Pills */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {["@okaxis", "@okhdfcbank", "@paytm", "@ybl"].map((h) => (
+                      <button
+                        key={h}
+                        type="button"
+                        onClick={() => {
+                          const base = newPaymentForm.upiId.split("@")[0] || "rahul";
+                          setNewPaymentForm({ ...newPaymentForm, upiId: `${base}${h}` });
+                        }}
+                        className="rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-700 hover:bg-slate-200 cursor-pointer"
+                      >
+                        {h}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {paymentTab === "netbanking" && (
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">
-                    Expiry (MM/YY)
+                  <label className="font-bold text-slate-700 block mb-1">
+                    Select Your Bank
                   </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="MM/YY"
-                    maxLength={5}
-                    value={newPaymentForm.expiry}
+                  <select
+                    value={newPaymentForm.bankName}
                     onChange={(e) =>
                       setNewPaymentForm({
                         ...newPaymentForm,
-                        expiry: e.target.value,
+                        bankName: e.target.value,
                       })
                     }
-                    className="w-full rounded-xl border border-slate-200 p-2.5 text-slate-900 outline-none focus:border-emerald-700"
-                  />
+                    className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-semibold text-slate-900 focus:border-emerald-600 outline-none cursor-pointer"
+                  >
+                    <option value="HDFC Bank">HDFC Bank</option>
+                    <option value="ICICI Bank">ICICI Bank</option>
+                    <option value="State Bank of India">State Bank of India</option>
+                    <option value="Axis Bank">Axis Bank</option>
+                    <option value="Kotak Mahindra Bank">Kotak Mahindra Bank</option>
+                  </select>
                 </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">
-                    CVV
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    maxLength={4}
-                    placeholder="•••"
-                    value={newPaymentForm.cvv}
-                    onChange={(e) =>
-                      setNewPaymentForm({
-                        ...newPaymentForm,
-                        cvv: e.target.value,
-                      })
-                    }
-                    className="w-full rounded-xl border border-slate-200 p-2.5 text-slate-900 outline-none focus:border-emerald-700"
-                  />
-                </div>
-              </div>
+              )}
 
-              <label className="flex items-center gap-2 cursor-pointer pt-1 text-slate-700">
+              <label className="flex items-center gap-2 pt-1 font-semibold text-slate-800 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={newPaymentForm.isDefault}
@@ -2364,24 +3610,24 @@ export default function ProfilePage({
                       isDefault: e.target.checked,
                     })
                   }
-                  className="rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
+                  className="accent-emerald-600 h-4 w-4 rounded cursor-pointer"
                 />
                 <span>Set as default payment method</span>
               </label>
 
-              <div className="pt-2 flex items-center justify-end gap-2">
+              <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setIsAddPaymentOpen(false)}
-                  className="rounded-xl border border-slate-200 px-4 py-2 font-bold text-slate-700"
+                  className="rounded-xl border border-slate-200 px-4 py-2.5 font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="rounded-xl bg-slate-950 px-5 py-2 font-bold text-white hover:bg-emerald-800"
+                  className="rounded-xl bg-slate-950 px-5 py-2.5 font-bold text-white hover:bg-emerald-800 transition-colors shadow-sm cursor-pointer"
                 >
-                  Save Card Securely
+                  Save Method
                 </button>
               </div>
             </form>
@@ -2390,7 +3636,192 @@ export default function ProfilePage({
       )}
 
       {/* ===================================================================
-          MODAL 5: CHANGE AVATAR MODAL
+          MODAL 8: LIVE CHAT MODAL
+      =================================================================== */}
+      {isLiveChatOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm animate-rise-in"
+          onClick={() => setIsLiveChatOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-lg rounded-3xl border border-slate-100 bg-white shadow-2xl h-[520px] flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 bg-slate-950 text-white shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <div className="h-9 w-9 rounded-full bg-emerald-700 flex items-center justify-center text-white font-black text-xs">
+                    AY
+                  </div>
+                  <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-400 border border-slate-950" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm">Argent Support Assistant</h4>
+                  <p className="text-[10px] text-emerald-300">
+                    Online · Average response &lt; 1 min
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsLiveChatOpen(false)}
+                className="text-slate-300 hover:text-white p-1 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Chat message body */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 text-xs">
+              {chatMessages.map((msg, i) => (
+                <div
+                  key={i}
+                  className={`flex flex-col ${
+                    msg.sender === "user" ? "items-end" : "items-start"
+                  }`}
+                >
+                  <div
+                    className={`max-w-[80%] rounded-2xl p-3 leading-relaxed ${
+                      msg.sender === "user"
+                        ? "bg-slate-950 text-white rounded-br-xs"
+                        : "bg-slate-100 text-slate-900 rounded-bl-xs"
+                    }`}
+                  >
+                    {msg.text}
+                  </div>
+                  <span className="text-[9px] text-slate-400 mt-1 px-1">
+                    {msg.time}
+                  </span>
+                </div>
+              ))}
+
+              {isAgentTyping && (
+                <div className="flex items-center gap-1 text-slate-400 text-[11px] pl-1">
+                  <span className="inline-block h-2 w-2 rounded-full bg-slate-400 animate-bounce" />
+                  <span className="inline-block h-2 w-2 rounded-full bg-slate-400 animate-bounce delay-100" />
+                  <span className="inline-block h-2 w-2 rounded-full bg-slate-400 animate-bounce delay-200" />
+                  <span className="ml-1">Agent is typing...</span>
+                </div>
+              )}
+            </div>
+
+            {/* Input bar */}
+            <form
+              onSubmit={handleSendChatMessage}
+              className="p-3 border-t border-slate-100 bg-white shrink-0 flex items-center gap-2"
+            >
+              <input
+                type="text"
+                placeholder="Type your message..."
+                value={inputChatMessage}
+                onChange={(e) => setInputChatMessage(e.target.value)}
+                className="flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-900 outline-none focus:border-emerald-600"
+              />
+              <button
+                type="submit"
+                className="rounded-2xl bg-slate-950 p-2.5 text-white hover:bg-emerald-800 transition-colors shadow-2xs cursor-pointer"
+              >
+                <Send className="h-4 w-4" />
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================
+          MODAL 9: RAISE A TICKET MODAL
+      =================================================================== */}
+      {isRaiseTicketOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm animate-rise-in"
+          onClick={() => setIsRaiseTicketOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-md rounded-3xl border border-slate-100 bg-white p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-lg font-black text-slate-900">
+                Raise Support Ticket
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsRaiseTicketOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleRaiseTicket} className="mt-4 space-y-4 text-xs">
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">
+                  Issue Category
+                </label>
+                <select
+                  value={ticketCategory}
+                  onChange={(e) => setTicketCategory(e.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-semibold text-slate-900 outline-none focus:border-emerald-600 cursor-pointer"
+                >
+                  <option value="Service Quality">Service Quality & Revisit</option>
+                  <option value="Billing & Payment">Billing & Refund Status</option>
+                  <option value="Technician Delay">Technician Delay / No Show</option>
+                  <option value="Reschedule Help">Rescheduling Assistance</option>
+                  <option value="Other Inquiry">Other General Inquiry</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">
+                  Subject
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Brief summary of issue"
+                  value={ticketSubject}
+                  onChange={(e) => setTicketSubject(e.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-semibold text-slate-900 outline-none focus:border-emerald-600"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">
+                  Detailed Description
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  placeholder="Explain details so our senior supervisor can investigate immediately..."
+                  value={ticketDesc}
+                  onChange={(e) => setTicketDesc(e.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-semibold text-slate-900 outline-none focus:border-emerald-600"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsRaiseTicketOpen(false)}
+                  className="rounded-xl border border-slate-200 px-4 py-2.5 font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-xl bg-slate-950 px-5 py-2.5 font-bold text-white hover:bg-emerald-800 transition-colors shadow-sm cursor-pointer"
+                >
+                  Submit Ticket
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================
+          MODAL 10: CHANGE AVATAR MODAL
       =================================================================== */}
       {isAvatarModalOpen && (
         <div
@@ -2398,66 +3829,147 @@ export default function ProfilePage({
           onClick={() => setIsAvatarModalOpen(false)}
         >
           <div
-            className="w-full max-w-md rounded-3xl border border-white/80 bg-white p-6 sm:p-7 shadow-2xl"
+            className="relative w-full max-w-sm rounded-3xl border border-slate-100 bg-white p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-base font-black text-slate-900">
-                Choose Profile Avatar
+                Choose Profile Photo
               </h3>
               <button
                 type="button"
                 onClick={() => setIsAvatarModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1"
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="mt-4 space-y-4">
-              <p className="text-xs text-slate-500">
-                Select from verified Argent Your avatars or enter an image URL:
-              </p>
-              <div className="grid grid-cols-4 gap-3">
-                {[
-                  "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80",
-                  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80",
-                  "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80",
-                  "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80",
-                ].map((src, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => {
-                      setProfileForm((prev) => ({ ...prev, avatar: src }));
-                      updateUser({ ...user, avatar: src });
-                      setIsAvatarModalOpen(false);
-                      showToast("Profile avatar updated!");
-                    }}
-                    className={`relative overflow-hidden rounded-full aspect-square border-2 transition-transform hover:scale-105 ${
-                      profileForm.avatar === src
-                        ? "border-emerald-600 ring-4 ring-emerald-500/20"
-                        : "border-slate-200"
-                    }`}
-                  >
-                    <img
-                      src={src}
-                      alt="Avatar"
-                      className="h-full w-full object-cover"
-                    />
-                  </button>
-                ))}
-              </div>
-
-              <div className="pt-2 flex justify-end">
+            <div className="mt-4 grid grid-cols-3 gap-3">
+              {[
+                "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80",
+                "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80",
+                "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80",
+                "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80",
+                "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=400&q=80",
+                "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=400&q=80",
+              ].map((av, idx) => (
                 <button
+                  key={idx}
                   type="button"
-                  onClick={() => setIsAvatarModalOpen(false)}
-                  className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-700"
+                  onClick={() => {
+                    setProfileForm((prev) => ({ ...prev, avatar: av }));
+                    updateUser({ ...user, avatar: av });
+                    setIsAvatarModalOpen(false);
+                    showToast("Profile avatar updated!");
+                  }}
+                  className="overflow-hidden rounded-2xl border-2 border-transparent hover:border-emerald-600 aspect-square transition-all cursor-pointer"
                 >
-                  Close
+                  <img src={av} alt="Avatar" className="h-full w-full object-cover" />
                 </button>
-              </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================
+          MODAL 11: DELETE ACCOUNT MODAL
+      =================================================================== */}
+      {isDeleteAccountOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm animate-rise-in"
+          onClick={() => setIsDeleteAccountOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-sm rounded-3xl border border-slate-100 bg-white p-6 shadow-2xl space-y-4 text-xs"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <h3 className="text-base font-black text-rose-600">
+                Delete Account
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsDeleteAccountOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <p className="text-slate-600 leading-relaxed">
+              Are you sure you want to permanently delete your Argent Your account? This action cannot be undone. All saved addresses, payment methods, and booking warranties will be lost.
+            </p>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsDeleteAccountOpen(false)}
+                className="rounded-xl border border-slate-200 px-4 py-2 font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsDeleteAccountOpen(false);
+                  logout();
+                  onHome?.();
+                }}
+                className="rounded-xl bg-rose-600 px-4 py-2 font-bold text-white hover:bg-rose-700 cursor-pointer"
+              >
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================
+          MODAL 12: LOGOUT CONFIRMATION MODAL
+      =================================================================== */}
+      {isLogoutModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm animate-rise-in"
+          onClick={() => setIsLogoutModalOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-sm rounded-3xl border border-slate-100 bg-white p-6 shadow-2xl space-y-4 text-xs"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <h3 className="text-base font-black text-slate-900">
+                Log Out of Argent Your?
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsLogoutModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <p className="text-slate-600 leading-relaxed">
+              You will need to sign back in with your credentials to book doorstep services and track appointments.
+            </p>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsLogoutModalOpen(false)}
+                className="rounded-xl border border-slate-200 px-4 py-2 font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="rounded-xl bg-slate-950 px-4 py-2 font-bold text-white hover:bg-emerald-800 transition-colors cursor-pointer"
+              >
+                Log Out
+              </button>
             </div>
           </div>
         </div>
