@@ -48,7 +48,7 @@ function PasswordField({
   );
 }
 
-export default function AuthModal({ onClose, onNavigate }) {
+export default function AuthModal({ onClose, onNavigate, onSuccess, onCancel }) {
   const { login, register, demoLogin } = useAuth();
   const [screen, setScreen] = useState("login");
   const [method, setMethod] = useState("email");
@@ -67,6 +67,11 @@ export default function AuthModal({ onClose, onNavigate }) {
   const modalRef = useRef(null);
   const isSignup = screen === "signup";
 
+  const handleCancelAndClose = () => {
+    if (onCancel) onCancel();
+    onClose();
+  };
+
   useEffect(() => {
     const scrollY = window.scrollY;
     const previous = {
@@ -80,7 +85,8 @@ export default function AuthModal({ onClose, onNavigate }) {
     document.body.style.top = `-${scrollY}px`;
     document.body.style.width = "100%";
     modalRef.current?.focus();
-    const closeOnEscape = (event) => event.key === "Escape" && onClose();
+    const closeOnEscape = (event) =>
+      event.key === "Escape" && handleCancelAndClose();
     window.addEventListener("keydown", closeOnEscape);
     return () => {
       window.removeEventListener("keydown", closeOnEscape);
@@ -114,6 +120,7 @@ export default function AuthModal({ onClose, onNavigate }) {
     try {
       await demoLogin("customer");
       setStatus("Signed in successfully");
+      if (onSuccess) onSuccess();
       window.setTimeout(onClose, 300);
     } catch {
       setStatus("");
@@ -132,6 +139,7 @@ export default function AuthModal({ onClose, onNavigate }) {
       if (method === "email") await login(loginValue, loginPassword);
       else await demoLogin("customer");
       setStatus("Signed in successfully");
+      if (onSuccess) onSuccess();
       window.setTimeout(onClose, 300);
     } catch (err) {
       setStatus("");
@@ -162,6 +170,7 @@ export default function AuthModal({ onClose, onNavigate }) {
         role: "customer",
       });
       setStatus("Account created successfully");
+      if (onSuccess) onSuccess();
       window.setTimeout(onClose, 300);
     } catch (err) {
       setStatus("");
@@ -175,7 +184,9 @@ export default function AuthModal({ onClose, onNavigate }) {
   return (
     <div
       className="auth-overlay"
-      onMouseDown={(event) => event.target === event.currentTarget && onClose()}
+      onMouseDown={(event) =>
+        event.target === event.currentTarget && handleCancelAndClose()
+      }
     >
       <section
         ref={modalRef}
@@ -187,7 +198,7 @@ export default function AuthModal({ onClose, onNavigate }) {
       >
         <button
           type="button"
-          onClick={onClose}
+          onClick={handleCancelAndClose}
           className="auth-close"
           aria-label="Close authentication dialog"
         >

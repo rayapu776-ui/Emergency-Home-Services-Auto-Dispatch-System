@@ -297,8 +297,15 @@ function LegacyAuthPanel({ onClose }) {
   );
 }
 
-function AuthPanel({ onClose, onNavigate }) {
-  return <AuthModal onClose={onClose} onNavigate={onNavigate} />;
+function AuthPanel({ onClose, onNavigate, onSuccess, onCancel }) {
+  return (
+    <AuthModal
+      onClose={onClose}
+      onNavigate={onNavigate}
+      onSuccess={onSuccess}
+      onCancel={onCancel}
+    />
+  );
 }
 
 function LocationPicker({ value, onChange, onClose }) {
@@ -498,6 +505,8 @@ function DedicatedPage({
   onBook,
   authOpen,
   onAuthClose,
+  onAuthSuccess,
+  onAuthCancel,
   onNavigate,
   onProfileClick,
   onCartClick,
@@ -638,7 +647,14 @@ function DedicatedPage({
       <Footer
         onNavigate={(path) => (path === "/" ? onHome() : onNavigate(path))}
       />
-      {authOpen && <AuthPanel onClose={onAuthClose} onNavigate={onNavigate} />}
+      {authOpen && (
+        <AuthPanel
+          onClose={onAuthClose}
+          onNavigate={onNavigate}
+          onSuccess={onAuthSuccess}
+          onCancel={onAuthCancel}
+        />
+      )}
     </div>
   );
 }
@@ -668,12 +684,6 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
     },
   ]);
 
-  useEffect(() => {
-    const syncRoute = () => setRoute(window.location.pathname || "/");
-    window.addEventListener("popstate", syncRoute);
-    return () => window.removeEventListener("popstate", syncRoute);
-  }, []);
-
   const navigate = (path) => {
     window.history.pushState({}, "", path);
     setRoute(path);
@@ -688,14 +698,100 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
 
   const goCategory = (name) => navigate(`/services/${slugify(name)}`);
 
-  const book = (item) => {
-    if (item?.booking) {
-      if (!user) {
-        setAuthOpen(true);
-      } else {
-        setCheckoutService(item);
-        navigate("/checkout");
+  useEffect(() => {
+    const syncRoute = () => setRoute(window.location.pathname || "/");
+    window.addEventListener("popstate", syncRoute);
+    return () => window.removeEventListener("popstate", syncRoute);
+  }, []);
+
+  // Restore pending booking after login/signup
+  useEffect(() => {
+    if (user) {
+      try {
+        const pendingStr = sessionStorage.getItem("argent_pending_booking");
+        if (pendingStr) {
+          const pending = JSON.parse(pendingStr);
+          if (pending?.service) {
+            setCheckoutService(pending.service);
+          }
+          if (pending?.couponCode) {
+            setAppliedCoupon(pending.couponCode);
+          }
+          if (pending?.location) {
+            setLocation(pending.location);
+          }
+          sessionStorage.removeItem("argent_pending_booking");
+          if (pending?.action === "checkout") {
+            navigate("/checkout");
+          }
+        }
+      } catch (err) {
+        console.warn("Failed restoring pending booking:", err);
       }
+    }
+  }, [user]);
+
+  // Guard /checkout route: if unauthenticated, prompt login immediately
+  useEffect(() => {
+    if (route === "/checkout" && !user) {
+      setAuthOpen(true);
+    }
+  }, [route, user]);
+
+  const handleAuthSuccess = () => {
+    try {
+      const pendingStr = sessionStorage.getItem("argent_pending_booking");
+      if (pendingStr) {
+        const pending = JSON.parse(pendingStr);
+        if (pending?.service) {
+          setCheckoutService(pending.service);
+        }
+        if (pending?.couponCode) {
+          setAppliedCoupon(pending.couponCode);
+        }
+        if (pending?.location) {
+          setLocation(pending.location);
+        }
+        sessionStorage.removeItem("argent_pending_booking");
+        navigate("/checkout");
+        return;
+      }
+    } catch (err) {
+      console.warn("Failed restoring booking on auth success:", err);
+    }
+  };
+
+  const handleAuthCancel = () => {
+    sessionStorage.removeItem("argent_pending_booking");
+    setAuthOpen(false);
+    if (route === "/checkout") {
+      goHome();
+    }
+  };
+
+  const handleProtectedBooking = (item, extra = {}) => {
+    if (!user) {
+      const pending = {
+        service: item,
+        serviceId: item?.slug || item?.id || item?.name,
+        couponCode: extra.couponCode || appliedCoupon || "",
+        location: extra.location || location,
+        action: "checkout",
+        timestamp: Date.now(),
+      };
+      sessionStorage.setItem("argent_pending_booking", JSON.stringify(pending));
+      setAuthOpen(true);
+      return false;
+    }
+    setCheckoutService(item);
+    if (extra.couponCode) setAppliedCoupon(extra.couponCode);
+    navigate("/checkout");
+    return true;
+  };
+
+  const book = (item) => {
+    if (item?.booking || item?.price) {
+      handleProtectedBooking(item);
     } else if (item?.name) {
       navigate(`/services/${slugify(item.name)}`);
     } else {
@@ -739,6 +835,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
           onViewBookings={() => navigate("/profile")}
           initialLocation={location}
           initialPromoCode={appliedCoupon}
+          onAuthRequired={() => setAuthOpen(true)}
         />
         <Footer
           onNavigate={(path) => (path === "/" ? goHome() : navigate(path))}
@@ -761,10 +858,20 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
               prev.filter((it) => it.slug !== key && it.name !== key),
             );
           }}
-          onCheckout={() => setCartOpen(false)}
+          onCheckout={() => {
+            if (cartItems.length > 0) {
+              setCartOpen(false);
+              handleProtectedBooking(cartItems[0]);
+            }
+          }}
         />
         {authOpen && (
-          <AuthPanel onClose={() => setAuthOpen(false)} onNavigate={navigate} />
+          <AuthPanel
+            onClose={() => setAuthOpen(false)}
+            onNavigate={navigate}
+            onSuccess={handleAuthSuccess}
+            onCancel={handleAuthCancel}
+          />
         )}
       </div>
     );
@@ -799,10 +906,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
         <ServiceDetailPage
           service={service}
           onHome={goHome}
-          onBookNow={(item) => {
-            setCheckoutService(item);
-            navigate("/checkout");
-          }}
+          onBookNow={(item) => handleProtectedBooking(item)}
           onAddToCart={(item) => {
             setCartItems((prev) => {
               const exists = prev.find((it) => it.slug === item.slug);
@@ -842,14 +946,18 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
           }}
           onCheckout={() => {
             if (cartItems.length > 0) {
-              setCheckoutService(cartItems[0]);
               setCartOpen(false);
-              navigate("/checkout");
+              handleProtectedBooking(cartItems[0]);
             }
           }}
         />
         {authOpen && (
-          <AuthPanel onClose={() => setAuthOpen(false)} onNavigate={navigate} />
+          <AuthPanel
+            onClose={() => setAuthOpen(false)}
+            onNavigate={navigate}
+            onSuccess={handleAuthSuccess}
+            onCancel={handleAuthCancel}
+          />
         )}
       </div>
     );
@@ -898,14 +1006,18 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
           }}
           onCheckout={() => {
             if (cartItems.length > 0) {
-              setCheckoutService(cartItems[0]);
               setCartOpen(false);
-              navigate("/checkout");
+              handleProtectedBooking(cartItems[0]);
             }
           }}
         />
         {authOpen && (
-          <AuthPanel onClose={() => setAuthOpen(false)} onNavigate={navigate} />
+          <AuthPanel
+            onClose={() => setAuthOpen(false)}
+            onNavigate={navigate}
+            onSuccess={handleAuthSuccess}
+            onCancel={handleAuthCancel}
+          />
         )}
       </div>
     );
@@ -920,6 +1032,8 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
           onBook={book}
           authOpen={authOpen}
           onAuthClose={() => setAuthOpen(false)}
+          onAuthSuccess={handleAuthSuccess}
+          onAuthCancel={handleAuthCancel}
           onProfileClick={() => navigate("/profile")}
           onCartClick={() => setCartOpen(true)}
           cartCount={cartItems.length}
@@ -946,9 +1060,8 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
           }}
           onCheckout={() => {
             if (cartItems.length > 0) {
-              setCheckoutService(cartItems[0]);
               setCartOpen(false);
-              navigate("/checkout");
+              handleProtectedBooking(cartItems[0]);
             }
           }}
         />
@@ -1007,9 +1120,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
                   const target =
                     allServicesCatalog.find((s) => s.slug === slug) ||
                     allServicesCatalog[0];
-                  setCheckoutService(target);
-                  setAppliedCoupon(coupon);
-                  navigate("/checkout");
+                  handleProtectedBooking(target, { couponCode: coupon });
                 }}
               />
             </div>
@@ -1139,14 +1250,18 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
         }}
         onCheckout={() => {
           if (cartItems.length > 0) {
-            setCheckoutService(cartItems[0]);
             setCartOpen(false);
-            navigate("/checkout");
+            handleProtectedBooking(cartItems[0]);
           }
         }}
       />
       {authOpen && (
-        <AuthPanel onClose={() => setAuthOpen(false)} onNavigate={navigate} />
+        <AuthPanel
+          onClose={() => setAuthOpen(false)}
+          onNavigate={navigate}
+          onSuccess={handleAuthSuccess}
+          onCancel={handleAuthCancel}
+        />
       )}
     </div>
   );

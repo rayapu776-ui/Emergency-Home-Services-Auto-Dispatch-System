@@ -9,6 +9,7 @@ import {
   DollarSign,
   HelpCircle,
   Lock,
+  LocateFixed,
   MapPin,
   Plus,
   QrCode,
@@ -21,6 +22,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { validateCoupon } from "../data/promotionsData";
+import api from "../services/api";
 
 export default function PaymentPage({
   service,
@@ -28,6 +30,7 @@ export default function PaymentPage({
   onViewBookings,
   initialLocation = "Delhi NCR",
   initialPromoCode = "",
+  onAuthRequired,
 }) {
   const { user } = useAuth();
 
@@ -37,6 +40,10 @@ export default function PaymentPage({
   const [address, setAddress] = useState(
     user?.address || "Flat 402, Green Glen Heights, " + initialLocation,
   );
+  const [coords, setCoords] = useState({ lat: 28.6139, lon: 77.209 });
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+  const [locationStatus, setLocationStatus] = useState("");
+
   const initialValid = initialPromoCode
     ? validateCoupon(initialPromoCode)
     : null;
@@ -128,8 +135,67 @@ export default function PaymentPage({
     }
   };
 
-  const handlePayNow = () => {
+  const detectAddressLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationStatus("Location detection is unavailable");
+      return;
+    }
+    setIsDetectingLocation(true);
+    setLocationStatus("Detecting GPS...");
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        try {
+          const res = await fetch(
+            `/api/location/reverse-geocode?lat=${lat}&lon=${lon}`,
+          );
+          const data = await res.json();
+          if (data && (data.fullAddress || data.formattedAddress)) {
+            setAddress(data.fullAddress || data.formattedAddress);
+            setCoords({ lat, lon });
+            setLocationStatus("Location updated");
+            setTimeout(() => setLocationStatus(""), 3000);
+          }
+        } catch (err) {
+          console.warn("Geocoding failed:", err);
+          setLocationStatus("Could not resolve address automatically");
+        } finally {
+          setIsDetectingLocation(false);
+        }
+      },
+      () => {
+        setIsDetectingLocation(false);
+        setLocationStatus("GPS permission denied");
+      },
+      { timeout: 10000, enableHighAccuracy: true },
+    );
+  };
+
+  const handlePayNow = async () => {
+    // CRITICAL GUARD: Never allow order confirmation without authentication
+    if (!user) {
+      if (onAuthRequired) onAuthRequired();
+      return;
+    }
+
     setIsProcessing(true);
+
+    try {
+      await api.post("/requests", {
+        category: service?.category || "Emergency Repair",
+        priority: "High",
+        description: `Service booking for ${service?.name || "Doorstep Service"} on ${selectedDate} (${selectedTime})`,
+        address: address,
+        latitude: coords.lat || 28.6139,
+        longitude: coords.lon || 77.209,
+      }).catch((err) => {
+        console.warn("Backend request log info:", err?.response?.data || err.message);
+      });
+    } catch (err) {
+      console.warn("Backend request error:", err);
+    }
 
     setTimeout(() => {
       setIsProcessing(false);
@@ -141,6 +207,7 @@ export default function PaymentPage({
         scheduledTime: selectedTime,
         address: address,
         totalPaid: totalAmount.toFixed(2),
+        customerName: user?.name || "Valued Customer",
         paymentMethodUsed:
           paymentMethod === "upi"
             ? `UPI (${upiMethod.toUpperCase()})`
@@ -774,9 +841,25 @@ export default function PaymentPage({
 
                 {/* Service Address */}
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">
-                    Service Delivery Address
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block font-bold text-slate-700">
+                      Service Delivery Address
+                    </label>
+                    <button
+                      type="button"
+                      onClick={detectAddressLocation}
+                      disabled={isDetectingLocation}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 hover:text-emerald-950 transition-colors cursor-pointer disabled:opacity-60"
+                      title="Fetch precise address via GPS"
+                    >
+                      <LocateFixed
+                        className={`h-3 w-3 ${isDetectingLocation ? "animate-spin" : ""}`}
+                      />
+                      <span>
+                        {isDetectingLocation ? "Detecting..." : "Use Current GPS"}
+                      </span>
+                    </button>
+                  </div>
                   <div className="relative">
                     <MapPin className="h-4 w-4 text-emerald-700 absolute left-3 top-2.5" />
                     <input
@@ -786,6 +869,11 @@ export default function PaymentPage({
                       className="w-full rounded-xl border border-slate-200 py-2 pl-9 pr-3 text-xs text-slate-800 outline-none focus:border-emerald-700"
                     />
                   </div>
+                  {locationStatus && (
+                    <p className="mt-1 text-[11px] font-semibold text-emerald-700">
+                      {locationStatus}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -851,6 +939,23 @@ export default function PaymentPage({
                 </div>
               </div>
 
+              {/* Unauthenticated Security Alert */}
+              {!user && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-3.5 text-xs text-amber-900 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Lock className="h-4 w-4 text-amber-700 shrink-0" />
+                    <span>Please sign in to confirm and place this order.</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onAuthRequired}
+                    className="shrink-0 px-3 py-1.5 rounded-xl bg-slate-950 text-white font-bold text-xs hover:bg-emerald-800 transition-colors"
+                  >
+                    Sign in
+                  </button>
+                </div>
+              )}
+
               {/* Pay Now Button */}
               <button
                 type="button"
@@ -860,11 +965,13 @@ export default function PaymentPage({
               >
                 <Lock className="h-4 w-4" />
                 <span>
-                  {isProcessing
-                    ? "Securing & Processing..."
-                    : paymentMethod === "cod"
-                      ? "Confirm Booking (Pay on Service)"
-                      : `Pay $${totalAmount.toFixed(2)} Now`}
+                  {!user
+                    ? `Sign In & Place Order · $${totalAmount.toFixed(2)}`
+                    : isProcessing
+                      ? "Securing & Processing..."
+                      : paymentMethod === "cod"
+                        ? "Confirm Booking (Pay on Service)"
+                        : `Pay $${totalAmount.toFixed(2)} Now`}
                 </span>
               </button>
 

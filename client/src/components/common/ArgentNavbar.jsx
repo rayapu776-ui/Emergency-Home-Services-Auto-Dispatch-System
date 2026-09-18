@@ -20,64 +20,230 @@ import { getRelatedSearchRecommendations } from "../../data/servicesData";
 
 function LocationPicker({ value, onChange, onClose }) {
   const [status, setStatus] = useState("");
+  const [isDetecting, setIsDetecting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
 
-  const detect = () => {
-    if (!navigator.geolocation) {
-      setStatus("Location detection is unavailable");
+  // Debounced search query
+  useEffect(() => {
+    if (!searchQuery.trim() || searchQuery.trim().length < 2) {
+      setSearchResults([]);
       return;
     }
-    setStatus("Detecting your location...");
+
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const res = await fetch(
+          `/api/location/search?query=${encodeURIComponent(searchQuery.trim())}`,
+        );
+        const data = await res.json();
+        const list = data.suggestions || data.results || [];
+        if (Array.isArray(list)) {
+          setSearchResults(list);
+        }
+      } catch (err) {
+        console.warn("Location search error:", err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const detectLocation = () => {
+    if (!navigator.geolocation) {
+      setStatus("Location detection is unavailable in your browser");
+      return;
+    }
+    setIsDetecting(true);
+    setStatus("Accessing GPS location...");
+
     navigator.geolocation.getCurrentPosition(
-      () => {
-        onChange("Delhi NCR (Detected)");
-        setStatus("Location detected");
-        setTimeout(onClose, 400);
+      async (position) => {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        setStatus("Resolving address via Google / Maps...");
+
+        try {
+          const res = await fetch(
+            `/api/location/reverse-geocode?lat=${lat}&lon=${lon}`,
+          );
+          const data = await res.json();
+
+          if (data && (data.formattedAddress || data.city)) {
+            const display = data.city
+              ? `${data.city}, ${data.state || "India"}`
+              : data.formattedAddress;
+            onChange(display, {
+              lat,
+              lon,
+              fullAddress: data.fullAddress || data.formattedAddress,
+              city: data.city,
+            });
+            setStatus(`Detected: ${data.city || display}`);
+            setTimeout(onClose, 500);
+          } else {
+            onChange("Current Location", { lat, lon });
+            onClose();
+          }
+        } catch (err) {
+          console.warn("Geocoding failed:", err);
+          onChange("Delhi NCR", { lat: 28.6139, lon: 77.209 });
+          onClose();
+        } finally {
+          setIsDetecting(false);
+        }
       },
-      () => setStatus("Please choose a region manually"),
+      (error) => {
+        setIsDetecting(false);
+        if (error.code === error.PERMISSION_DENIED) {
+          setStatus("Location permission denied. Pick your city below.");
+        } else {
+          setStatus("Could not get location. Pick your city below.");
+        }
+      },
+      { timeout: 10000, enableHighAccuracy: true },
     );
   };
 
+  const handleSelect = (loc, coords) => {
+    onChange(loc, coords);
+    onClose();
+  };
+
+  const popularRegions = [
+    { name: "Delhi NCR", lat: 28.6139, lon: 77.209 },
+    { name: "Noida", lat: 28.5355, lon: 77.391 },
+    { name: "Gurugram", lat: 28.4595, lon: 77.0266 },
+    { name: "Bengaluru", lat: 12.9716, lon: 77.5946 },
+    { name: "Mumbai", lat: 19.076, lon: 72.8777 },
+    { name: "Hyderabad", lat: 17.385, lon: 78.4867 },
+  ];
+
   return (
     <div
-      className="absolute right-0 top-14 z-50 w-64 rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl animate-rise-in text-slate-900"
+      className="absolute right-0 top-14 z-50 w-72 sm:w-80 rounded-2xl border border-slate-200/90 bg-white/95 p-3.5 shadow-2xl backdrop-blur-xl animate-rise-in text-slate-900"
       onClick={(e) => e.stopPropagation()}
     >
-      <button
-        onClick={detect}
-        className="flex w-full items-center gap-3 rounded-xl p-3 text-left text-sm font-bold text-emerald-800 hover:bg-emerald-50 transition-colors"
-      >
-        <LocateFixed className="h-4 w-4 text-emerald-700" /> Detect my location
-      </button>
-      <div className="my-1 border-t border-slate-100" />
-      <p className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-        Choose a region
-      </p>
-      {["Delhi NCR", "Gurugram", "Noida", "South Delhi", "Central Delhi"].map(
-        (region) => (
+      {/* Search Input */}
+      <div className="relative mb-2.5">
+        <Search className="h-3.5 w-3.5 text-slate-400 absolute left-3 top-2.5" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search city, area, pincode..."
+          className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-1.5 pl-8 pr-7 text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:border-emerald-700 focus:bg-white transition-all"
+        />
+        {searchQuery && (
           <button
-            key={region}
-            onClick={() => {
-              onChange(region);
-              onClose();
-            }}
-            className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs font-semibold transition-colors ${
-              value === region
-                ? "bg-emerald-50 font-bold text-emerald-800"
-                : "text-slate-700 hover:bg-slate-50"
-            }`}
+            type="button"
+            onClick={() => setSearchQuery("")}
+            className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600"
           >
-            <span>{region}</span>
-            {value === region && (
-              <span className="h-2 w-2 rounded-full bg-emerald-600" />
-            )}
+            <X className="h-3 w-3" />
           </button>
-        ),
-      )}
+        )}
+      </div>
+
+      {/* Real GPS Detect Button */}
+      <button
+        type="button"
+        disabled={isDetecting}
+        onClick={detectLocation}
+        className="flex w-full items-center gap-2.5 rounded-xl p-2.5 text-left text-xs font-bold text-emerald-800 bg-emerald-50/70 hover:bg-emerald-100/70 transition-colors cursor-pointer disabled:opacity-60"
+      >
+        <LocateFixed
+          className={`h-4 w-4 text-emerald-700 shrink-0 ${isDetecting ? "animate-spin" : ""}`}
+        />
+        <div className="flex-1 min-w-0">
+          <span className="block text-xs font-bold">
+            {isDetecting ? "Detecting location..." : "Use Current Location"}
+          </span>
+          <span className="block text-[10px] text-emerald-700/80 font-medium truncate">
+            GPS & Google Geocoding
+          </span>
+        </div>
+      </button>
+
       {status && (
-        <p className="px-3 pt-2 text-[11px] font-medium text-slate-500">
+        <p className="px-2 pt-2 text-[11px] font-semibold text-emerald-800">
           {status}
         </p>
       )}
+
+      {/* Search Results if any */}
+      {searchResults.length > 0 && (
+        <div className="mt-2.5 max-h-36 overflow-y-auto space-y-1 pr-1 border-t border-slate-100 pt-2">
+          <p className="px-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            Search Results
+          </p>
+          {searchResults.map((item, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() =>
+                handleSelect(item.mainText || item.formattedAddress || item.city, {
+                  lat: item.lat,
+                  lon: item.lon,
+                  fullAddress: item.formattedAddress || item.mainText,
+                })
+              }
+              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              <MapPin className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <span className="font-bold text-slate-900 block truncate">
+                  {item.mainText || item.formattedAddress}
+                </span>
+                {item.secondaryText && (
+                  <span className="text-[10px] text-slate-400 block truncate">
+                    {item.secondaryText}
+                  </span>
+                )}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Popular Cities */}
+      <div className="mt-2.5 border-t border-slate-100 pt-2">
+        <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+          Popular Regions
+        </p>
+        <div className="grid grid-cols-2 gap-1 mt-1">
+          {popularRegions.map((region) => {
+            const isCurrent =
+              value && value.toLowerCase().includes(region.name.toLowerCase());
+            return (
+              <button
+                key={region.name}
+                type="button"
+                onClick={() =>
+                  handleSelect(region.name, {
+                    lat: region.lat,
+                    lon: region.lon,
+                  })
+                }
+                className={`flex items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-xs font-semibold transition-colors ${
+                  isCurrent
+                    ? "bg-emerald-50 font-bold text-emerald-800"
+                    : "text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                <span className="truncate">{region.name}</span>
+                {isCurrent && (
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 shrink-0 ml-1" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
@@ -387,8 +553,38 @@ export default function ArgentNavbar({
 
           {/* RIGHT SIDE */}
           {!isAuthenticated ? (
-            /* BEFORE LOGIN: [ Sign in / Log in ] */
-            <div className="flex shrink-0 items-center">
+            /* BEFORE LOGIN: [ Location ] [ Sign in / Log in ] */
+            <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+              {/* Location button */}
+              <div
+                className="relative hidden md:block"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLocationOpen(!locationOpen);
+                    setNotificationsOpen(false);
+                  }}
+                  className="flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-semibold text-slate-800 hover:bg-white/80 transition-colors"
+                  title="Choose service location"
+                >
+                  <MapPin className="h-4 w-4 text-emerald-700" />
+                  <span className="max-w-[110px] truncate">{location}</span>
+                  <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+                </button>
+                {locationOpen && (
+                  <LocationPicker
+                    value={location}
+                    onChange={(newLoc, coords) => {
+                      onLocationChange?.(newLoc, coords);
+                      setLocationOpen(false);
+                    }}
+                    onClose={() => setLocationOpen(false)}
+                  />
+                )}
+              </div>
+
               <button
                 type="button"
                 onClick={onAuthOpen}
@@ -422,8 +618,8 @@ export default function ArgentNavbar({
                 {locationOpen && (
                   <LocationPicker
                     value={location}
-                    onChange={(newLoc) => {
-                      onLocationChange?.(newLoc);
+                    onChange={(newLoc, coords) => {
+                      onLocationChange?.(newLoc, coords);
                       setLocationOpen(false);
                     }}
                     onClose={() => setLocationOpen(false)}
