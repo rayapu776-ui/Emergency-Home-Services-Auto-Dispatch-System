@@ -17,7 +17,10 @@ function parseGoogleAddress(result) {
 
   for (const comp of result.address_components) {
     const types = comp.types;
-    if (types.includes("sublocality") || types.includes("sublocality_level_1")) {
+    if (
+      types.includes("sublocality") ||
+      types.includes("sublocality_level_1")
+    ) {
       sublocality = comp.long_name;
     } else if (types.includes("locality")) {
       city = comp.long_name;
@@ -34,7 +37,8 @@ function parseGoogleAddress(result) {
 
   // Create clean short readable address
   const parts = [sublocality, city, state, country].filter(Boolean);
-  const formatted = parts.length > 0 ? parts.join(", ") : result.formatted_address;
+  const formatted =
+    parts.length > 0 ? parts.join(", ") : result.formatted_address;
 
   return {
     formattedAddress: formatted,
@@ -61,18 +65,14 @@ function parseNominatimAddress(data) {
     a.quarter ||
     "";
   const city =
-    a.city ||
-    a.town ||
-    a.municipality ||
-    a.district ||
-    a.county ||
-    "Delhi NCR";
+    a.city || a.town || a.municipality || a.district || a.county || "Delhi NCR";
   const state = a.state || a.region || "Delhi";
   const country = a.country || "India";
   const postalCode = a.postcode || "";
 
   const parts = [locality, city, state, country].filter(Boolean);
-  const formattedAddress = parts.length > 0 ? parts.join(", ") : data.display_name;
+  const formattedAddress =
+    parts.length > 0 ? parts.join(", ") : data.display_name;
 
   return {
     formattedAddress,
@@ -91,7 +91,9 @@ router.get("/reverse-geocode", async (req, res) => {
     const lon = parseFloat(req.query.lon);
 
     if (isNaN(lat) || isNaN(lon)) {
-      return res.status(400).json({ error: "Valid latitude and longitude required" });
+      return res
+        .status(400)
+        .json({ error: "Valid latitude and longitude required" });
     }
 
     const googleKey = process.env.GOOGLE_MAPS_API_KEY;
@@ -103,7 +105,11 @@ router.get("/reverse-geocode", async (req, res) => {
         const gResponse = await fetch(googleUrl);
         const gData = await gResponse.json();
 
-        if (gData.status === "OK" && gData.results && gData.results.length > 0) {
+        if (
+          gData.status === "OK" &&
+          gData.results &&
+          gData.results.length > 0
+        ) {
           const parsed = parseGoogleAddress(gData.results[0]);
           return res.json({
             success: true,
@@ -114,7 +120,10 @@ router.get("/reverse-geocode", async (req, res) => {
           });
         }
       } catch (gErr) {
-        console.warn("Google Maps Geocoding failed, falling back to reverse geocoder:", gErr.message);
+        console.warn(
+          "Google Maps Geocoding failed, falling back to reverse geocoder:",
+          gErr.message,
+        );
       }
     }
 
@@ -157,7 +166,9 @@ router.get("/reverse-geocode", async (req, res) => {
     });
   } catch (err) {
     console.error("Error in reverse-geocode:", err);
-    return res.status(500).json({ error: "Failed to reverse geocode location" });
+    return res
+      .status(500)
+      .json({ error: "Failed to reverse geocode location" });
   }
 });
 
@@ -175,7 +186,7 @@ router.get("/search", async (req, res) => {
     if (googleKey && googleKey !== "your-google-maps-api-key-here") {
       try {
         const gUrl = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(
-          q
+          q,
         )}&key=${googleKey}&components=country:in`;
         const gRes = await fetch(gUrl);
         const gData = await gRes.json();
@@ -190,14 +201,17 @@ router.get("/search", async (req, res) => {
           return res.json({ success: true, provider: "google", suggestions });
         }
       } catch (gErr) {
-        console.warn("Google Places Autocomplete failed, falling back to search:", gErr.message);
+        console.warn(
+          "Google Places Autocomplete failed, falling back to search:",
+          gErr.message,
+        );
       }
     }
 
     // 2. Fallback to Nominatim Search
     try {
       const nomUrl = `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(
-        q
+        q,
       )}&addressdetails=1&limit=6&countrycodes=in`;
       const nRes = await fetch(nomUrl, {
         headers: {
@@ -212,7 +226,9 @@ router.get("/search", async (req, res) => {
           return {
             formattedAddress: parsed?.formattedAddress || item.display_name,
             mainText: parsed?.city || item.name || q,
-            secondaryText: parsed?.state ? `${parsed.state}, ${parsed.country}` : item.display_name,
+            secondaryText: parsed?.state
+              ? `${parsed.state}, ${parsed.country}`
+              : item.display_name,
             lat: parseFloat(item.lat),
             lon: parseFloat(item.lon),
           };

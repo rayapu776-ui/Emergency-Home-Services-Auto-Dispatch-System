@@ -186,11 +186,14 @@ function LocationPicker({ value, onChange, onClose }) {
               key={idx}
               type="button"
               onClick={() =>
-                handleSelect(item.mainText || item.formattedAddress || item.city, {
-                  lat: item.lat,
-                  lon: item.lon,
-                  fullAddress: item.formattedAddress || item.mainText,
-                })
+                handleSelect(
+                  item.mainText || item.formattedAddress || item.city,
+                  {
+                    lat: item.lat,
+                    lon: item.lon,
+                    fullAddress: item.formattedAddress || item.mainText,
+                  },
+                )
               }
               className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 transition-colors"
             >
@@ -553,38 +556,8 @@ export default function ArgentNavbar({
 
           {/* RIGHT SIDE */}
           {!isAuthenticated ? (
-            /* BEFORE LOGIN: [ Location ] [ Sign in / Log in ] */
-            <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-              {/* Location button */}
-              <div
-                className="relative hidden md:block"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLocationOpen(!locationOpen);
-                    setNotificationsOpen(false);
-                  }}
-                  className="flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-semibold text-slate-800 hover:bg-white/80 transition-colors"
-                  title="Choose service location"
-                >
-                  <MapPin className="h-4 w-4 text-emerald-700" />
-                  <span className="max-w-[110px] truncate">{location}</span>
-                  <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
-                </button>
-                {locationOpen && (
-                  <LocationPicker
-                    value={location}
-                    onChange={(newLoc, coords) => {
-                      onLocationChange?.(newLoc, coords);
-                      setLocationOpen(false);
-                    }}
-                    onClose={() => setLocationOpen(false)}
-                  />
-                )}
-              </div>
-
+            /* BEFORE LOGIN: [ Sign in / Log in ] only */
+            <div className="flex shrink-0 items-center">
               <button
                 type="button"
                 onClick={onAuthOpen}

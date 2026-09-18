@@ -183,16 +183,21 @@ export default function PaymentPage({
     setIsProcessing(true);
 
     try {
-      await api.post("/requests", {
-        category: service?.category || "Emergency Repair",
-        priority: "High",
-        description: `Service booking for ${service?.name || "Doorstep Service"} on ${selectedDate} (${selectedTime})`,
-        address: address,
-        latitude: coords.lat || 28.6139,
-        longitude: coords.lon || 77.209,
-      }).catch((err) => {
-        console.warn("Backend request log info:", err?.response?.data || err.message);
-      });
+      await api
+        .post("/requests", {
+          category: service?.category || "Emergency Repair",
+          priority: "High",
+          description: `Service booking for ${service?.name || "Doorstep Service"} on ${selectedDate} (${selectedTime})`,
+          address: address,
+          latitude: coords.lat || 28.6139,
+          longitude: coords.lon || 77.209,
+        })
+        .catch((err) => {
+          console.warn(
+            "Backend request log info:",
+            err?.response?.data || err.message,
+          );
+        });
     } catch (err) {
       console.warn("Backend request error:", err);
     }
@@ -856,7 +861,9 @@ export default function PaymentPage({
                         className={`h-3 w-3 ${isDetectingLocation ? "animate-spin" : ""}`}
                       />
                       <span>
-                        {isDetectingLocation ? "Detecting..." : "Use Current GPS"}
+                        {isDetectingLocation
+                          ? "Detecting..."
+                          : "Use Current GPS"}
                       </span>
                     </button>
                   </div>

@@ -48,7 +48,12 @@ function PasswordField({
   );
 }
 
-export default function AuthModal({ onClose, onNavigate, onSuccess, onCancel }) {
+export default function AuthModal({
+  onClose,
+  onNavigate,
+  onSuccess,
+  onCancel,
+}) {
   const { login, register, demoLogin } = useAuth();
   const [screen, setScreen] = useState("login");
   const [method, setMethod] = useState("email");
