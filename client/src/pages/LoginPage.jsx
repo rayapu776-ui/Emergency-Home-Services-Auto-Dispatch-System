@@ -980,6 +980,11 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
         <ProfilePage
           onHome={goHome}
           onNavigateToService={(slug) => navigate(`/services/${slug}`)}
+          onBookService={(service, coupon) => {
+            setCheckoutService(service);
+            if (coupon) setAppliedCoupon(coupon);
+            navigate("/checkout");
+          }}
           onNavigateAdmin={onNavigateAdmin}
           onNavigateTechnician={onNavigateTechnician}
         />

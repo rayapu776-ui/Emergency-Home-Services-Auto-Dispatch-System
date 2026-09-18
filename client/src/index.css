@@ -6,7 +6,16 @@
 @layer base {
   body {
     @apply bg-slate-50 text-slate-900 antialiased font-sans;
-    font-family: "Google Sans", "Google Sans Text", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family:
+      "Google Sans",
+      "Google Sans Text",
+      Inter,
+      system-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      Roboto,
+      sans-serif;
   }
 
   /* Description text and other normal text areas use Google Sans */
@@ -19,7 +28,16 @@
   button,
   .description-text,
   .normal-text {
-    font-family: "Google Sans", "Google Sans Text", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family:
+      "Google Sans",
+      "Google Sans Text",
+      Inter,
+      system-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      Roboto,
+      sans-serif;
   }
 }
 
@@ -34,7 +52,15 @@
 .badge,
 [class*="font-black"],
 [class*="font-extrabold"] {
-  font-family: Inter, "Google Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family:
+    Inter,
+    "Google Sans",
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
 }
 
 .eyebrow {
