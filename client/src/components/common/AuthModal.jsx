@@ -409,19 +409,20 @@ export default function AuthModal({
               </div>
               <h2
                 id="auth-title"
-                className="display-font text-2xl sm:text-3xl font-bold"
+                className="display-font text-2xl sm:text-3xl font-bold text-slate-950"
               >
-                2-Step Verification
+                Enter Authentication Code
               </h2>
             </div>
 
-            <p className="auth-subtitle !mt-2">
-              We sent a 6-digit verification code to{" "}
-              <strong className="text-slate-950 font-bold">
-                {otpSession?.maskedDestination || "your email/phone"}
-              </strong>
-              . Enter the code below to complete sign-in.
-            </p>
+            <div className="mt-3 rounded-2xl bg-slate-50 border border-slate-200/80 p-3.5 space-y-1">
+              <p className="text-xs font-bold text-slate-500">
+                Code sent to:
+              </p>
+              <p className="text-sm sm:text-base font-black text-slate-900 tracking-wide font-mono">
+                {otpSession?.maskedDestination || "your registered contact"}
+              </p>
+            </div>
 
             <div className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-100">
               {otpSession?.channel === "email" ? (
@@ -480,7 +481,7 @@ export default function AuthModal({
                 {status ? (
                   <LoaderCircle className="animate-spin" />
                 ) : (
-                  "Verify Code"
+                  "Verify"
                 )}
               </button>
 

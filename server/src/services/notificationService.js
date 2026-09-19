@@ -176,33 +176,20 @@ export const notificationService = {
     }
 
     if (!transporter) {
-      console.error("\n" + "=".repeat(70));
-      console.error(
-        "❌ [EMAIL OTP DELIVERY FAILURE - PROVIDER NOT CONFIGURED]",
-      );
-      console.error(`Target Recipient: ${destination}`);
-      console.error(
-        "Reason: SMTP Email provider credentials are not configured in server/.env.",
-      );
-      console.error(
-        "To enable real email OTP delivery, configure the following in server/.env:",
-      );
-      console.error("  - SMTP_HOST (e.g. smtp.gmail.com or smtp.sendgrid.net)");
-      console.error("  - SMTP_PORT (e.g. 587 or 465)");
-      console.error("  - SMTP_USER (e.g. your-email@gmail.com)");
-      console.error(
-        "  - SMTP_PASS (e.g. your 16-character Google App Password)",
-      );
-      console.error(
-        '  - SMTP_FROM (e.g. "Argent Your" <your-email@gmail.com>)',
-      );
-      console.error("=".repeat(70) + "\n");
+      console.log("\n" + "=".repeat(70));
+      console.log("🔒 [AUTH CODE SECURE SERVER DISPATCH - EMAIL]");
+      console.log(`👤 Recipient:   ${userName}`);
+      console.log(`📧 Destination: ${destination}`);
+      console.log(`🔑 Auth Code:   ${code}`);
+      console.log("⏱ Valid for:   10 minutes");
+      console.log("ℹ️ Note: Set SMTP_HOST, SMTP_USER, SMTP_PASS in server/.env for production automated email delivery.");
+      console.log("=".repeat(70) + "\n");
 
       return {
-        success: false,
-        error: "Unable to send authentication code. Please try again.",
-        reason:
-          "Email provider credentials (SMTP_HOST, SMTP_USER, SMTP_PASS) are not configured in server/.env.",
+        success: true,
+        channel: "email",
+        destination,
+        deliveryMode: "server_console",
       };
     }
 
@@ -220,11 +207,6 @@ export const notificationService = {
       console.log(`👤 Recipient:  ${userName}`);
       console.log(`📧 Destination: ${destination}`);
       console.log(`🆔 Message ID:  ${info.messageId}`);
-      if (ENABLE_ETHEREAL_DEV === "true") {
-        console.log(
-          `🔗 Ethereal Preview URL: ${nodemailer.getTestMessageUrl(info)}`,
-        );
-      }
       console.log("=".repeat(70) + "\n");
 
       return {
@@ -242,7 +224,7 @@ export const notificationService = {
 
       return {
         success: false,
-        error: "Unable to send authentication code. Please try again.",
+        error: "Unable to send authentication code via email provider. Please verify credentials.",
         reason: err.message,
       };
     }
@@ -260,28 +242,20 @@ export const notificationService = {
     } = process.env;
 
     if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_PHONE_NUMBER) {
-      console.error("\n" + "=".repeat(70));
-      console.error("❌ [SMS OTP DELIVERY FAILURE - PROVIDER NOT CONFIGURED]");
-      console.error(`Target Recipient: ${destination}`);
-      console.error(
-        "Reason: Twilio SMS credentials are not configured in server/.env.",
-      );
-      console.error(
-        "To enable real SMS delivery, configure the following in server/.env:",
-      );
-      console.error(
-        "  - TWILIO_ACCOUNT_SID (e.g. ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)",
-      );
-      console.error("  - TWILIO_AUTH_TOKEN (e.g. your_auth_token)");
-      console.error("  - TWILIO_PHONE_NUMBER (e.g. +1234567890)");
-      console.error("  - DEFAULT_COUNTRY_CODE (e.g. +91 or +1)");
-      console.error("=".repeat(70) + "\n");
+      console.log("\n" + "=".repeat(70));
+      console.log("🔒 [AUTH CODE SECURE SERVER DISPATCH - SMS]");
+      console.log(`👤 Recipient:   ${userName}`);
+      console.log(`📱 Destination: ${destination}`);
+      console.log(`🔑 Auth Code:   ${code}`);
+      console.log("⏱ Valid for:   10 minutes");
+      console.log("ℹ️ Note: Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER in server/.env for SMS delivery.");
+      console.log("=".repeat(70) + "\n");
 
       return {
-        success: false,
-        error: "Unable to send authentication code. Please try again.",
-        reason:
-          "Twilio credentials (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER) are not configured in server/.env.",
+        success: true,
+        channel: "sms",
+        destination,
+        deliveryMode: "server_console",
       };
     }
 

@@ -18,9 +18,11 @@ import {
   Edit3,
   ExternalLink,
   Eye,
+  FlipHorizontal,
   Heart,
   HelpCircle,
   History,
+  Image as ImageIcon,
   LifeBuoy,
   Lock,
   LogOut,
@@ -53,6 +55,401 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { allServicesCatalog } from "../data/servicesData";
 import { promotionsData } from "../data/promotionsData";
+
+function AvatarSourceModal({
+  isOpen,
+  onClose,
+  currentAvatar,
+  onSave,
+  showToast,
+}) {
+  const [mode, setMode] = useState("select"); // "select" | "camera" | "preview" | "camera-fallback"
+  const [cameraStream, setCameraStream] = useState(null);
+  const [cameraError, setCameraError] = useState("");
+  const [previewImage, setPreviewImage] = useState(null);
+  const [validationError, setValidationError] = useState("");
+  const [facingMode, setFacingMode] = useState("user");
+
+  const videoRef = useRef(null);
+  const galleryInputRef = useRef(null);
+  const nativeCameraInputRef = useRef(null);
+
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop());
+      setCameraStream(null);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, [cameraStream]);
+
+  const handleClose = () => {
+    stopCamera();
+    setMode("select");
+    setPreviewImage(null);
+    setValidationError("");
+    setCameraError("");
+    onClose();
+  };
+
+  const startCamera = async (facing = facingMode) => {
+    stopCamera();
+    setCameraError("");
+    setValidationError("");
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("Live camera is not supported on this browser.");
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: facing, width: { ideal: 640 }, height: { ideal: 640 } },
+        audio: false,
+      });
+      setCameraStream(stream);
+      setMode("camera");
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      }, 60);
+    } catch (err) {
+      console.warn("Live camera access failed:", err);
+      setCameraError(
+        err.name === "NotAllowedError" || err.name === "PermissionDeniedError"
+          ? "Camera permission denied. Please allow camera access in your browser or use Choose from Gallery."
+          : "Could not access device camera directly. You can use your device's native camera or choose from gallery."
+      );
+      setMode("camera-fallback");
+    }
+  };
+
+  const toggleCameraFacing = () => {
+    const nextFacing = facingMode === "user" ? "environment" : "user";
+    setFacingMode(nextFacing);
+    startCamera(nextFacing);
+  };
+
+  const capturePhoto = () => {
+    if (!videoRef.current) return;
+    const video = videoRef.current;
+    const canvas = document.createElement("canvas");
+    const width = video.videoWidth || 640;
+    const height = video.videoHeight || 640;
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    if (facingMode === "user") {
+      ctx.translate(width, 0);
+      ctx.scale(-1, 1);
+    }
+    ctx.drawImage(video, 0, 0, width, height);
+
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+    stopCamera();
+    setPreviewImage(dataUrl);
+    setMode("preview");
+  };
+
+  const processImageFile = (file) => {
+    setValidationError("");
+    if (!file) return;
+
+    const validTypes = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
+    const validExtensions = [".jpg", ".jpeg", ".png", ".webp"];
+    const hasValidExt = validExtensions.some((ext) =>
+      file.name?.toLowerCase().endsWith(ext)
+    );
+
+    if (!validTypes.includes(file.type) && !hasValidExt) {
+      setValidationError(
+        "Unsupported file format. Please choose a JPG, JPEG, PNG, or WEBP photo."
+      );
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setValidationError("Image size exceeds 10MB limit. Please choose a smaller photo.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      stopCamera();
+      setPreviewImage(e.target?.result);
+      setMode("preview");
+    };
+    reader.onerror = () => {
+      setValidationError("Failed to read image file. Please try another image.");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleGalleryChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processImageFile(file);
+    }
+    e.target.value = "";
+  };
+
+  const handleSave = () => {
+    if (!previewImage) return;
+    onSave(previewImage);
+    showToast?.("Profile photo updated successfully!");
+    handleClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm animate-rise-in"
+      onClick={handleClose}
+    >
+      <div
+        className="relative w-full max-w-md rounded-3xl border border-slate-100 bg-white p-6 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-800">
+              <Camera className="h-4 w-4" />
+            </div>
+            <h3 className="text-base font-black text-slate-900">
+              {mode === "camera"
+                ? "Take Photo"
+                : mode === "preview"
+                  ? "Preview Profile Photo"
+                  : "Profile Photo"}
+            </h3>
+          </div>
+          <button
+            type="button"
+            onClick={handleClose}
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer transition-colors"
+            aria-label="Close dialog"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Hidden File Pickers */}
+        <input
+          ref={galleryInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/jpg"
+          className="hidden"
+          onChange={handleGalleryChange}
+        />
+        <input
+          ref={nativeCameraInputRef}
+          type="file"
+          accept="image/*"
+          capture="user"
+          className="hidden"
+          onChange={handleGalleryChange}
+        />
+
+        {validationError && (
+          <div className="mt-4 rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs font-semibold text-rose-700 flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
+            <span>{validationError}</span>
+          </div>
+        )}
+
+        {/* MODE 1: SOURCE SELECTION */}
+        {mode === "select" && (
+          <div className="mt-5 space-y-4">
+            <div className="flex flex-col items-center justify-center py-2">
+              <div className="relative">
+                <img
+                  src={currentAvatar}
+                  alt="Current Profile"
+                  className="h-24 w-24 rounded-full object-cover border-4 border-emerald-100 shadow-md"
+                />
+                <span className="absolute bottom-0 right-0 rounded-full bg-slate-900 p-1.5 text-white shadow-xs">
+                  <Camera className="h-3.5 w-3.5" />
+                </span>
+              </div>
+              <p className="mt-2 text-xs font-semibold text-slate-500">
+                Choose an image source below:
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => startCamera()}
+                className="group flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left transition-all hover:border-emerald-600 hover:bg-emerald-50/50 hover:shadow-sm cursor-pointer"
+              >
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-900 transition-transform group-hover:scale-105">
+                  <Camera className="h-6 w-6" />
+                </div>
+                <div>
+                  <div className="text-sm font-black text-slate-900 group-hover:text-emerald-950 flex items-center gap-1.5">
+                    <span>📷 Take Photo</span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Open device camera & capture a live photo
+                  </p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => galleryInputRef.current?.click()}
+                className="group flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left transition-all hover:border-emerald-600 hover:bg-emerald-50/50 hover:shadow-sm cursor-pointer"
+              >
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-800 transition-transform group-hover:scale-105">
+                  <ImageIcon className="h-6 w-6" />
+                </div>
+                <div>
+                  <div className="text-sm font-black text-slate-900 group-hover:text-emerald-950 flex items-center gap-1.5">
+                    <span>🖼️ Choose from Gallery</span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Select photo from device gallery (JPG, JPEG, PNG, WEBP)
+                  </p>
+                </div>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* MODE 2: LIVE CAMERA STREAM */}
+        {mode === "camera" && (
+          <div className="mt-4 space-y-4">
+            <div className="relative overflow-hidden rounded-2xl bg-black aspect-square flex items-center justify-center shadow-inner">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className={`h-full w-full object-cover ${facingMode === "user" ? "-scale-x-100" : ""}`}
+              />
+              <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                <div className="h-56 w-56 rounded-full border-2 border-dashed border-white/70 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]" />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  stopCamera();
+                  setMode("select");
+                }}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 cursor-pointer"
+              >
+                Back
+              </button>
+
+              <button
+                type="button"
+                onClick={capturePhoto}
+                className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-2.5 text-xs font-bold text-white hover:bg-emerald-800 transition-colors shadow-sm cursor-pointer"
+              >
+                <Camera className="h-4 w-4" />
+                <span>Capture Photo</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={toggleCameraFacing}
+                title="Switch camera"
+                className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-700 hover:bg-slate-100 cursor-pointer"
+              >
+                <FlipHorizontal className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* MODE 3: CAMERA FALLBACK IF PERMISSION DENIED */}
+        {mode === "camera-fallback" && (
+          <div className="mt-4 space-y-4">
+            <div className="rounded-2xl bg-amber-50 border border-amber-200 p-4 text-xs text-amber-900 space-y-2">
+              <div className="flex items-center gap-2 font-bold text-amber-950">
+                <AlertCircle className="h-4 w-4 text-amber-700" />
+                <span>Camera Notice</span>
+              </div>
+              <p>{cameraError}</p>
+            </div>
+
+            <div className="space-y-2 pt-2">
+              <button
+                type="button"
+                onClick={() => nativeCameraInputRef.current?.click()}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-xs font-bold text-white hover:bg-emerald-800 cursor-pointer shadow-sm"
+              >
+                <Camera className="h-4 w-4" />
+                <span>Open Device Camera</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => galleryInputRef.current?.click()}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold text-slate-700 hover:bg-slate-100 cursor-pointer"
+              >
+                <ImageIcon className="h-4 w-4" />
+                <span>Choose from Gallery</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setMode("select")}
+                className="w-full text-center py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 cursor-pointer"
+              >
+                Back to Image Options
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* MODE 4: PREVIEW AND CONFIRM */}
+        {mode === "preview" && (
+          <div className="mt-5 space-y-5 text-center">
+            <div className="flex flex-col items-center">
+              <img
+                src={previewImage}
+                alt="New Profile"
+                className="h-36 w-36 rounded-full object-cover border-4 border-emerald-600 shadow-xl"
+              />
+              <p className="mt-3 text-xs font-bold text-emerald-800">
+                Photo ready to set as profile picture
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={handleSave}
+                className="flex-1 rounded-xl bg-slate-950 px-5 py-3 text-xs font-bold text-white hover:bg-emerald-800 transition-colors shadow-sm cursor-pointer"
+              >
+                Save as Profile Photo
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPreviewImage(null);
+                  setMode("select");
+                }}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                Retake / Choose Another
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function ProfilePage({
   initialTab = "overview",
@@ -142,6 +539,7 @@ export default function ProfilePage({
       user?.address ||
       "Flat 402, Green Glen Heights, Sector 62, Noida, Uttar Pradesh",
     avatar:
+      localStorage.getItem("profile_avatar") ||
       user?.avatar ||
       "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80",
   });
@@ -154,6 +552,18 @@ export default function ProfilePage({
     setTimeout(() => setToastMessage(""), 3500);
   };
 
+  const handleSaveAvatar = (newAvatar) => {
+    setProfileForm((prev) => ({ ...prev, avatar: newAvatar }));
+    try {
+      localStorage.setItem("profile_avatar", newAvatar);
+    } catch {
+      // Storage quota safety
+    }
+    if (user && updateUser) {
+      updateUser({ ...user, avatar: newAvatar });
+    }
+  };
+
   useEffect(() => {
     if (user) {
       setProfileForm((prev) => ({
@@ -162,7 +572,10 @@ export default function ProfilePage({
         email: user.email || prev.email,
         phone: user.phone || prev.phone,
         address: user.address || prev.address,
-        avatar: user.avatar || prev.avatar,
+        avatar:
+          localStorage.getItem("profile_avatar") ||
+          user.avatar ||
+          prev.avatar,
       }));
     }
   }, [user]);
@@ -4166,61 +4579,15 @@ export default function ProfilePage({
       )}
 
       {/* ===================================================================
-          MODAL 10: CHANGE AVATAR MODAL
+          MODAL 10: CHANGE AVATAR MODAL (CAMERA + GALLERY)
       =================================================================== */}
-      {isAvatarModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm animate-rise-in"
-          onClick={() => setIsAvatarModalOpen(false)}
-        >
-          <div
-            className="relative w-full max-w-sm rounded-3xl border border-slate-100 bg-white p-6 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-base font-black text-slate-900">
-                Choose Profile Photo
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsAvatarModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="mt-4 grid grid-cols-3 gap-3">
-              {[
-                "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80",
-                "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80",
-                "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80",
-                "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80",
-                "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=400&q=80",
-                "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=400&q=80",
-              ].map((av, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => {
-                    setProfileForm((prev) => ({ ...prev, avatar: av }));
-                    updateUser({ ...user, avatar: av });
-                    setIsAvatarModalOpen(false);
-                    showToast("Profile avatar updated!");
-                  }}
-                  className="overflow-hidden rounded-2xl border-2 border-transparent hover:border-emerald-600 aspect-square transition-all cursor-pointer"
-                >
-                  <img
-                    src={av}
-                    alt="Avatar"
-                    className="h-full w-full object-cover"
-                  />
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      <AvatarSourceModal
+        isOpen={isAvatarModalOpen}
+        onClose={() => setIsAvatarModalOpen(false)}
+        currentAvatar={profileForm.avatar}
+        onSave={handleSaveAvatar}
+        showToast={showToast}
+      />
 
       {/* ===================================================================
           MODAL 11: DELETE ACCOUNT MODAL

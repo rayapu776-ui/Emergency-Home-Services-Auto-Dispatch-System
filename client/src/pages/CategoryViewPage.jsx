@@ -206,15 +206,36 @@ export default function CategoryViewPage({
       );
     }
 
-    // Apply search query within this category
+    // Apply search query within this category with tokenized and synonym matching
     if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
-      list = list.filter(
-        (s) =>
-          s.name.toLowerCase().includes(q) ||
-          s.description?.toLowerCase().includes(q) ||
-          s.category.toLowerCase().includes(q),
-      );
+      const qTokens = searchQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
+      const synMap = {
+        ac: ["air conditioner", "cooling", "hvac", "foam jet", "appliance"],
+        repair: ["service", "fix", "leak", "maintenance", "installation"],
+        plumbing: ["plumber", "pipe", "tap", "leak", "drain"],
+        cleaning: ["clean", "deep clean", "vacuum", "sanitize", "wash"],
+      };
+
+      list = list.filter((s) => {
+        const corpus = [
+          s.name,
+          s.category,
+          s.description,
+          s.slug?.replace(/-/g, " "),
+          s.provider,
+          ...(s.tags || []),
+          ...(s.whatsIncluded || []),
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+
+        return qTokens.every((token) => {
+          if (corpus.includes(token)) return true;
+          const syns = synMap[token] || [];
+          return syns.some((syn) => corpus.includes(syn));
+        });
+      });
     }
 
     // Sorting

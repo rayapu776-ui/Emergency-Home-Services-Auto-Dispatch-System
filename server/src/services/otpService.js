@@ -42,11 +42,9 @@ export const otpService = {
       return `${name[0]}***${name[name.length - 1]}@${domain}`;
     } else {
       const digits = destination.replace(/\D/g, "");
-      if (digits.length <= 4) {
-        return `******${digits}`;
-      }
-      const lastFour = digits.slice(-4);
-      return `******${lastFour}`;
+      const lastFour = digits.length >= 4 ? digits.slice(-4) : digits;
+      const countryCode = destination.trim().startsWith("+") ? destination.trim().split(" ")[0].slice(0, 3) : "+91";
+      return `${countryCode} ******${lastFour}`;
     }
   },
 
@@ -96,7 +94,9 @@ export const otpService = {
   async createOtpSession(user, rawIdentifier) {
     const isEmail = rawIdentifier.includes("@");
     const channel = isEmail ? "email" : "sms";
-    const destination = isEmail ? user.email : user.phone || user.email;
+    const destination = isEmail
+      ? user.email || rawIdentifier
+      : rawIdentifier || user.phone || user.email;
 
     const plainOtp = this.generateOtp();
 
