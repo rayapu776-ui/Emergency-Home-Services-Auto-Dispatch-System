@@ -510,7 +510,8 @@ export default function ArgentNavbar({
                               No direct matches found for '{search}'
                             </p>
                             <p className="text-xs text-slate-400 mt-1">
-                              Check related services on the right or try another keyword.
+                              Check related services on the right or try another
+                              keyword.
                             </p>
                           </div>
                         )}
@@ -704,7 +705,7 @@ export default function ArgentNavbar({
                 </span>
               </button>
 
-              {/* Right: Cart, Notification, Profile / Login */}
+              {/* Right: Cart, Notification ONLY (Profile icon removed from mobile top header) */}
               <div className="flex items-center gap-1 text-slate-700">
                 {/* 🛒 Cart */}
                 <button
@@ -747,52 +748,41 @@ export default function ArgentNavbar({
                     />
                   )}
                 </div>
-
-                {/* 👤 Profile / Login */}
-                <button
-                  type="button"
-                  onClick={isAuthenticated ? onProfileClick : onAuthOpen}
-                  className="p-2 rounded-xl text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                  aria-label={isAuthenticated ? "Profile" : "Sign in / Log in"}
-                  title={isAuthenticated ? "Profile" : "Sign in"}
-                >
-                  <CircleUserRound className="h-5 w-5" />
-                </button>
               </div>
             </div>
 
-            {/* ROW 2: LOCATION (MUST appear ABOVE the Search Bar for authenticated users) */}
-            {isAuthenticated && (
-              <div
-                className="relative border-t border-slate-100/90 pt-2"
-                onClick={(e) => e.stopPropagation()}
+            {/* ROW 2: LOCATION (MUST appear ABOVE the Search Bar) */}
+            <div
+              className="relative border-t border-slate-100/90 pt-2"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setLocationOpen(!locationOpen);
+                  setNotificationsOpen(false);
+                }}
+                className="flex items-center justify-between text-xs font-semibold text-slate-800 hover:text-emerald-800 transition-colors w-full cursor-pointer"
               >
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLocationOpen(!locationOpen);
-                    setNotificationsOpen(false);
-                  }}
-                  className="flex items-center gap-1.5 text-xs font-semibold text-slate-800 hover:text-emerald-800 transition-colors w-full cursor-pointer"
-                >
+                <div className="flex items-center gap-1.5 min-w-0">
                   <MapPin className="h-4 w-4 text-emerald-700 shrink-0" />
                   <span className="truncate font-bold text-slate-900">
                     {location || "Noida, Uttar Pradesh"}
                   </span>
-                  <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0 ml-0.5" />
-                </button>
-                {locationOpen && (
-                  <LocationPicker
-                    value={location}
-                    onChange={(newLoc, coords) => {
-                      onLocationChange?.(newLoc, coords);
-                      setLocationOpen(false);
-                    }}
-                    onClose={() => setLocationOpen(false)}
-                  />
-                )}
-              </div>
-            )}
+                </div>
+                <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0 ml-1" />
+              </button>
+              {locationOpen && (
+                <LocationPicker
+                  value={location}
+                  onChange={(newLoc, coords) => {
+                    onLocationChange?.(newLoc, coords);
+                    setLocationOpen(false);
+                  }}
+                  onClose={() => setLocationOpen(false)}
+                />
+              )}
+            </div>
 
             {/* ROW 3: SEARCH BAR */}
             <div ref={mobileSearchWrapRef} className="relative w-full">
@@ -808,7 +798,7 @@ export default function ArgentNavbar({
                   onFocus={() => {
                     if (search.trim()) setDropdownOpen(true);
                   }}
-                  placeholder="Search for services..."
+                  placeholder="Search for services, e.g. Home Cleaning, AC Repair..."
                   className="w-full rounded-xl border border-slate-200/90 bg-white py-2 pl-9 pr-8 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/10 shadow-2xs"
                 />
                 {search && (
@@ -946,7 +936,8 @@ export default function ArgentNavbar({
               if (onNavigate) onNavigate("/services");
             }}
             className={`flex flex-col items-center justify-center py-1.5 transition-colors cursor-pointer ${
-              currentRoute === "/services" || currentRoute?.startsWith("/category/")
+              currentRoute === "/services" ||
+              currentRoute?.startsWith("/category/")
                 ? "text-emerald-700 font-bold"
                 : "text-slate-500 hover:text-slate-800"
             }`}
@@ -1000,7 +991,7 @@ export default function ArgentNavbar({
               className={`h-5 w-5 ${currentRoute === "/profile" ? "stroke-[2.5]" : "stroke-2"}`}
             />
             <span className="text-[10px] mt-0.5 tracking-tight font-medium">
-              {isAuthenticated ? "Profile" : "Login"}
+              Profile
             </span>
           </button>
         </div>
