@@ -939,14 +939,18 @@ export default function ProfilePage({
     e?.preventDefault();
     const query = guestTrackingInput.trim().toLowerCase();
     if (!query) {
-      setGuestTrackingError("Please enter a Booking ID (e.g. AY-9402) or phone number.");
+      setGuestTrackingError(
+        "Please enter a Booking ID (e.g. AY-9402) or phone number.",
+      );
       return;
     }
     const found = bookings.find(
       (b) =>
         b.id.toLowerCase().includes(query) ||
         b.serviceName.toLowerCase().includes(query) ||
-        (b.technician && b.technician.phone && b.technician.phone.includes(query)),
+        (b.technician &&
+          b.technician.phone &&
+          b.technician.phone.includes(query)),
     );
     if (found) {
       setGuestTrackingError("");
@@ -1032,18 +1036,25 @@ export default function ProfilePage({
               My Bookings & Dispatches
             </h1>
             <p className="text-xs sm:text-sm text-emerald-100/80 max-w-xl leading-relaxed">
-              Review, reschedule, track live technician dispatch, or cancel your home service appointments.
+              Review, reschedule, track live technician dispatch, or cancel your
+              home service appointments.
             </p>
           </div>
 
           {/* Metric summary badges */}
           <div className="flex items-center gap-2.5 self-start sm:self-auto shrink-0">
             <div className="rounded-2xl bg-white/10 backdrop-blur-md px-4 py-2 border border-white/10 text-center min-w-[80px]">
-              <span className="text-[10px] uppercase font-bold text-emerald-300 block">Total</span>
-              <span className="text-lg font-black text-white">{totalBookingsCount}</span>
+              <span className="text-[10px] uppercase font-bold text-emerald-300 block">
+                Total
+              </span>
+              <span className="text-lg font-black text-white">
+                {totalBookingsCount}
+              </span>
             </div>
             <div className="rounded-2xl bg-emerald-500/20 backdrop-blur-md px-4 py-2 border border-emerald-400/30 text-center min-w-[80px]">
-              <span className="text-[10px] uppercase font-bold text-emerald-200 block">Active</span>
+              <span className="text-[10px] uppercase font-bold text-emerald-200 block">
+                Active
+              </span>
               <span className="text-lg font-black text-emerald-300 flex items-center justify-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
                 {upcomingCount}
@@ -1067,7 +1078,8 @@ export default function ProfilePage({
               </span>
             </div>
             <p className="text-xs text-slate-500">
-              Enter your Booking ID (e.g. AY-9402 or AY-8911) or contact number to track technician dispatch and view receipts without signing in.
+              Enter your Booking ID (e.g. AY-9402 or AY-8911) or contact number
+              to track technician dispatch and view receipts without signing in.
             </p>
             <div className="flex flex-col sm:flex-row gap-2">
               <input
@@ -1092,7 +1104,9 @@ export default function ProfilePage({
               </button>
             </div>
             {guestTrackingError && (
-              <p className="text-xs text-rose-600 font-medium">{guestTrackingError}</p>
+              <p className="text-xs text-rose-600 font-medium">
+                {guestTrackingError}
+              </p>
             )}
           </div>
 
@@ -1103,7 +1117,8 @@ export default function ProfilePage({
                 Sign In for Full Account History & One-Tap Management
               </span>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Sign in to view all past appointments, download GST tax invoices, manage saved addresses, and reschedule instantly.
+                Sign in to view all past appointments, download GST tax
+                invoices, manage saved addresses, and reschedule instantly.
               </p>
             </div>
             <button
@@ -1124,7 +1139,9 @@ export default function ProfilePage({
             Appointment Records
           </h2>
           <p className="text-xs text-slate-500">
-            Showing {filteredBookings.length} {bookingFilter !== "all" ? bookingFilter : ""} {filteredBookings.length === 1 ? "booking" : "bookings"}
+            Showing {filteredBookings.length}{" "}
+            {bookingFilter !== "all" ? bookingFilter : ""}{" "}
+            {filteredBookings.length === 1 ? "booking" : "bookings"}
           </p>
         </div>
 
@@ -1134,8 +1151,16 @@ export default function ProfilePage({
             { id: "all", label: "All", count: bookings.length },
             { id: "upcoming", label: "Upcoming", count: upcomingBookingsCount },
             { id: "active", label: "In Progress", count: activeBookingsCount },
-            { id: "completed", label: "Completed", count: completedBookingsCount },
-            { id: "cancelled", label: "Cancelled", count: cancelledBookingsCount },
+            {
+              id: "completed",
+              label: "Completed",
+              count: completedBookingsCount,
+            },
+            {
+              id: "cancelled",
+              label: "Cancelled",
+              count: cancelledBookingsCount,
+            },
           ].map((tab) => {
             const isActive = bookingFilter === tab.id;
             return (
@@ -1177,7 +1202,8 @@ export default function ProfilePage({
                 No {bookingFilter} bookings found
               </h4>
               <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                You currently have no doorstep service appointments under the "{bookingFilter}" filter.
+                You currently have no doorstep service appointments under the "
+                {bookingFilter}" filter.
               </p>
             </div>
             <div className="flex items-center justify-center gap-3 pt-2">
@@ -1238,7 +1264,12 @@ export default function ProfilePage({
                 </div>
 
                 <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
-                  <span>Total Paid: <strong className="text-emerald-900 text-sm font-black">{b.totalPaid}</strong></span>
+                  <span>
+                    Total Paid:{" "}
+                    <strong className="text-emerald-900 text-sm font-black">
+                      {b.totalPaid}
+                    </strong>
+                  </span>
                   <span className="text-slate-300">•</span>
                   <span className="text-[11px] text-slate-500 font-medium">
                     {b.paymentMethod}
@@ -1295,7 +1326,9 @@ export default function ProfilePage({
                           ★ {b.technician.rating}
                         </span>
                         <span>·</span>
-                        <span className="text-emerald-800 font-semibold">Assigned Pro</span>
+                        <span className="text-emerald-800 font-semibold">
+                          Assigned Pro
+                        </span>
                       </p>
                     </div>
                   </div>
@@ -1305,7 +1338,8 @@ export default function ProfilePage({
               {/* Cancellation Reason if cancelled */}
               {b.status === "Cancelled" && b.cancellationReason && (
                 <div className="rounded-2xl bg-rose-50 border border-rose-100 p-3 text-xs text-rose-800">
-                  <strong>Reason for cancellation:</strong> {b.cancellationReason}
+                  <strong>Reason for cancellation:</strong>{" "}
+                  {b.cancellationReason}
                 </div>
               )}
 
@@ -1409,147 +1443,98 @@ export default function ProfilePage({
         ) : (
           <>
             {/* Profile Master Header Card */}
-        <div className="relative overflow-hidden rounded-3xl border border-white/80 bg-white/80 p-5 sm:p-7 shadow-sm backdrop-blur-md">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
-            <div className="flex items-center gap-4 sm:gap-5">
-              {/* Avatar with Camera Overlay */}
-              <div className="relative group shrink-0">
-                <img
-                  src={profileForm.avatar}
-                  alt={profileForm.name}
-                  className="h-16 w-16 sm:h-20 sm:w-20 rounded-full object-cover border-3 border-white shadow-md transition-transform group-hover:scale-105"
-                />
-                <button
-                  type="button"
-                  onClick={() => setIsAvatarModalOpen(true)}
-                  className="absolute bottom-0 right-0 flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full bg-slate-950 text-white shadow-sm hover:bg-emerald-800 transition-colors cursor-pointer"
-                  title="Change avatar"
-                >
-                  <Camera className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                </button>
-              </div>
+            <div className="relative overflow-hidden rounded-3xl border border-white/80 bg-white/80 p-5 sm:p-7 shadow-sm backdrop-blur-md">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+                <div className="flex items-center gap-4 sm:gap-5">
+                  {/* Avatar with Camera Overlay */}
+                  <div className="relative group shrink-0">
+                    <img
+                      src={profileForm.avatar}
+                      alt={profileForm.name}
+                      className="h-16 w-16 sm:h-20 sm:w-20 rounded-full object-cover border-3 border-white shadow-md transition-transform group-hover:scale-105"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setIsAvatarModalOpen(true)}
+                      className="absolute bottom-0 right-0 flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full bg-slate-950 text-white shadow-sm hover:bg-emerald-800 transition-colors cursor-pointer"
+                      title="Change avatar"
+                    >
+                      <Camera className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                    </button>
+                  </div>
 
-              {/* User Details */}
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <h1 className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight">
-                    {profileForm.name}
-                  </h1>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100/90 px-2.5 py-0.5 text-[10px] font-black text-emerald-900 shadow-2xs">
-                    <CheckCircle2 className="h-3 w-3 text-emerald-700" />
-                    Verified Customer
-                  </span>
+                  {/* User Details */}
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <h1 className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight">
+                        {profileForm.name}
+                      </h1>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100/90 px-2.5 py-0.5 text-[10px] font-black text-emerald-900 shadow-2xs">
+                        <CheckCircle2 className="h-3 w-3 text-emerald-700" />
+                        Verified Customer
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600 font-medium">
+                      <span className="flex items-center gap-1">
+                        <Mail className="h-3.5 w-3.5 text-slate-400" />
+                        {profileForm.email}
+                      </span>
+                      <span className="text-slate-300 hidden sm:inline">•</span>
+                      <span className="flex items-center gap-1">
+                        <Phone className="h-3.5 w-3.5 text-slate-400" />
+                        {profileForm.phone}
+                      </span>
+                    </div>
+
+                    <p className="flex items-center gap-1 text-[11px] text-slate-500 font-medium pt-0.5">
+                      <MapPin className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
+                      <span className="truncate max-w-xs sm:max-w-md">
+                        {profileForm.address}
+                      </span>
+                    </p>
+                  </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600 font-medium">
-                  <span className="flex items-center gap-1">
-                    <Mail className="h-3.5 w-3.5 text-slate-400" />
-                    {profileForm.email}
-                  </span>
-                  <span className="text-slate-300 hidden sm:inline">•</span>
-                  <span className="flex items-center gap-1">
-                    <Phone className="h-3.5 w-3.5 text-slate-400" />
-                    {profileForm.phone}
-                  </span>
+                {/* Quick Action Button: Edit Profile */}
+                <div className="flex items-center gap-2.5 self-start sm:self-center">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditProfileOpen(true)}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-800 transition-colors cursor-pointer"
+                  >
+                    <Edit3 className="h-3.5 w-3.5" />
+                    <span>Edit Profile</span>
+                  </button>
                 </div>
-
-                <p className="flex items-center gap-1 text-[11px] text-slate-500 font-medium pt-0.5">
-                  <MapPin className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
-                  <span className="truncate max-w-xs sm:max-w-md">
-                    {profileForm.address}
-                  </span>
-                </p>
               </div>
             </div>
 
-            {/* Quick Action Button: Edit Profile */}
-            <div className="flex items-center gap-2.5 self-start sm:self-center">
-              <button
-                type="button"
-                onClick={() => setIsEditProfileOpen(true)}
-                className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-800 transition-colors cursor-pointer"
+            {/* Mobile Horizontally Scrollable 10-Tab Navigation Strip */}
+            <div className="md:hidden">
+              <div
+                ref={mobileNavScrollRef}
+                className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-4 px-4 sm:mx-0 sm:px-0"
               >
-                <Edit3 className="h-3.5 w-3.5" />
-                <span>Edit Profile</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile Horizontally Scrollable 10-Tab Navigation Strip */}
-        <div className="md:hidden">
-          <div
-            ref={mobileNavScrollRef}
-            className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-4 px-4 sm:mx-0 sm:px-0"
-          >
-            {sidebarMenuItems.map((item) => {
-              const isActive = activeTab === item.id;
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  ref={(el) => (mobileTabRefs.current[item.id] = el)}
-                  type="button"
-                  onClick={() => handleTabClick(item.id)}
-                  className={`shrink-0 flex items-center gap-2 rounded-2xl px-3.5 py-2.5 text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                    isActive
-                      ? "bg-slate-950 text-white shadow-md scale-102"
-                      : item.isDanger
-                        ? "bg-rose-50 text-rose-700 border border-rose-200/60"
-                        : "bg-white/80 text-slate-700 border border-slate-200/80 hover:bg-white"
-                  }`}
-                >
-                  <Icon
-                    className={`h-3.5 w-3.5 ${
-                      isActive
-                        ? "text-emerald-400"
-                        : item.isDanger
-                          ? "text-rose-600"
-                          : "text-slate-500"
-                    }`}
-                  />
-                  <span>{item.label}</span>
-                  {item.badge && (
-                    <span
-                      className={`rounded-full px-1.5 py-0.2 text-[9px] font-black ${
+                {sidebarMenuItems.map((item) => {
+                  const isActive = activeTab === item.id;
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.id}
+                      ref={(el) => (mobileTabRefs.current[item.id] = el)}
+                      type="button"
+                      onClick={() => handleTabClick(item.id)}
+                      className={`shrink-0 flex items-center gap-2 rounded-2xl px-3.5 py-2.5 text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                         isActive
-                          ? "bg-emerald-500 text-slate-950"
-                          : "bg-slate-100 text-slate-800"
+                          ? "bg-slate-950 text-white shadow-md scale-102"
+                          : item.isDanger
+                            ? "bg-rose-50 text-rose-700 border border-rose-200/60"
+                            : "bg-white/80 text-slate-700 border border-slate-200/80 hover:bg-white"
                       }`}
                     >
-                      {item.badge}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Main 2-Column Dashboard Layout: Desktop Sidebar + Dynamic Tab Content */}
-        <div className="grid gap-8 md:grid-cols-[260px_1fr] items-start">
-          {/* Desktop Left Sidebar Menu */}
-          <aside className="hidden md:block space-y-2 sticky top-32">
-            <div className="rounded-3xl border border-white/80 bg-white/80 p-3 shadow-xs backdrop-blur-md space-y-1">
-              {sidebarMenuItems.map((item) => {
-                const isActive = activeTab === item.id;
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => handleTabClick(item.id)}
-                    className={`w-full flex items-center justify-between rounded-2xl px-4 py-3 text-xs font-bold transition-all cursor-pointer ${
-                      isActive
-                        ? "bg-slate-950 text-white shadow-md"
-                        : item.isDanger
-                          ? "text-rose-600 hover:bg-rose-50 hover:text-rose-700"
-                          : "text-slate-700 hover:bg-slate-100/80 hover:text-slate-950"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
                       <Icon
-                        className={`h-4 w-4 ${
+                        className={`h-3.5 w-3.5 ${
                           isActive
                             ? "text-emerald-400"
                             : item.isDanger
@@ -1558,1204 +1543,1259 @@ export default function ProfilePage({
                         }`}
                       />
                       <span>{item.label}</span>
-                    </div>
-                    {item.badge && (
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
-                          isActive
-                            ? "bg-emerald-500 text-slate-950"
-                            : "bg-slate-100 text-slate-800"
-                        }`}
-                      >
-                        {item.badge}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Helpline Quick Card in Sidebar */}
-            <div className="rounded-3xl border border-emerald-200/60 bg-emerald-50/70 p-4 space-y-2">
-              <div className="flex items-center gap-2 text-xs font-extrabold text-emerald-900">
-                <LifeBuoy className="h-4 w-4 text-emerald-700" />
-                <span>24/7 Argent Support</span>
-              </div>
-              <p className="text-[11px] text-slate-600 leading-normal">
-                Need urgent assistance with an active booking? Our team is live.
-              </p>
-              <button
-                type="button"
-                onClick={() => setIsLiveChatOpen(true)}
-                className="w-full rounded-xl bg-white px-3 py-2 text-xs font-bold text-emerald-900 shadow-2xs hover:bg-emerald-100/70 transition-colors text-center cursor-pointer border border-emerald-200"
-              >
-                Chat with Agent
-              </button>
-            </div>
-          </aside>
-
-          {/* Dynamic Content Area for Each Dedicated Section */}
-          <main className="min-w-0 space-y-8">
-            {/* ===============================================================
-                SECTION 1: MY PROFILE (OVERVIEW DASHBOARD)
-            =============================================================== */}
-            {activeTab === "overview" && (
-              <div className="space-y-8 animate-rise-in">
-                {/* 4 Summary Metric Cards */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                  {/* Card 1: Total Bookings */}
-                  <div
-                    onClick={() => setActiveTab("bookings")}
-                    className="rounded-3xl border border-white/80 bg-white/90 p-4 shadow-xs backdrop-blur-md hover:shadow-md transition-all cursor-pointer group"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                        Total Orders
-                      </span>
-                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-700 group-hover:bg-slate-950 group-hover:text-white transition-colors">
-                        <PackageCheck className="h-4 w-4" />
-                      </div>
-                    </div>
-                    <p className="mt-2 text-2xl sm:text-3xl font-black text-slate-900">
-                      {totalBookingsCount}
-                    </p>
-                    <span className="mt-1 text-[11px] font-bold text-emerald-800 group-hover:underline block">
-                      View booking history &rarr;
-                    </span>
-                  </div>
-
-                  {/* Card 2: Upcoming */}
-                  <div
-                    onClick={() => {
-                      setBookingFilter("upcoming");
-                      setActiveTab("bookings");
-                    }}
-                    className="rounded-3xl border border-white/80 bg-white/90 p-4 shadow-xs backdrop-blur-md hover:shadow-md transition-all cursor-pointer group"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                        Upcoming
-                      </span>
-                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-50 text-amber-800 group-hover:bg-amber-500 group-hover:text-white transition-colors">
-                        <Clock className="h-4 w-4" />
-                      </div>
-                    </div>
-                    <div className="mt-2 flex items-baseline gap-2">
-                      <p className="text-2xl sm:text-3xl font-black text-slate-900">
-                        {upcomingCount}
-                      </p>
-                      <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                    </div>
-                    <span className="mt-1 text-[11px] font-bold text-emerald-800 group-hover:underline block truncate">
-                      Track active slot &rarr;
-                    </span>
-                  </div>
-
-                  {/* Card 3: Completed */}
-                  <div
-                    onClick={() => {
-                      setBookingFilter("completed");
-                      setActiveTab("bookings");
-                    }}
-                    className="rounded-3xl border border-white/80 bg-white/90 p-4 shadow-xs backdrop-blur-md hover:shadow-md transition-all cursor-pointer group"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                        Completed
-                      </span>
-                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-teal-50 text-teal-800 group-hover:bg-teal-700 group-hover:text-white transition-colors">
-                        <CheckCircle2 className="h-4 w-4" />
-                      </div>
-                    </div>
-                    <p className="mt-2 text-2xl sm:text-3xl font-black text-slate-900">
-                      {completedCount}
-                    </p>
-                    <span className="mt-1 text-[11px] font-bold text-emerald-800 group-hover:underline block">
-                      100% Guaranteed &rarr;
-                    </span>
-                  </div>
-
-                  {/* Card 4: Saved Services */}
-                  <div
-                    onClick={() => setActiveTab("saved")}
-                    className="rounded-3xl border border-white/80 bg-white/90 p-4 shadow-xs backdrop-blur-md hover:shadow-md transition-all cursor-pointer group"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                        Saved
-                      </span>
-                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-50 text-rose-700 group-hover:bg-rose-500 group-hover:text-white transition-colors">
-                        <Heart className="h-4 w-4" />
-                      </div>
-                    </div>
-                    <p className="mt-2 text-2xl sm:text-3xl font-black text-slate-900">
-                      {savedCount}
-                    </p>
-                    <span className="mt-1 text-[11px] font-bold text-emerald-800 group-hover:underline block">
-                      Quick rebook &rarr;
-                    </span>
-                  </div>
-                </div>
-
-                {/* Active Offers Preview Banner */}
-                <div className="relative overflow-hidden rounded-3xl border border-emerald-200/80 bg-gradient-to-r from-emerald-900 to-slate-950 p-6 sm:p-7 text-white shadow-lg">
-                  <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
-                    <div className="space-y-1 max-w-lg">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-200 backdrop-blur-sm">
-                        <Sparkles className="h-3 w-3" />
-                        Exclusive Member Privilege
-                      </span>
-                      <h3 className="text-xl sm:text-2xl font-extrabold tracking-tight">
-                        Flat 20% OFF on All Doorstep Services
-                      </h3>
-                      <p className="text-xs text-slate-300">
-                        Use code{" "}
-                        <strong className="text-white">ARGENT20</strong> for
-                        immediate discount at checkout. Valid until 30 Sep.
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-2.5">
-                      <button
-                        type="button"
-                        onClick={() => handleCopyCoupon("ARGENT20")}
-                        className="rounded-2xl bg-white/10 px-4 py-2.5 text-xs font-bold text-white border border-white/20 hover:bg-white/20 transition-all cursor-pointer flex items-center gap-1.5"
-                      >
-                        {copiedCoupon === "ARGENT20" ? (
-                          <>
-                            <Check className="h-3.5 w-3.5 text-emerald-400" />
-                            <span>Copied!</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="h-3.5 w-3.5" />
-                            <span>Copy ARGENT20</span>
-                          </>
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab("offers")}
-                        className="rounded-2xl bg-white px-4 py-2.5 text-xs font-bold text-slate-950 hover:bg-emerald-100 transition-all shadow-md cursor-pointer"
-                      >
-                        View All Offers
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Next Upcoming Appointment Highlight */}
-                {bookings.find(
-                  (b) => b.status === "In Progress" || b.status === "Confirmed",
-                ) && (
-                  <div className="rounded-3xl border border-white/80 bg-white/90 p-5 sm:p-6 shadow-xs backdrop-blur-md space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-ping" />
-                        <h3 className="text-base font-black text-slate-900">
-                          Next Upcoming Service Appointment
-                        </h3>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab("bookings")}
-                        className="text-xs font-bold text-emerald-800 hover:underline cursor-pointer"
-                      >
-                        See All ({upcomingCount})
-                      </button>
-                    </div>
-
-                    {(() => {
-                      const nextBooking = bookings.find(
-                        (b) =>
-                          b.status === "In Progress" ||
-                          b.status === "Confirmed",
-                      );
-                      if (!nextBooking) return null;
-                      return (
-                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
-                          <div className="flex items-center gap-3.5">
-                            <img
-                              src={nextBooking.image}
-                              alt={nextBooking.serviceName}
-                              className="h-16 w-16 rounded-2xl object-cover shadow-2xs shrink-0"
-                            />
-                            <div>
-                              <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800">
-                                #{nextBooking.id} · {nextBooking.category}
-                              </span>
-                              <h4 className="text-sm font-bold text-slate-900">
-                                {nextBooking.serviceName}
-                              </h4>
-                              <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">
-                                <Calendar className="h-3.5 w-3.5 text-emerald-700" />
-                                <span>{nextBooking.scheduledDate}</span>
-                                <span>·</span>
-                                <Clock className="h-3.5 w-3.5 text-emerald-700" />
-                                <span>{nextBooking.scheduledTime}</span>
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setSelectedBookingForDetails(nextBooking)
-                              }
-                              className="rounded-xl bg-slate-950 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800 transition-colors shadow-2xs cursor-pointer"
-                            >
-                              Track & Details
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setRescheduleBookingTarget(nextBooking)
-                              }
-                              className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                            >
-                              Reschedule
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                )}
-
-                {/* Quick Access Grid to Key Sections */}
-                <div className="grid sm:grid-cols-3 gap-4">
-                  <div
-                    onClick={() => setActiveTab("addresses")}
-                    className="rounded-3xl border border-white/80 bg-white/80 p-5 shadow-xs hover:shadow-md transition-all cursor-pointer group"
-                  >
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-800 group-hover:bg-slate-950 group-hover:text-white transition-colors">
-                      <MapPin className="h-5 w-5" />
-                    </div>
-                    <h4 className="text-sm font-bold text-slate-900 mt-3">
-                      Manage Addresses
-                    </h4>
-                    <p className="text-xs text-slate-500 mt-1">
-                      {addresses.length} saved doorstep service locations
-                    </p>
-                  </div>
-
-                  <div
-                    onClick={() => setActiveTab("payments")}
-                    className="rounded-3xl border border-white/80 bg-white/80 p-5 shadow-xs hover:shadow-md transition-all cursor-pointer group"
-                  >
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-800 group-hover:bg-slate-950 group-hover:text-white transition-colors">
-                      <CreditCard className="h-5 w-5" />
-                    </div>
-                    <h4 className="text-sm font-bold text-slate-900 mt-3">
-                      Payment Methods
-                    </h4>
-                    <p className="text-xs text-slate-500 mt-1">
-                      {paymentMethods.length} securely saved cards & UPI
-                    </p>
-                  </div>
-
-                  <div
-                    onClick={() => setActiveTab("support")}
-                    className="rounded-3xl border border-white/80 bg-white/80 p-5 shadow-xs hover:shadow-md transition-all cursor-pointer group"
-                  >
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-800 group-hover:bg-slate-950 group-hover:text-white transition-colors">
-                      <HelpCircle className="h-5 w-5" />
-                    </div>
-                    <h4 className="text-sm font-bold text-slate-900 mt-3">
-                      Help & Live Support
-                    </h4>
-                    <p className="text-xs text-slate-500 mt-1">
-                      FAQs, live agent chat & WhatsApp assist
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ===============================================================
-                SECTION 2: MY BOOKINGS
-            =============================================================== */}
-            {activeTab === "bookings" && renderBookingsSection()}
-
-            {/* ===============================================================
-                SECTION 3: ADDRESSES
-            =============================================================== */}
-            {activeTab === "addresses" && (
-              <div className="space-y-6 animate-rise-in">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                      Manage Addresses
-                    </h2>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Doorstep service locations for appointments and equipment
-                      delivery
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setIsAddAddressOpen(true)}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-800 transition-colors shadow-sm cursor-pointer self-start sm:self-auto"
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span>Add New Address</span>
-                  </button>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {addresses.map((addr) => (
-                    <div
-                      key={addr.id}
-                      className={`relative rounded-3xl border p-5 sm:p-6 backdrop-blur-md transition-all ${
-                        addr.isDefault
-                          ? "border-emerald-600/40 bg-white shadow-sm ring-1 ring-emerald-500/20"
-                          : "border-white/80 bg-white/80 hover:shadow-sm"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="rounded-xl bg-slate-100 px-3 py-1 text-xs font-extrabold text-slate-800">
-                            {addr.type}
-                          </span>
-                          {addr.isDefault && (
-                            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800">
-                              Default
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => setEditAddressTarget(addr)}
-                            className="p-1.5 text-slate-400 hover:text-slate-800 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
-                            title="Edit Address"
-                          >
-                            <Edit3 className="h-4 w-4" />
-                          </button>
-                          {!addr.isDefault && (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteAddress(addr.id)}
-                              className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
-                              title="Delete Address"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="mt-4 space-y-1 text-xs">
-                        <p className="font-bold text-slate-900 text-sm">
-                          {addr.recipient}
-                        </p>
-                        <p className="text-slate-600">{addr.line1}</p>
-                        {addr.line2 && (
-                          <p className="text-slate-500">{addr.line2}</p>
-                        )}
-                        <p className="text-slate-600">
-                          {addr.city}, {addr.state} - {addr.postalCode}
-                        </p>
-                        <p className="text-slate-500 pt-1 flex items-center gap-1 font-medium">
-                          <Phone className="h-3 w-3 text-slate-400" />
-                          {addr.phone}
-                        </p>
-                      </div>
-
-                      {!addr.isDefault && (
-                        <div className="mt-4 pt-3 border-t border-slate-100">
-                          <button
-                            type="button"
-                            onClick={() => handleSetDefaultAddress(addr.id)}
-                            className="text-xs font-bold text-emerald-800 hover:underline cursor-pointer"
-                          >
-                            Set as Default
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* ===============================================================
-                SECTION 4: PAYMENT METHODS
-            =============================================================== */}
-            {activeTab === "payments" && (
-              <div className="space-y-6 animate-rise-in">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                      Payment Methods
-                    </h2>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Secure payment options with bank-grade encryption & masked
-                      card data
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setIsAddPaymentOpen(true)}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-800 transition-colors shadow-sm cursor-pointer self-start sm:self-auto"
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span>Add Payment Method</span>
-                  </button>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {paymentMethods.map((pm) => (
-                    <div
-                      key={pm.id}
-                      className={`relative rounded-3xl border p-5 sm:p-6 backdrop-blur-md transition-all ${
-                        pm.isDefault
-                          ? "border-emerald-600/40 bg-white shadow-sm ring-1 ring-emerald-500/20"
-                          : "border-white/80 bg-white/80 hover:shadow-sm"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="rounded-xl bg-slate-100 px-3 py-1 text-xs font-black text-slate-800">
-                            {pm.brand}
-                          </span>
-                          {pm.isDefault && (
-                            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800">
-                              Default
-                            </span>
-                          )}
-                        </div>
-
-                        {!pm.isDefault && (
-                          <button
-                            type="button"
-                            onClick={() => handleDeletePayment(pm.id)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
-                            title="Remove Payment Method"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-
-                      <div className="mt-4 space-y-1 text-xs">
-                        <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">
-                          {pm.type}
-                        </p>
-                        <p className="font-mono text-base font-black text-slate-900 tracking-wider">
-                          {pm.maskedNumber}
-                        </p>
-                        <div className="flex items-center justify-between text-slate-500 pt-2">
-                          <span>{pm.cardholder}</span>
-                          {pm.expiry !== "N/A" && (
-                            <span>Expires {pm.expiry}</span>
-                          )}
-                        </div>
-                      </div>
-
-                      {!pm.isDefault && (
-                        <div className="mt-4 pt-3 border-t border-slate-100">
-                          <button
-                            type="button"
-                            onClick={() => handleSetDefaultPayment(pm.id)}
-                            className="text-xs font-bold text-emerald-800 hover:underline cursor-pointer"
-                          >
-                            Set as Default
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Additional Payment Info */}
-                <div className="rounded-3xl border border-slate-200/60 bg-white/60 p-5 flex items-start gap-3.5 text-xs text-slate-600">
-                  <ShieldCheck className="h-5 w-5 text-emerald-700 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-bold text-slate-900">
-                      PCI-DSS Compliant 256-Bit SSL Protection
-                    </p>
-                    <p className="text-slate-500 mt-0.5">
-                      Your full card numbers are never stored on Argent Your
-                      servers. We use RBI & PCI-DSS tokenization to secure all
-                      transactions.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ===============================================================
-                SECTION 5: SAVED SERVICES
-            =============================================================== */}
-            {activeTab === "saved" && (
-              <div className="space-y-6 animate-rise-in">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                      Saved Services
-                    </h2>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Your bookmarked home services for one-tap booking
-                    </p>
-                  </div>
-                  <span className="text-xs font-bold text-slate-500">
-                    {savedServicesList.length} saved
-                  </span>
-                </div>
-
-                {savedServicesList.length === 0 ? (
-                  <div className="rounded-3xl border border-white/80 bg-white/80 p-12 text-center space-y-3">
-                    <Heart className="h-10 w-10 text-slate-300 mx-auto" />
-                    <h4 className="text-base font-bold text-slate-800">
-                      No saved services yet
-                    </h4>
-                    <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                      Bookmark your favorite doorstep maintenance and grooming
-                      services to access them quickly here.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={onHome}
-                      className="rounded-2xl bg-slate-950 px-5 py-2.5 text-xs font-bold text-white hover:bg-emerald-800 transition-colors shadow-sm cursor-pointer"
-                    >
-                      Browse Service Catalog
-                    </button>
-                  </div>
-                ) : (
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {savedServicesList.map((srv) => (
-                      <div
-                        key={srv.slug}
-                        className="rounded-3xl border border-white/80 bg-white shadow-2xs overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow"
-                      >
-                        <div>
-                          <div className="relative aspect-[16/10] bg-slate-100 overflow-hidden">
-                            <img
-                              src={srv.image}
-                              alt={srv.name}
-                              className="h-full w-full object-cover"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveSavedService(srv.slug)}
-                              className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-rose-600 shadow-sm hover:scale-110 transition-transform cursor-pointer"
-                              title="Remove from saved"
-                            >
-                              <Heart className="h-4 w-4 fill-rose-600" />
-                            </button>
-                            <span className="absolute bottom-3 left-3 rounded-md bg-slate-950/80 px-2 py-0.5 text-[10px] font-bold text-white">
-                              {srv.category}
-                            </span>
-                          </div>
-
-                          <div className="p-4 space-y-1.5">
-                            <h3 className="font-bold text-sm text-slate-900 line-clamp-1">
-                              {srv.name}
-                            </h3>
-                            <div className="flex items-center gap-1 text-xs font-semibold text-slate-600">
-                              <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                              <span>{srv.rating}</span>
-                              <span className="text-slate-400 font-normal">
-                                ({srv.reviews})
-                              </span>
-                            </div>
-                            <p className="text-sm font-black text-emerald-800">
-                              {srv.price}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="p-4 pt-0">
-                          <button
-                            type="button"
-                            onClick={() => onNavigateToService?.(srv.slug)}
-                            className="w-full rounded-xl bg-slate-950 py-2.5 text-xs font-bold text-white hover:bg-emerald-800 transition-colors shadow-2xs text-center cursor-pointer"
-                          >
-                            Book Now
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ===============================================================
-                SECTION 6: NOTIFICATIONS
-            =============================================================== */}
-            {activeTab === "notifications" && (
-              <div className="space-y-6 animate-rise-in">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                        Notifications
-                      </h2>
-                      {unreadNotificationsCount > 0 && (
-                        <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-black text-white">
-                          {unreadNotificationsCount} unread
+                      {item.badge && (
+                        <span
+                          className={`rounded-full px-1.5 py-0.2 text-[9px] font-black ${
+                            isActive
+                              ? "bg-emerald-500 text-slate-950"
+                              : "bg-slate-100 text-slate-800"
+                          }`}
+                        >
+                          {item.badge}
                         </span>
                       )}
-                    </div>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Real-time updates regarding service bookings, technician
-                      dispatch & offers
-                    </p>
-                  </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
-                  <div className="flex items-center gap-2 self-start sm:self-auto">
-                    {unreadNotificationsCount > 0 && (
+            {/* Main 2-Column Dashboard Layout: Desktop Sidebar + Dynamic Tab Content */}
+            <div className="grid gap-8 md:grid-cols-[260px_1fr] items-start">
+              {/* Desktop Left Sidebar Menu */}
+              <aside className="hidden md:block space-y-2 sticky top-32">
+                <div className="rounded-3xl border border-white/80 bg-white/80 p-3 shadow-xs backdrop-blur-md space-y-1">
+                  {sidebarMenuItems.map((item) => {
+                    const isActive = activeTab === item.id;
+                    const Icon = item.icon;
+                    return (
                       <button
+                        key={item.id}
                         type="button"
-                        onClick={handleMarkAllNotificationsRead}
-                        className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-                      >
-                        Mark all as read
-                      </button>
-                    )}
-                    {notifications.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={handleClearNotifications}
-                        className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer"
-                      >
-                        Clear all
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  {notifications.length === 0 ? (
-                    <div className="rounded-3xl border border-white/80 bg-white/80 p-12 text-center space-y-3">
-                      <Bell className="h-10 w-10 text-slate-300 mx-auto" />
-                      <h4 className="text-base font-bold text-slate-800">
-                        No notifications right now
-                      </h4>
-                      <p className="text-xs text-slate-500">
-                        We'll alert you here when your technician is assigned or
-                        when new offers drop!
-                      </p>
-                    </div>
-                  ) : (
-                    notifications.map((n) => (
-                      <div
-                        key={n.id}
-                        className={`flex items-start justify-between gap-4 rounded-3xl border p-4 sm:p-5 backdrop-blur-md transition-all ${
-                          n.read
-                            ? "border-white/80 bg-white/70"
-                            : "border-emerald-500/30 bg-white shadow-xs ring-1 ring-emerald-500/15"
+                        onClick={() => handleTabClick(item.id)}
+                        className={`w-full flex items-center justify-between rounded-2xl px-4 py-3 text-xs font-bold transition-all cursor-pointer ${
+                          isActive
+                            ? "bg-slate-950 text-white shadow-md"
+                            : item.isDanger
+                              ? "text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                              : "text-slate-700 hover:bg-slate-100/80 hover:text-slate-950"
                         }`}
                       >
-                        <div className="flex items-start gap-3.5">
-                          <div
-                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
-                              n.type === "service"
-                                ? "bg-amber-50 text-amber-800"
-                                : n.type === "promo"
-                                  ? "bg-rose-50 text-rose-700"
-                                  : "bg-emerald-50 text-emerald-800"
+                        <div className="flex items-center gap-3">
+                          <Icon
+                            className={`h-4 w-4 ${
+                              isActive
+                                ? "text-emerald-400"
+                                : item.isDanger
+                                  ? "text-rose-600"
+                                  : "text-slate-500"
+                            }`}
+                          />
+                          <span>{item.label}</span>
+                        </div>
+                        {item.badge && (
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
+                              isActive
+                                ? "bg-emerald-500 text-slate-950"
+                                : "bg-slate-100 text-slate-800"
                             }`}
                           >
-                            <Bell className="h-4 w-4" />
-                          </div>
-
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-bold text-sm text-slate-900">
-                                {n.title}
-                              </h4>
-                              {!n.read && (
-                                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                              )}
-                            </div>
-                            <p className="text-xs text-slate-600 leading-relaxed">
-                              {n.message}
-                            </p>
-                            <span className="text-[10px] text-slate-400 font-medium block">
-                              {n.time}
-                            </span>
-                          </div>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteNotification(n.id)}
-                          className="text-slate-300 hover:text-slate-500 p-1 rounded-lg transition-colors cursor-pointer shrink-0"
-                          title="Dismiss notification"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))
-                  )}
+                            {item.badge}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
-              </div>
-            )}
 
-            {/* ===============================================================
-                SECTION 7: OFFERS & REWARDS
-            =============================================================== */}
-            {activeTab === "offers" && (
-              <div className="space-y-6 animate-rise-in">
-                <div>
-                  <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                    Offers & Reward Coupons
-                  </h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Exclusive promo discount vouchers available for your
-                    doorstep services
+                {/* Helpline Quick Card in Sidebar */}
+                <div className="rounded-3xl border border-emerald-200/60 bg-emerald-50/70 p-4 space-y-2">
+                  <div className="flex items-center gap-2 text-xs font-extrabold text-emerald-900">
+                    <LifeBuoy className="h-4 w-4 text-emerald-700" />
+                    <span>24/7 Argent Support</span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 leading-normal">
+                    Need urgent assistance with an active booking? Our team is
+                    live.
                   </p>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {[
-                    {
-                      code: "ARGENT20",
-                      discount: "Flat 20% OFF",
-                      title: "Universal Doorstep Discount",
-                      desc: "Applicable on all Home Cleaning, AC, Electrical & Plumbing services",
-                      validUntil: "30 Sep 2026",
-                      minOrder: "$25",
-                      color: "emerald",
-                    },
-                    {
-                      code: "CLEAN15",
-                      discount: "$15 OFF",
-                      title: "Deep Home Clean Refresh",
-                      desc: "Special discount on Kitchen, Bathroom & Full Home Refresh clean",
-                      validUntil: "15 Oct 2026",
-                      minOrder: "$30",
-                      color: "teal",
-                    },
-                    {
-                      code: "SUMMERAC",
-                      discount: "Free AC Inspection",
-                      title: "AC Foam-Jet Combo Deal",
-                      desc: "Free gas pressure & electrical load audit with every AC service",
-                      validUntil: "31 Oct 2026",
-                      minOrder: "$35",
-                      color: "amber",
-                    },
-                    {
-                      code: "FIRST50",
-                      discount: "Flat $10 OFF",
-                      title: "Welcome Bonus Voucher",
-                      desc: "Special new customer token valid on your next appointment",
-                      validUntil: "31 Dec 2026",
-                      minOrder: "$20",
-                      color: "purple",
-                    },
-                  ].map((coupon) => (
-                    <div
-                      key={coupon.code}
-                      className="rounded-3xl border border-white/80 bg-white/90 p-5 sm:p-6 shadow-xs backdrop-blur-md flex flex-col justify-between space-y-4 hover:shadow-md transition-shadow"
-                    >
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="rounded-xl bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-900">
-                            {coupon.discount}
-                          </span>
-                          <span className="text-[11px] text-slate-400 font-medium">
-                            Min Order {coupon.minOrder}
-                          </span>
-                        </div>
-
-                        <h3 className="font-extrabold text-base text-slate-900">
-                          {coupon.title}
-                        </h3>
-                        <p className="text-xs text-slate-600 leading-relaxed">
-                          {coupon.desc}
-                        </p>
-                      </div>
-
-                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs font-black text-slate-900 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
-                            {coupon.code}
-                          </span>
-                          <span className="text-[10px] text-slate-400">
-                            Expires {coupon.validUntil}
-                          </span>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => handleCopyCoupon(coupon.code)}
-                          className="flex items-center gap-1 rounded-xl bg-slate-950 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-800 transition-colors shadow-2xs cursor-pointer"
-                        >
-                          {copiedCoupon === coupon.code ? (
-                            <>
-                              <Check className="h-3 w-3 text-emerald-400" />
-                              <span>Copied</span>
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="h-3 w-3" />
-                              <span>Copy</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* ===============================================================
-                SECTION 8: HELP & SUPPORT
-            =============================================================== */}
-            {activeTab === "support" && (
-              <div className="space-y-6 animate-rise-in">
-                <div>
-                  <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                    Help & Support
-                  </h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Frequently asked questions, live chat assistant & ticket
-                    tracking
-                  </p>
-                </div>
-
-                {/* Quick Contact Cards */}
-                <div className="grid sm:grid-cols-4 gap-3">
-                  <a
-                    href="tel:+918000500200"
-                    className="flex flex-col items-center justify-center p-4 rounded-3xl border border-white/80 bg-white/90 hover:bg-white text-center shadow-xs transition-all cursor-pointer"
-                  >
-                    <div className="h-10 w-10 rounded-2xl bg-emerald-50 text-emerald-800 flex items-center justify-center mb-2">
-                      <Phone className="h-5 w-5" />
-                    </div>
-                    <span className="text-xs font-bold text-slate-900">
-                      24/7 Helpline
-                    </span>
-                    <span className="text-[10px] text-slate-500">
-                      +91 8000 500 200
-                    </span>
-                  </a>
-
-                  <a
-                    href="https://wa.me/918000500200"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex flex-col items-center justify-center p-4 rounded-3xl border border-white/80 bg-white/90 hover:bg-white text-center shadow-xs transition-all cursor-pointer"
-                  >
-                    <div className="h-10 w-10 rounded-2xl bg-emerald-50 text-emerald-800 flex items-center justify-center mb-2">
-                      <MessageSquare className="h-5 w-5" />
-                    </div>
-                    <span className="text-xs font-bold text-slate-900">
-                      WhatsApp Assist
-                    </span>
-                    <span className="text-[10px] text-slate-500">
-                      Instant response
-                    </span>
-                  </a>
-
                   <button
                     type="button"
                     onClick={() => setIsLiveChatOpen(true)}
-                    className="flex flex-col items-center justify-center p-4 rounded-3xl border border-white/80 bg-white/90 hover:bg-white text-center shadow-xs transition-all cursor-pointer"
+                    className="w-full rounded-xl bg-white px-3 py-2 text-xs font-bold text-emerald-900 shadow-2xs hover:bg-emerald-100/70 transition-colors text-center cursor-pointer border border-emerald-200"
                   >
-                    <div className="h-10 w-10 rounded-2xl bg-slate-100 text-slate-800 flex items-center justify-center mb-2">
-                      <MessageCircle className="h-5 w-5" />
-                    </div>
-                    <span className="text-xs font-bold text-slate-900">
-                      Live Chat
-                    </span>
-                    <span className="text-[10px] text-slate-500">
-                      Chat with Agent
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setIsRaiseTicketOpen(true)}
-                    className="flex flex-col items-center justify-center p-4 rounded-3xl border border-white/80 bg-white/90 hover:bg-white text-center shadow-xs transition-all cursor-pointer"
-                  >
-                    <div className="h-10 w-10 rounded-2xl bg-amber-50 text-amber-800 flex items-center justify-center mb-2">
-                      <AlertCircle className="h-5 w-5" />
-                    </div>
-                    <span className="text-xs font-bold text-slate-900">
-                      Raise Ticket
-                    </span>
-                    <span className="text-[10px] text-slate-500">
-                      Track resolution
-                    </span>
+                    Chat with Agent
                   </button>
                 </div>
+              </aside>
 
-                {/* Active Tickets Tracker */}
-                {supportTickets.length > 0 && (
-                  <div className="rounded-3xl border border-white/80 bg-white/90 p-5 sm:p-6 shadow-xs backdrop-blur-md space-y-3">
-                    <h3 className="text-sm font-bold text-slate-900">
-                      Your Active Support Tickets
-                    </h3>
-                    <div className="space-y-2">
-                      {supportTickets.map((t) => (
+              {/* Dynamic Content Area for Each Dedicated Section */}
+              <main className="min-w-0 space-y-8">
+                {/* ===============================================================
+                SECTION 1: MY PROFILE (OVERVIEW DASHBOARD)
+            =============================================================== */}
+                {activeTab === "overview" && (
+                  <div className="space-y-8 animate-rise-in">
+                    {/* 4 Summary Metric Cards */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                      {/* Card 1: Total Bookings */}
+                      <div
+                        onClick={() => setActiveTab("bookings")}
+                        className="rounded-3xl border border-white/80 bg-white/90 p-4 shadow-xs backdrop-blur-md hover:shadow-md transition-all cursor-pointer group"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                            Total Orders
+                          </span>
+                          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-700 group-hover:bg-slate-950 group-hover:text-white transition-colors">
+                            <PackageCheck className="h-4 w-4" />
+                          </div>
+                        </div>
+                        <p className="mt-2 text-2xl sm:text-3xl font-black text-slate-900">
+                          {totalBookingsCount}
+                        </p>
+                        <span className="mt-1 text-[11px] font-bold text-emerald-800 group-hover:underline block">
+                          View booking history &rarr;
+                        </span>
+                      </div>
+
+                      {/* Card 2: Upcoming */}
+                      <div
+                        onClick={() => {
+                          setBookingFilter("upcoming");
+                          setActiveTab("bookings");
+                        }}
+                        className="rounded-3xl border border-white/80 bg-white/90 p-4 shadow-xs backdrop-blur-md hover:shadow-md transition-all cursor-pointer group"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                            Upcoming
+                          </span>
+                          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-50 text-amber-800 group-hover:bg-amber-500 group-hover:text-white transition-colors">
+                            <Clock className="h-4 w-4" />
+                          </div>
+                        </div>
+                        <div className="mt-2 flex items-baseline gap-2">
+                          <p className="text-2xl sm:text-3xl font-black text-slate-900">
+                            {upcomingCount}
+                          </p>
+                          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                        </div>
+                        <span className="mt-1 text-[11px] font-bold text-emerald-800 group-hover:underline block truncate">
+                          Track active slot &rarr;
+                        </span>
+                      </div>
+
+                      {/* Card 3: Completed */}
+                      <div
+                        onClick={() => {
+                          setBookingFilter("completed");
+                          setActiveTab("bookings");
+                        }}
+                        className="rounded-3xl border border-white/80 bg-white/90 p-4 shadow-xs backdrop-blur-md hover:shadow-md transition-all cursor-pointer group"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                            Completed
+                          </span>
+                          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-teal-50 text-teal-800 group-hover:bg-teal-700 group-hover:text-white transition-colors">
+                            <CheckCircle2 className="h-4 w-4" />
+                          </div>
+                        </div>
+                        <p className="mt-2 text-2xl sm:text-3xl font-black text-slate-900">
+                          {completedCount}
+                        </p>
+                        <span className="mt-1 text-[11px] font-bold text-emerald-800 group-hover:underline block">
+                          100% Guaranteed &rarr;
+                        </span>
+                      </div>
+
+                      {/* Card 4: Saved Services */}
+                      <div
+                        onClick={() => setActiveTab("saved")}
+                        className="rounded-3xl border border-white/80 bg-white/90 p-4 shadow-xs backdrop-blur-md hover:shadow-md transition-all cursor-pointer group"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                            Saved
+                          </span>
+                          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-50 text-rose-700 group-hover:bg-rose-500 group-hover:text-white transition-colors">
+                            <Heart className="h-4 w-4" />
+                          </div>
+                        </div>
+                        <p className="mt-2 text-2xl sm:text-3xl font-black text-slate-900">
+                          {savedCount}
+                        </p>
+                        <span className="mt-1 text-[11px] font-bold text-emerald-800 group-hover:underline block">
+                          Quick rebook &rarr;
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Active Offers Preview Banner */}
+                    <div className="relative overflow-hidden rounded-3xl border border-emerald-200/80 bg-gradient-to-r from-emerald-900 to-slate-950 p-6 sm:p-7 text-white shadow-lg">
+                      <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+                        <div className="space-y-1 max-w-lg">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-200 backdrop-blur-sm">
+                            <Sparkles className="h-3 w-3" />
+                            Exclusive Member Privilege
+                          </span>
+                          <h3 className="text-xl sm:text-2xl font-extrabold tracking-tight">
+                            Flat 20% OFF on All Doorstep Services
+                          </h3>
+                          <p className="text-xs text-slate-300">
+                            Use code{" "}
+                            <strong className="text-white">ARGENT20</strong> for
+                            immediate discount at checkout. Valid until 30 Sep.
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-2.5">
+                          <button
+                            type="button"
+                            onClick={() => handleCopyCoupon("ARGENT20")}
+                            className="rounded-2xl bg-white/10 px-4 py-2.5 text-xs font-bold text-white border border-white/20 hover:bg-white/20 transition-all cursor-pointer flex items-center gap-1.5"
+                          >
+                            {copiedCoupon === "ARGENT20" ? (
+                              <>
+                                <Check className="h-3.5 w-3.5 text-emerald-400" />
+                                <span>Copied!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="h-3.5 w-3.5" />
+                                <span>Copy ARGENT20</span>
+                              </>
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab("offers")}
+                            className="rounded-2xl bg-white px-4 py-2.5 text-xs font-bold text-slate-950 hover:bg-emerald-100 transition-all shadow-md cursor-pointer"
+                          >
+                            View All Offers
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Next Upcoming Appointment Highlight */}
+                    {bookings.find(
+                      (b) =>
+                        b.status === "In Progress" || b.status === "Confirmed",
+                    ) && (
+                      <div className="rounded-3xl border border-white/80 bg-white/90 p-5 sm:p-6 shadow-xs backdrop-blur-md space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-ping" />
+                            <h3 className="text-base font-black text-slate-900">
+                              Next Upcoming Service Appointment
+                            </h3>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab("bookings")}
+                            className="text-xs font-bold text-emerald-800 hover:underline cursor-pointer"
+                          >
+                            See All ({upcomingCount})
+                          </button>
+                        </div>
+
+                        {(() => {
+                          const nextBooking = bookings.find(
+                            (b) =>
+                              b.status === "In Progress" ||
+                              b.status === "Confirmed",
+                          );
+                          if (!nextBooking) return null;
+                          return (
+                            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+                              <div className="flex items-center gap-3.5">
+                                <img
+                                  src={nextBooking.image}
+                                  alt={nextBooking.serviceName}
+                                  className="h-16 w-16 rounded-2xl object-cover shadow-2xs shrink-0"
+                                />
+                                <div>
+                                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800">
+                                    #{nextBooking.id} · {nextBooking.category}
+                                  </span>
+                                  <h4 className="text-sm font-bold text-slate-900">
+                                    {nextBooking.serviceName}
+                                  </h4>
+                                  <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">
+                                    <Calendar className="h-3.5 w-3.5 text-emerald-700" />
+                                    <span>{nextBooking.scheduledDate}</span>
+                                    <span>·</span>
+                                    <Clock className="h-3.5 w-3.5 text-emerald-700" />
+                                    <span>{nextBooking.scheduledTime}</span>
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setSelectedBookingForDetails(nextBooking)
+                                  }
+                                  className="rounded-xl bg-slate-950 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800 transition-colors shadow-2xs cursor-pointer"
+                                >
+                                  Track & Details
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setRescheduleBookingTarget(nextBooking)
+                                  }
+                                  className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                                >
+                                  Reschedule
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
+
+                    {/* Quick Access Grid to Key Sections */}
+                    <div className="grid sm:grid-cols-3 gap-4">
+                      <div
+                        onClick={() => setActiveTab("addresses")}
+                        className="rounded-3xl border border-white/80 bg-white/80 p-5 shadow-xs hover:shadow-md transition-all cursor-pointer group"
+                      >
+                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-800 group-hover:bg-slate-950 group-hover:text-white transition-colors">
+                          <MapPin className="h-5 w-5" />
+                        </div>
+                        <h4 className="text-sm font-bold text-slate-900 mt-3">
+                          Manage Addresses
+                        </h4>
+                        <p className="text-xs text-slate-500 mt-1">
+                          {addresses.length} saved doorstep service locations
+                        </p>
+                      </div>
+
+                      <div
+                        onClick={() => setActiveTab("payments")}
+                        className="rounded-3xl border border-white/80 bg-white/80 p-5 shadow-xs hover:shadow-md transition-all cursor-pointer group"
+                      >
+                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-800 group-hover:bg-slate-950 group-hover:text-white transition-colors">
+                          <CreditCard className="h-5 w-5" />
+                        </div>
+                        <h4 className="text-sm font-bold text-slate-900 mt-3">
+                          Payment Methods
+                        </h4>
+                        <p className="text-xs text-slate-500 mt-1">
+                          {paymentMethods.length} securely saved cards & UPI
+                        </p>
+                      </div>
+
+                      <div
+                        onClick={() => setActiveTab("support")}
+                        className="rounded-3xl border border-white/80 bg-white/80 p-5 shadow-xs hover:shadow-md transition-all cursor-pointer group"
+                      >
+                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-800 group-hover:bg-slate-950 group-hover:text-white transition-colors">
+                          <HelpCircle className="h-5 w-5" />
+                        </div>
+                        <h4 className="text-sm font-bold text-slate-900 mt-3">
+                          Help & Live Support
+                        </h4>
+                        <p className="text-xs text-slate-500 mt-1">
+                          FAQs, live agent chat & WhatsApp assist
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ===============================================================
+                SECTION 2: MY BOOKINGS
+            =============================================================== */}
+                {activeTab === "bookings" && renderBookingsSection()}
+
+                {/* ===============================================================
+                SECTION 3: ADDRESSES
+            =============================================================== */}
+                {activeTab === "addresses" && (
+                  <div className="space-y-6 animate-rise-in">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                          Manage Addresses
+                        </h2>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Doorstep service locations for appointments and
+                          equipment delivery
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setIsAddAddressOpen(true)}
+                        className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-800 transition-colors shadow-sm cursor-pointer self-start sm:self-auto"
+                      >
+                        <Plus className="h-4 w-4" />
+                        <span>Add New Address</span>
+                      </button>
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {addresses.map((addr) => (
                         <div
-                          key={t.id}
-                          className="flex items-center justify-between p-3 rounded-2xl border border-slate-100 bg-slate-50 text-xs"
+                          key={addr.id}
+                          className={`relative rounded-3xl border p-5 sm:p-6 backdrop-blur-md transition-all ${
+                            addr.isDefault
+                              ? "border-emerald-600/40 bg-white shadow-sm ring-1 ring-emerald-500/20"
+                              : "border-white/80 bg-white/80 hover:shadow-sm"
+                          }`}
                         >
-                          <div>
-                            <span className="font-bold text-slate-900">
-                              #{t.id} · {t.category}
-                            </span>
-                            <p className="text-slate-500 text-[11px]">
-                              {t.subject}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="rounded-xl bg-slate-100 px-3 py-1 text-xs font-extrabold text-slate-800">
+                                {addr.type}
+                              </span>
+                              {addr.isDefault && (
+                                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800">
+                                  Default
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => setEditAddressTarget(addr)}
+                                className="p-1.5 text-slate-400 hover:text-slate-800 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                                title="Edit Address"
+                              >
+                                <Edit3 className="h-4 w-4" />
+                              </button>
+                              {!addr.isDefault && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteAddress(addr.id)}
+                                  className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
+                                  title="Delete Address"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="mt-4 space-y-1 text-xs">
+                            <p className="font-bold text-slate-900 text-sm">
+                              {addr.recipient}
+                            </p>
+                            <p className="text-slate-600">{addr.line1}</p>
+                            {addr.line2 && (
+                              <p className="text-slate-500">{addr.line2}</p>
+                            )}
+                            <p className="text-slate-600">
+                              {addr.city}, {addr.state} - {addr.postalCode}
+                            </p>
+                            <p className="text-slate-500 pt-1 flex items-center gap-1 font-medium">
+                              <Phone className="h-3 w-3 text-slate-400" />
+                              {addr.phone}
                             </p>
                           </div>
-                          <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-extrabold text-amber-900">
-                            {t.status}
-                          </span>
+
+                          {!addr.isDefault && (
+                            <div className="mt-4 pt-3 border-t border-slate-100">
+                              <button
+                                type="button"
+                                onClick={() => handleSetDefaultAddress(addr.id)}
+                                className="text-xs font-bold text-emerald-800 hover:underline cursor-pointer"
+                              >
+                                Set as Default
+                              </button>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {/* FAQ Accordion */}
-                <div className="rounded-3xl border border-white/80 bg-white/90 p-5 sm:p-6 shadow-xs backdrop-blur-md space-y-4">
-                  <h3 className="text-base font-bold text-slate-900">
-                    Frequently Asked Questions
-                  </h3>
-
-                  <div className="divide-y divide-slate-100 text-xs">
-                    {[
-                      {
-                        q: "How does the Argent 30-day warranty work?",
-                        a: "Every doorstep service booked through Argent Your includes a complimentary 30-day warranty. If any issue arises from the work executed, we dispatch a senior expert for a free revisit.",
-                      },
-                      {
-                        q: "Can I reschedule or cancel my appointment?",
-                        a: "Yes! You can reschedule or cancel for free up to 2 hours before the scheduled slot directly from the 'My Bookings' section with zero cancellation fee.",
-                      },
-                      {
-                        q: "How are prices calculated?",
-                        a: "All prices shown are completely upfront and all-inclusive of service charges, standard equipment, and taxes. If specialized spare parts are required, our professional shares an upfront quotation before beginning.",
-                      },
-                      {
-                        q: "Are the doorstep professionals verified?",
-                        a: "Yes! Every single professional undergoes police verification, criminal background checks, identity matching, and hands-on technical skill certification.",
-                      },
-                    ].map((faq, i) => (
-                      <div key={i} className="py-3">
-                        <p className="font-bold text-slate-900 text-sm">
-                          {faq.q}
-                        </p>
-                        <p className="text-slate-600 mt-1 leading-relaxed">
-                          {faq.a}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ===============================================================
-                SECTION 9: SETTINGS
+                {/* ===============================================================
+                SECTION 4: PAYMENT METHODS
             =============================================================== */}
-            {activeTab === "settings" && (
-              <div className="space-y-6 animate-rise-in">
-                <div>
-                  <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                    Account Settings & Preferences
-                  </h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Manage notification alerts, language, and security
-                  </p>
-                </div>
-
-                {/* Notifications Preferences */}
-                <div className="rounded-3xl border border-white/80 bg-white/90 p-5 sm:p-6 shadow-xs backdrop-blur-md space-y-4">
-                  <h3 className="text-base font-bold text-slate-900">
-                    Notification Preferences
-                  </h3>
-
-                  <div className="space-y-3 divide-y divide-slate-100 text-xs">
-                    <div className="flex items-center justify-between pt-2">
+                {activeTab === "payments" && (
+                  <div className="space-y-6 animate-rise-in">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div>
-                        <p className="font-bold text-slate-900">
-                          SMS Notifications
-                        </p>
-                        <p className="text-slate-500 text-[11px]">
-                          Receive appointment confirmations and OTPs via SMS
+                        <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                          Payment Methods
+                        </h2>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Secure payment options with bank-grade encryption &
+                          masked card data
                         </p>
                       </div>
-                      <input
-                        type="checkbox"
-                        checked={settingsState.smsUpdates}
-                        onChange={(e) =>
-                          setSettingsState((prev) => ({
-                            ...prev,
-                            smsUpdates: e.target.checked,
-                          }))
-                        }
-                        className="h-4 w-4 accent-emerald-600 cursor-pointer"
-                      />
-                    </div>
 
-                    <div className="flex items-center justify-between pt-3">
-                      <div>
-                        <p className="font-bold text-slate-900">
-                          WhatsApp Order Alerts
-                        </p>
-                        <p className="text-slate-500 text-[11px]">
-                          Get live technician tracking links and receipts on
-                          WhatsApp
-                        </p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={settingsState.whatsappAlerts}
-                        onChange={(e) =>
-                          setSettingsState((prev) => ({
-                            ...prev,
-                            whatsappAlerts: e.target.checked,
-                          }))
-                        }
-                        className="h-4 w-4 accent-emerald-600 cursor-pointer"
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between pt-3">
-                      <div>
-                        <p className="font-bold text-slate-900">
-                          Promotional Emails & Discounts
-                        </p>
-                        <p className="text-slate-500 text-[11px]">
-                          Occasional updates on seasonal discounts and member
-                          rewards
-                        </p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={settingsState.promoEmails}
-                        onChange={(e) =>
-                          setSettingsState((prev) => ({
-                            ...prev,
-                            promoEmails: e.target.checked,
-                          }))
-                        }
-                        className="h-4 w-4 accent-emerald-600 cursor-pointer"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Language & Appearance */}
-                <div className="rounded-3xl border border-white/80 bg-white/90 p-5 sm:p-6 shadow-xs backdrop-blur-md space-y-4">
-                  <h3 className="text-base font-bold text-slate-900">
-                    Regional & Appearance
-                  </h3>
-
-                  <div className="grid sm:grid-cols-2 gap-4 text-xs">
-                    <div>
-                      <label className="font-bold text-slate-700 block mb-1">
-                        Preferred Language
-                      </label>
-                      <select
-                        value={settingsState.language}
-                        onChange={(e) => {
-                          setSettingsState((prev) => ({
-                            ...prev,
-                            language: e.target.value,
-                          }));
-                          showToast(`Language set to ${e.target.value}`);
-                        }}
-                        className="w-full rounded-2xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-900 focus:border-emerald-600 outline-none cursor-pointer"
+                      <button
+                        type="button"
+                        onClick={() => setIsAddPaymentOpen(true)}
+                        className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-800 transition-colors shadow-sm cursor-pointer self-start sm:self-auto"
                       >
-                        <option value="English">English</option>
-                        <option value="Hindi">हिन्दी (Hindi)</option>
-                        <option value="Bengali">বাংলা (Bengali)</option>
-                        <option value="Marathi">मराठी (Marathi)</option>
-                        <option value="Tamil">தமிழ் (Tamil)</option>
-                        <option value="Telugu">తెలుగు (Telugu)</option>
-                      </select>
+                        <Plus className="h-4 w-4" />
+                        <span>Add Payment Method</span>
+                      </button>
                     </div>
 
-                    <div>
-                      <label className="font-bold text-slate-700 block mb-1">
-                        Display Theme
-                      </label>
-                      <div className="flex items-center gap-2 pt-1">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSettingsState((prev) => ({
-                              ...prev,
-                              darkMode: false,
-                            }));
-                            showToast("Light mode active");
-                          }}
-                          className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-2 px-3 border font-bold text-xs cursor-pointer ${
-                            !settingsState.darkMode
-                              ? "bg-slate-950 text-white border-slate-950"
-                              : "bg-white text-slate-700 border-slate-200"
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {paymentMethods.map((pm) => (
+                        <div
+                          key={pm.id}
+                          className={`relative rounded-3xl border p-5 sm:p-6 backdrop-blur-md transition-all ${
+                            pm.isDefault
+                              ? "border-emerald-600/40 bg-white shadow-sm ring-1 ring-emerald-500/20"
+                              : "border-white/80 bg-white/80 hover:shadow-sm"
                           }`}
                         >
-                          <Sun className="h-3.5 w-3.5" />
-                          <span>Light</span>
-                        </button>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="rounded-xl bg-slate-100 px-3 py-1 text-xs font-black text-slate-800">
+                                {pm.brand}
+                              </span>
+                              {pm.isDefault && (
+                                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800">
+                                  Default
+                                </span>
+                              )}
+                            </div>
 
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSettingsState((prev) => ({
-                              ...prev,
-                              darkMode: true,
-                            }));
-                            showToast("Dark mode preference saved");
-                          }}
-                          className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-2 px-3 border font-bold text-xs cursor-pointer ${
-                            settingsState.darkMode
-                              ? "bg-slate-950 text-white border-slate-950"
-                              : "bg-white text-slate-700 border-slate-200"
-                          }`}
-                        >
-                          <Moon className="h-3.5 w-3.5" />
-                          <span>Dark</span>
-                        </button>
+                            {!pm.isDefault && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeletePayment(pm.id)}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
+                                title="Remove Payment Method"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="mt-4 space-y-1 text-xs">
+                            <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">
+                              {pm.type}
+                            </p>
+                            <p className="font-mono text-base font-black text-slate-900 tracking-wider">
+                              {pm.maskedNumber}
+                            </p>
+                            <div className="flex items-center justify-between text-slate-500 pt-2">
+                              <span>{pm.cardholder}</span>
+                              {pm.expiry !== "N/A" && (
+                                <span>Expires {pm.expiry}</span>
+                              )}
+                            </div>
+                          </div>
+
+                          {!pm.isDefault && (
+                            <div className="mt-4 pt-3 border-t border-slate-100">
+                              <button
+                                type="button"
+                                onClick={() => handleSetDefaultPayment(pm.id)}
+                                className="text-xs font-bold text-emerald-800 hover:underline cursor-pointer"
+                              >
+                                Set as Default
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Additional Payment Info */}
+                    <div className="rounded-3xl border border-slate-200/60 bg-white/60 p-5 flex items-start gap-3.5 text-xs text-slate-600">
+                      <ShieldCheck className="h-5 w-5 text-emerald-700 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold text-slate-900">
+                          PCI-DSS Compliant 256-Bit SSL Protection
+                        </p>
+                        <p className="text-slate-500 mt-0.5">
+                          Your full card numbers are never stored on Argent Your
+                          servers. We use RBI & PCI-DSS tokenization to secure
+                          all transactions.
+                        </p>
                       </div>
                     </div>
                   </div>
-                </div>
+                )}
 
-                {/* Account Security & Danger Zone */}
-                <div className="rounded-3xl border border-rose-100 bg-rose-50/40 p-5 sm:p-6 space-y-4">
-                  <h3 className="text-base font-bold text-rose-950">
-                    Security & Danger Zone
-                  </h3>
+                {/* ===============================================================
+                SECTION 5: SAVED SERVICES
+            =============================================================== */}
+                {activeTab === "saved" && (
+                  <div className="space-y-6 animate-rise-in">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                          Saved Services
+                        </h2>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Your bookmarked home services for one-tap booking
+                        </p>
+                      </div>
+                      <span className="text-xs font-bold text-slate-500">
+                        {savedServicesList.length} saved
+                      </span>
+                    </div>
 
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                    {savedServicesList.length === 0 ? (
+                      <div className="rounded-3xl border border-white/80 bg-white/80 p-12 text-center space-y-3">
+                        <Heart className="h-10 w-10 text-slate-300 mx-auto" />
+                        <h4 className="text-base font-bold text-slate-800">
+                          No saved services yet
+                        </h4>
+                        <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                          Bookmark your favorite doorstep maintenance and
+                          grooming services to access them quickly here.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={onHome}
+                          className="rounded-2xl bg-slate-950 px-5 py-2.5 text-xs font-bold text-white hover:bg-emerald-800 transition-colors shadow-sm cursor-pointer"
+                        >
+                          Browse Service Catalog
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        {savedServicesList.map((srv) => (
+                          <div
+                            key={srv.slug}
+                            className="rounded-3xl border border-white/80 bg-white shadow-2xs overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow"
+                          >
+                            <div>
+                              <div className="relative aspect-[16/10] bg-slate-100 overflow-hidden">
+                                <img
+                                  src={srv.image}
+                                  alt={srv.name}
+                                  className="h-full w-full object-cover"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleRemoveSavedService(srv.slug)
+                                  }
+                                  className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-rose-600 shadow-sm hover:scale-110 transition-transform cursor-pointer"
+                                  title="Remove from saved"
+                                >
+                                  <Heart className="h-4 w-4 fill-rose-600" />
+                                </button>
+                                <span className="absolute bottom-3 left-3 rounded-md bg-slate-950/80 px-2 py-0.5 text-[10px] font-bold text-white">
+                                  {srv.category}
+                                </span>
+                              </div>
+
+                              <div className="p-4 space-y-1.5">
+                                <h3 className="font-bold text-sm text-slate-900 line-clamp-1">
+                                  {srv.name}
+                                </h3>
+                                <div className="flex items-center gap-1 text-xs font-semibold text-slate-600">
+                                  <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                                  <span>{srv.rating}</span>
+                                  <span className="text-slate-400 font-normal">
+                                    ({srv.reviews})
+                                  </span>
+                                </div>
+                                <p className="text-sm font-black text-emerald-800">
+                                  {srv.price}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="p-4 pt-0">
+                              <button
+                                type="button"
+                                onClick={() => onNavigateToService?.(srv.slug)}
+                                className="w-full rounded-xl bg-slate-950 py-2.5 text-xs font-bold text-white hover:bg-emerald-800 transition-colors shadow-2xs text-center cursor-pointer"
+                              >
+                                Book Now
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ===============================================================
+                SECTION 6: NOTIFICATIONS
+            =============================================================== */}
+                {activeTab === "notifications" && (
+                  <div className="space-y-6 animate-rise-in">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                            Notifications
+                          </h2>
+                          {unreadNotificationsCount > 0 && (
+                            <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-black text-white">
+                              {unreadNotificationsCount} unread
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Real-time updates regarding service bookings,
+                          technician dispatch & offers
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2 self-start sm:self-auto">
+                        {unreadNotificationsCount > 0 && (
+                          <button
+                            type="button"
+                            onClick={handleMarkAllNotificationsRead}
+                            className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                          >
+                            Mark all as read
+                          </button>
+                        )}
+                        {notifications.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={handleClearNotifications}
+                            className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer"
+                          >
+                            Clear all
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      {notifications.length === 0 ? (
+                        <div className="rounded-3xl border border-white/80 bg-white/80 p-12 text-center space-y-3">
+                          <Bell className="h-10 w-10 text-slate-300 mx-auto" />
+                          <h4 className="text-base font-bold text-slate-800">
+                            No notifications right now
+                          </h4>
+                          <p className="text-xs text-slate-500">
+                            We'll alert you here when your technician is
+                            assigned or when new offers drop!
+                          </p>
+                        </div>
+                      ) : (
+                        notifications.map((n) => (
+                          <div
+                            key={n.id}
+                            className={`flex items-start justify-between gap-4 rounded-3xl border p-4 sm:p-5 backdrop-blur-md transition-all ${
+                              n.read
+                                ? "border-white/80 bg-white/70"
+                                : "border-emerald-500/30 bg-white shadow-xs ring-1 ring-emerald-500/15"
+                            }`}
+                          >
+                            <div className="flex items-start gap-3.5">
+                              <div
+                                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
+                                  n.type === "service"
+                                    ? "bg-amber-50 text-amber-800"
+                                    : n.type === "promo"
+                                      ? "bg-rose-50 text-rose-700"
+                                      : "bg-emerald-50 text-emerald-800"
+                                }`}
+                              >
+                                <Bell className="h-4 w-4" />
+                              </div>
+
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-bold text-sm text-slate-900">
+                                    {n.title}
+                                  </h4>
+                                  {!n.read && (
+                                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                                  )}
+                                </div>
+                                <p className="text-xs text-slate-600 leading-relaxed">
+                                  {n.message}
+                                </p>
+                                <span className="text-[10px] text-slate-400 font-medium block">
+                                  {n.time}
+                                </span>
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteNotification(n.id)}
+                              className="text-slate-300 hover:text-slate-500 p-1 rounded-lg transition-colors cursor-pointer shrink-0"
+                              title="Dismiss notification"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* ===============================================================
+                SECTION 7: OFFERS & REWARDS
+            =============================================================== */}
+                {activeTab === "offers" && (
+                  <div className="space-y-6 animate-rise-in">
                     <div>
-                      <p className="font-bold text-slate-900">Delete Account</p>
-                      <p className="text-slate-500">
-                        Permanently delete your profile, saved addresses, and
-                        booking history.
+                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                        Offers & Reward Coupons
+                      </h2>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Exclusive promo discount vouchers available for your
+                        doorstep services
                       </p>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => setIsDeleteAccountOpen(true)}
-                      className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-700 transition-colors shadow-2xs self-start sm:self-auto cursor-pointer"
-                    >
-                      Delete Account
-                    </button>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {[
+                        {
+                          code: "ARGENT20",
+                          discount: "Flat 20% OFF",
+                          title: "Universal Doorstep Discount",
+                          desc: "Applicable on all Home Cleaning, AC, Electrical & Plumbing services",
+                          validUntil: "30 Sep 2026",
+                          minOrder: "$25",
+                          color: "emerald",
+                        },
+                        {
+                          code: "CLEAN15",
+                          discount: "$15 OFF",
+                          title: "Deep Home Clean Refresh",
+                          desc: "Special discount on Kitchen, Bathroom & Full Home Refresh clean",
+                          validUntil: "15 Oct 2026",
+                          minOrder: "$30",
+                          color: "teal",
+                        },
+                        {
+                          code: "SUMMERAC",
+                          discount: "Free AC Inspection",
+                          title: "AC Foam-Jet Combo Deal",
+                          desc: "Free gas pressure & electrical load audit with every AC service",
+                          validUntil: "31 Oct 2026",
+                          minOrder: "$35",
+                          color: "amber",
+                        },
+                        {
+                          code: "FIRST50",
+                          discount: "Flat $10 OFF",
+                          title: "Welcome Bonus Voucher",
+                          desc: "Special new customer token valid on your next appointment",
+                          validUntil: "31 Dec 2026",
+                          minOrder: "$20",
+                          color: "purple",
+                        },
+                      ].map((coupon) => (
+                        <div
+                          key={coupon.code}
+                          className="rounded-3xl border border-white/80 bg-white/90 p-5 sm:p-6 shadow-xs backdrop-blur-md flex flex-col justify-between space-y-4 hover:shadow-md transition-shadow"
+                        >
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="rounded-xl bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-900">
+                                {coupon.discount}
+                              </span>
+                              <span className="text-[11px] text-slate-400 font-medium">
+                                Min Order {coupon.minOrder}
+                              </span>
+                            </div>
+
+                            <h3 className="font-extrabold text-base text-slate-900">
+                              {coupon.title}
+                            </h3>
+                            <p className="text-xs text-slate-600 leading-relaxed">
+                              {coupon.desc}
+                            </p>
+                          </div>
+
+                          <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-xs font-black text-slate-900 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+                                {coupon.code}
+                              </span>
+                              <span className="text-[10px] text-slate-400">
+                                Expires {coupon.validUntil}
+                              </span>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleCopyCoupon(coupon.code)}
+                              className="flex items-center gap-1 rounded-xl bg-slate-950 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-800 transition-colors shadow-2xs cursor-pointer"
+                            >
+                              {copiedCoupon === coupon.code ? (
+                                <>
+                                  <Check className="h-3 w-3 text-emerald-400" />
+                                  <span>Copied</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="h-3 w-3" />
+                                  <span>Copy</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              </div>
-            )}
-          </main>
-        </div>
+                )}
+
+                {/* ===============================================================
+                SECTION 8: HELP & SUPPORT
+            =============================================================== */}
+                {activeTab === "support" && (
+                  <div className="space-y-6 animate-rise-in">
+                    <div>
+                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                        Help & Support
+                      </h2>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Frequently asked questions, live chat assistant & ticket
+                        tracking
+                      </p>
+                    </div>
+
+                    {/* Quick Contact Cards */}
+                    <div className="grid sm:grid-cols-4 gap-3">
+                      <a
+                        href="tel:+918000500200"
+                        className="flex flex-col items-center justify-center p-4 rounded-3xl border border-white/80 bg-white/90 hover:bg-white text-center shadow-xs transition-all cursor-pointer"
+                      >
+                        <div className="h-10 w-10 rounded-2xl bg-emerald-50 text-emerald-800 flex items-center justify-center mb-2">
+                          <Phone className="h-5 w-5" />
+                        </div>
+                        <span className="text-xs font-bold text-slate-900">
+                          24/7 Helpline
+                        </span>
+                        <span className="text-[10px] text-slate-500">
+                          +91 8000 500 200
+                        </span>
+                      </a>
+
+                      <a
+                        href="https://wa.me/918000500200"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex flex-col items-center justify-center p-4 rounded-3xl border border-white/80 bg-white/90 hover:bg-white text-center shadow-xs transition-all cursor-pointer"
+                      >
+                        <div className="h-10 w-10 rounded-2xl bg-emerald-50 text-emerald-800 flex items-center justify-center mb-2">
+                          <MessageSquare className="h-5 w-5" />
+                        </div>
+                        <span className="text-xs font-bold text-slate-900">
+                          WhatsApp Assist
+                        </span>
+                        <span className="text-[10px] text-slate-500">
+                          Instant response
+                        </span>
+                      </a>
+
+                      <button
+                        type="button"
+                        onClick={() => setIsLiveChatOpen(true)}
+                        className="flex flex-col items-center justify-center p-4 rounded-3xl border border-white/80 bg-white/90 hover:bg-white text-center shadow-xs transition-all cursor-pointer"
+                      >
+                        <div className="h-10 w-10 rounded-2xl bg-slate-100 text-slate-800 flex items-center justify-center mb-2">
+                          <MessageCircle className="h-5 w-5" />
+                        </div>
+                        <span className="text-xs font-bold text-slate-900">
+                          Live Chat
+                        </span>
+                        <span className="text-[10px] text-slate-500">
+                          Chat with Agent
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setIsRaiseTicketOpen(true)}
+                        className="flex flex-col items-center justify-center p-4 rounded-3xl border border-white/80 bg-white/90 hover:bg-white text-center shadow-xs transition-all cursor-pointer"
+                      >
+                        <div className="h-10 w-10 rounded-2xl bg-amber-50 text-amber-800 flex items-center justify-center mb-2">
+                          <AlertCircle className="h-5 w-5" />
+                        </div>
+                        <span className="text-xs font-bold text-slate-900">
+                          Raise Ticket
+                        </span>
+                        <span className="text-[10px] text-slate-500">
+                          Track resolution
+                        </span>
+                      </button>
+                    </div>
+
+                    {/* Active Tickets Tracker */}
+                    {supportTickets.length > 0 && (
+                      <div className="rounded-3xl border border-white/80 bg-white/90 p-5 sm:p-6 shadow-xs backdrop-blur-md space-y-3">
+                        <h3 className="text-sm font-bold text-slate-900">
+                          Your Active Support Tickets
+                        </h3>
+                        <div className="space-y-2">
+                          {supportTickets.map((t) => (
+                            <div
+                              key={t.id}
+                              className="flex items-center justify-between p-3 rounded-2xl border border-slate-100 bg-slate-50 text-xs"
+                            >
+                              <div>
+                                <span className="font-bold text-slate-900">
+                                  #{t.id} · {t.category}
+                                </span>
+                                <p className="text-slate-500 text-[11px]">
+                                  {t.subject}
+                                </p>
+                              </div>
+                              <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-extrabold text-amber-900">
+                                {t.status}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* FAQ Accordion */}
+                    <div className="rounded-3xl border border-white/80 bg-white/90 p-5 sm:p-6 shadow-xs backdrop-blur-md space-y-4">
+                      <h3 className="text-base font-bold text-slate-900">
+                        Frequently Asked Questions
+                      </h3>
+
+                      <div className="divide-y divide-slate-100 text-xs">
+                        {[
+                          {
+                            q: "How does the Argent 30-day warranty work?",
+                            a: "Every doorstep service booked through Argent Your includes a complimentary 30-day warranty. If any issue arises from the work executed, we dispatch a senior expert for a free revisit.",
+                          },
+                          {
+                            q: "Can I reschedule or cancel my appointment?",
+                            a: "Yes! You can reschedule or cancel for free up to 2 hours before the scheduled slot directly from the 'My Bookings' section with zero cancellation fee.",
+                          },
+                          {
+                            q: "How are prices calculated?",
+                            a: "All prices shown are completely upfront and all-inclusive of service charges, standard equipment, and taxes. If specialized spare parts are required, our professional shares an upfront quotation before beginning.",
+                          },
+                          {
+                            q: "Are the doorstep professionals verified?",
+                            a: "Yes! Every single professional undergoes police verification, criminal background checks, identity matching, and hands-on technical skill certification.",
+                          },
+                        ].map((faq, i) => (
+                          <div key={i} className="py-3">
+                            <p className="font-bold text-slate-900 text-sm">
+                              {faq.q}
+                            </p>
+                            <p className="text-slate-600 mt-1 leading-relaxed">
+                              {faq.a}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ===============================================================
+                SECTION 9: SETTINGS
+            =============================================================== */}
+                {activeTab === "settings" && (
+                  <div className="space-y-6 animate-rise-in">
+                    <div>
+                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                        Account Settings & Preferences
+                      </h2>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Manage notification alerts, language, and security
+                      </p>
+                    </div>
+
+                    {/* Notifications Preferences */}
+                    <div className="rounded-3xl border border-white/80 bg-white/90 p-5 sm:p-6 shadow-xs backdrop-blur-md space-y-4">
+                      <h3 className="text-base font-bold text-slate-900">
+                        Notification Preferences
+                      </h3>
+
+                      <div className="space-y-3 divide-y divide-slate-100 text-xs">
+                        <div className="flex items-center justify-between pt-2">
+                          <div>
+                            <p className="font-bold text-slate-900">
+                              SMS Notifications
+                            </p>
+                            <p className="text-slate-500 text-[11px]">
+                              Receive appointment confirmations and OTPs via SMS
+                            </p>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={settingsState.smsUpdates}
+                            onChange={(e) =>
+                              setSettingsState((prev) => ({
+                                ...prev,
+                                smsUpdates: e.target.checked,
+                              }))
+                            }
+                            className="h-4 w-4 accent-emerald-600 cursor-pointer"
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between pt-3">
+                          <div>
+                            <p className="font-bold text-slate-900">
+                              WhatsApp Order Alerts
+                            </p>
+                            <p className="text-slate-500 text-[11px]">
+                              Get live technician tracking links and receipts on
+                              WhatsApp
+                            </p>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={settingsState.whatsappAlerts}
+                            onChange={(e) =>
+                              setSettingsState((prev) => ({
+                                ...prev,
+                                whatsappAlerts: e.target.checked,
+                              }))
+                            }
+                            className="h-4 w-4 accent-emerald-600 cursor-pointer"
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between pt-3">
+                          <div>
+                            <p className="font-bold text-slate-900">
+                              Promotional Emails & Discounts
+                            </p>
+                            <p className="text-slate-500 text-[11px]">
+                              Occasional updates on seasonal discounts and
+                              member rewards
+                            </p>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={settingsState.promoEmails}
+                            onChange={(e) =>
+                              setSettingsState((prev) => ({
+                                ...prev,
+                                promoEmails: e.target.checked,
+                              }))
+                            }
+                            className="h-4 w-4 accent-emerald-600 cursor-pointer"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Language & Appearance */}
+                    <div className="rounded-3xl border border-white/80 bg-white/90 p-5 sm:p-6 shadow-xs backdrop-blur-md space-y-4">
+                      <h3 className="text-base font-bold text-slate-900">
+                        Regional & Appearance
+                      </h3>
+
+                      <div className="grid sm:grid-cols-2 gap-4 text-xs">
+                        <div>
+                          <label className="font-bold text-slate-700 block mb-1">
+                            Preferred Language
+                          </label>
+                          <select
+                            value={settingsState.language}
+                            onChange={(e) => {
+                              setSettingsState((prev) => ({
+                                ...prev,
+                                language: e.target.value,
+                              }));
+                              showToast(`Language set to ${e.target.value}`);
+                            }}
+                            className="w-full rounded-2xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-900 focus:border-emerald-600 outline-none cursor-pointer"
+                          >
+                            <option value="English">English</option>
+                            <option value="Hindi">हिन्दी (Hindi)</option>
+                            <option value="Bengali">বাংলা (Bengali)</option>
+                            <option value="Marathi">मराठी (Marathi)</option>
+                            <option value="Tamil">தமிழ் (Tamil)</option>
+                            <option value="Telugu">తెలుగు (Telugu)</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="font-bold text-slate-700 block mb-1">
+                            Display Theme
+                          </label>
+                          <div className="flex items-center gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSettingsState((prev) => ({
+                                  ...prev,
+                                  darkMode: false,
+                                }));
+                                showToast("Light mode active");
+                              }}
+                              className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-2 px-3 border font-bold text-xs cursor-pointer ${
+                                !settingsState.darkMode
+                                  ? "bg-slate-950 text-white border-slate-950"
+                                  : "bg-white text-slate-700 border-slate-200"
+                              }`}
+                            >
+                              <Sun className="h-3.5 w-3.5" />
+                              <span>Light</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSettingsState((prev) => ({
+                                  ...prev,
+                                  darkMode: true,
+                                }));
+                                showToast("Dark mode preference saved");
+                              }}
+                              className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-2 px-3 border font-bold text-xs cursor-pointer ${
+                                settingsState.darkMode
+                                  ? "bg-slate-950 text-white border-slate-950"
+                                  : "bg-white text-slate-700 border-slate-200"
+                              }`}
+                            >
+                              <Moon className="h-3.5 w-3.5" />
+                              <span>Dark</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Account Security & Danger Zone */}
+                    <div className="rounded-3xl border border-rose-100 bg-rose-50/40 p-5 sm:p-6 space-y-4">
+                      <h3 className="text-base font-bold text-rose-950">
+                        Security & Danger Zone
+                      </h3>
+
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                        <div>
+                          <p className="font-bold text-slate-900">
+                            Delete Account
+                          </p>
+                          <p className="text-slate-500">
+                            Permanently delete your profile, saved addresses,
+                            and booking history.
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setIsDeleteAccountOpen(true)}
+                          className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-700 transition-colors shadow-2xs self-start sm:self-auto cursor-pointer"
+                        >
+                          Delete Account
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </main>
+            </div>
           </>
         )}
       </div>

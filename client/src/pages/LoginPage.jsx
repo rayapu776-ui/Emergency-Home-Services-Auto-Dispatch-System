@@ -762,7 +762,21 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
   const { user } = useAuth();
   const [authOpen, setAuthOpen] = useState(false);
   const [route, setRoute] = useState(() => window.location.pathname || "/");
-  const [location, setLocation] = useState("Delhi NCR");
+  const [location, setLocation] = useState(() => {
+    try {
+      return localStorage.getItem("argent_selected_location") || "Delhi NCR";
+    } catch {
+      return "Delhi NCR";
+    }
+  });
+
+  useEffect(() => {
+    if (location) {
+      try {
+        localStorage.setItem("argent_selected_location", location);
+      } catch {}
+    }
+  }, [location]);
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutService, setCheckoutService] = useState(null);
   const [appliedCoupon, setAppliedCoupon] = useState("");

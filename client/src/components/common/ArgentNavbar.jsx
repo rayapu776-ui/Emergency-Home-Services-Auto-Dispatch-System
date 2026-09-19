@@ -2,7 +2,9 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   ArrowRight,
   Bell,
+  Briefcase,
   CalendarCheck,
+  Check,
   ChevronDown,
   ChevronRight,
   CircleUserRound,
@@ -10,6 +12,7 @@ import {
   LayoutGrid,
   LocateFixed,
   MapPin,
+  Plus,
   Search,
   ShoppingBag,
   Sparkles,
@@ -28,6 +31,67 @@ function LocationPicker({ value, onChange, onClose }) {
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
 
+  // Add New Address toggle & form state
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [addressForm, setAddressForm] = useState({
+    houseNo: "",
+    area: "",
+    city: "",
+    state: "",
+    pincode: "",
+    type: "Home",
+  });
+  const [formError, setFormError] = useState("");
+
+  // Saved addresses list initialized with default or persisted items
+  const [savedAddresses, setSavedAddresses] = useState(() => {
+    try {
+      const stored = localStorage.getItem("argent_saved_addresses");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [
+      {
+        id: "addr-home",
+        type: "Home",
+        title: "Home",
+        line1: "Flat 402, Green Glen Heights",
+        line2: "Sector 62",
+        city: "Noida",
+        state: "Uttar Pradesh",
+        pincode: "201304",
+        formattedAddress:
+          "Flat 402, Green Glen Heights, Sector 62, Noida, Uttar Pradesh - 201304",
+      },
+      {
+        id: "addr-work",
+        type: "Work",
+        title: "Work",
+        line1: "Tower B, 7th Floor, Cyber City",
+        line2: "DLF Phase 2, Sector 24",
+        city: "Gurugram",
+        state: "Haryana",
+        pincode: "122002",
+        formattedAddress:
+          "Tower B, 7th Floor, Cyber City, DLF Phase 2, Sector 24, Gurugram, Haryana - 122002",
+      },
+      {
+        id: "addr-other",
+        type: "Other",
+        title: "Parents Home",
+        line1: "Villa 14, Palm Grove Enclave",
+        line2: "Greater Kailash II",
+        city: "New Delhi",
+        state: "Delhi",
+        pincode: "110048",
+        formattedAddress:
+          "Villa 14, Palm Grove Enclave, Greater Kailash II, New Delhi, Delhi - 110048",
+      },
+    ];
+  });
+
   // Debounced search query
   useEffect(() => {
     if (!searchQuery.trim() || searchQuery.trim().length < 2) {
@@ -43,8 +107,28 @@ function LocationPicker({ value, onChange, onClose }) {
         );
         const data = await res.json();
         const list = data.suggestions || data.results || [];
-        if (Array.isArray(list)) {
+        if (Array.isArray(list) && list.length > 0) {
           setSearchResults(list);
+        } else {
+          // Fallback matching query to major urban localities
+          const fallbackKeywords = [
+            "Sector 62, Noida, Uttar Pradesh",
+            "Indirapuram, Ghaziabad, Uttar Pradesh",
+            "Cyber City, DLF Phase 2, Gurugram",
+            "Connaught Place, Central Delhi",
+            "Hauz Khas, South Delhi",
+            "Greater Kailash, New Delhi",
+            "Sector 18, Noida, Uttar Pradesh",
+            "Whitefield, Bengaluru, Karnataka",
+            "Koramangala, Bengaluru, Karnataka",
+            "Bandra West, Mumbai, Maharashtra",
+          ];
+          const matches = fallbackKeywords
+            .filter((item) =>
+              item.toLowerCase().includes(searchQuery.trim().toLowerCase()),
+            )
+            .map((item) => ({ description: item, name: item }));
+          setSearchResults(matches);
         }
       } catch (err) {
         console.warn("Location search error:", err);
@@ -55,6 +139,14 @@ function LocationPicker({ value, onChange, onClose }) {
 
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  const handleSelect = (loc, coords) => {
+    onChange(loc, coords);
+    try {
+      localStorage.setItem("argent_selected_location", loc);
+    } catch {}
+    onClose();
+  };
 
   const detectLocation = () => {
     if (!navigator.geolocation) {
@@ -68,7 +160,7 @@ function LocationPicker({ value, onChange, onClose }) {
       async (position) => {
         const lat = position.coords.latitude;
         const lon = position.coords.longitude;
-        setStatus("Resolving address via Google / Maps...");
+        setStatus("Resolving address via Maps...");
 
         try {
           const res = await fetch(
@@ -80,22 +172,27 @@ function LocationPicker({ value, onChange, onClose }) {
             const display = data.city
               ? `${data.city}, ${data.state || "India"}`
               : data.formattedAddress;
-            onChange(display, {
-              lat,
-              lon,
-              fullAddress: data.fullAddress || data.formattedAddress,
-              city: data.city,
-            });
             setStatus(`Detected: ${data.city || display}`);
-            setTimeout(onClose, 500);
+            setTimeout(() => {
+              handleSelect(display, {
+                lat,
+                lon,
+                fullAddress: data.fullAddress || data.formattedAddress,
+                city: data.city,
+              });
+            }, 600);
           } else {
-            onChange("Current Location", { lat, lon });
-            onClose();
+            setStatus("Detected current GPS location");
+            setTimeout(() => {
+              handleSelect("Current Location", { lat, lon });
+            }, 600);
           }
         } catch (err) {
           console.warn("Geocoding failed:", err);
-          onChange("Delhi NCR", { lat: 28.6139, lon: 77.209 });
-          onClose();
+          setStatus("Detected coordinates");
+          setTimeout(() => {
+            handleSelect("Current Location", { lat, lon });
+          }, 600);
         } finally {
           setIsDetecting(false);
         }
@@ -103,159 +200,390 @@ function LocationPicker({ value, onChange, onClose }) {
       (error) => {
         setIsDetecting(false);
         if (error.code === error.PERMISSION_DENIED) {
-          setStatus("Location permission denied. Pick your city below.");
+          setStatus("Location permission denied. Please search or add your address below.");
         } else {
-          setStatus("Could not get location. Pick your city below.");
+          setStatus("Could not get GPS location. Please search or add your address below.");
         }
       },
       { timeout: 10000, enableHighAccuracy: true },
     );
   };
 
-  const handleSelect = (loc, coords) => {
-    onChange(loc, coords);
-    onClose();
-  };
+  const handleSaveNewAddress = (e) => {
+    e.preventDefault();
+    if (!addressForm.houseNo.trim() || !addressForm.area.trim()) {
+      setFormError("Please provide House/Flat No. and Area/Locality");
+      return;
+    }
+    const city = addressForm.city.trim() || "Noida";
+    const state = addressForm.state.trim() || "Uttar Pradesh";
+    const pincode = addressForm.pincode.trim() || "";
+    const pinPart = pincode ? ` - ${pincode}` : "";
+    const formatted = `${addressForm.houseNo.trim()}, ${addressForm.area.trim()}, ${city}, ${state}${pinPart}`;
 
-  const popularRegions = [
-    { name: "Delhi NCR", lat: 28.6139, lon: 77.209 },
-    { name: "Noida", lat: 28.5355, lon: 77.391 },
-    { name: "Gurugram", lat: 28.4595, lon: 77.0266 },
-    { name: "South Delhi", lat: 28.5494, lon: 77.2001 },
-    { name: "Central Delhi", lat: 28.6328, lon: 77.2197 },
-    { name: "Bengaluru", lat: 12.9716, lon: 77.5946 },
-    { name: "Mumbai", lat: 19.076, lon: 72.8777 },
-  ];
+    const newAddr = {
+      id: `addr-${Date.now()}`,
+      type: addressForm.type,
+      title: addressForm.type === "Other" ? "Other Address" : addressForm.type,
+      line1: addressForm.houseNo.trim(),
+      line2: addressForm.area.trim(),
+      city,
+      state,
+      pincode,
+      formattedAddress: formatted,
+    };
+
+    const updated = [newAddr, ...savedAddresses];
+    setSavedAddresses(updated);
+    try {
+      localStorage.setItem("argent_saved_addresses", JSON.stringify(updated));
+    } catch {}
+
+    handleSelect(formatted, { fullAddress: formatted, city, state });
+  };
 
   return (
     <div
-      className="absolute right-0 top-full mt-2 z-50 w-80 sm:w-96 rounded-3xl border border-white/70 bg-white/95 p-5 shadow-2xl backdrop-blur-xl animate-rise-in text-slate-900"
-      onClick={(e) => e.stopPropagation()}
+      className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-slate-950/60 p-0 sm:p-4 backdrop-blur-xs transition-all duration-200"
+      onClick={onClose}
     >
-      <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-        <div>
-          <h3 className="text-sm font-bold text-slate-900">Select Location</h3>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Choose where you want doorstep service
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-full p-1 text-slate-400 hover:bg-slate-100 transition-colors"
-        >
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-
-      {/* GPS Button */}
-      <button
-        type="button"
-        onClick={detectLocation}
-        disabled={isDetecting}
-        className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-50 px-4 py-3 text-xs font-bold text-emerald-900 border border-emerald-200/60 hover:bg-emerald-100 transition-all cursor-pointer disabled:opacity-50"
+      <div
+        className="w-full sm:max-w-md md:max-w-lg rounded-t-3xl sm:rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 shadow-2xl animate-rise-in text-slate-900 max-h-[88vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
       >
-        <LocateFixed
-          className={`h-4 w-4 text-emerald-700 ${isDetecting ? "animate-spin" : ""}`}
-        />
-        <span>
-          {isDetecting ? "Detecting GPS..." : "Detect Current Location"}
-        </span>
-      </button>
-
-      {status && (
-        <p className="mt-2 text-center text-[11px] font-medium text-emerald-700 bg-emerald-50/50 rounded-lg py-1 px-2">
-          {status}
-        </p>
-      )}
-
-      {/* Location Search Bar with live autocomplete */}
-      <div className="mt-4">
-        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-          Search Area, Colony or Street
-        </label>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="e.g. Indirapuram, Sector 62, Hauz Khas"
-            className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-8 text-xs text-slate-900 placeholder:text-slate-400 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery("")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          )}
+        {/* Header: Select Location + Subtitle + Close (✕) */}
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0">
+          <div>
+            <h3 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
+              Select Location
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5 font-medium">
+              Choose where you want doorstep service
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+            aria-label="Close location selector"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
 
-        {/* Live Search Suggestions dropdown */}
-        {isSearching && (
-          <p className="text-[10px] text-slate-400 mt-1 pl-1">
-            Searching locations...
-          </p>
-        )}
-        {searchResults.length > 0 && (
-          <div className="mt-2 max-h-36 overflow-y-auto space-y-1 rounded-xl border border-slate-100 bg-slate-50/80 p-1.5">
-            {searchResults.map((item, idx) => {
-              const label =
-                typeof item === "string"
-                  ? item
-                  : item.description || item.formattedAddress || item.name;
-              return (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() =>
-                    handleSelect(label, {
-                      lat: item.lat || 28.6139,
-                      lon: item.lon || 77.209,
-                    })
-                  }
-                  className="w-full text-left px-2.5 py-1.5 text-xs text-slate-800 hover:bg-emerald-100/60 rounded-lg flex items-center gap-2 transition-colors cursor-pointer"
-                >
-                  <MapPin className="h-3 w-3 text-emerald-600 shrink-0" />
-                  <span className="truncate">{label}</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Popular Cities */}
-      <div className="mt-4 pt-3 border-t border-slate-100">
-        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-          Popular Regions
-        </p>
-        <div className="grid grid-cols-2 gap-2">
-          {popularRegions.map((region) => (
-            <button
-              key={region.name}
-              type="button"
-              onClick={() =>
-                handleSelect(region.name, {
-                  lat: region.lat,
-                  lon: region.lon,
-                })
-              }
-              className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-left transition-all cursor-pointer ${
-                value === region.name
-                  ? "bg-emerald-950 text-white shadow-xs"
-                  : "bg-slate-100/80 text-slate-700 hover:bg-emerald-50 hover:text-emerald-950"
-              }`}
-            >
-              <MapPin
-                className={`h-3 w-3 ${value === region.name ? "text-emerald-400" : "text-slate-400"}`}
+        {/* Modal Scrollable Body */}
+        <div className="overflow-y-auto overscroll-contain py-3.5 space-y-4 pr-1 scrollbar-thin">
+          {/* 1. SEARCH ADDRESS / AREA */}
+          <div>
+            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+              Search Address or Area
+            </label>
+            <div className="relative">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search an address or area..."
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-2.5 pl-10 pr-9 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-emerald-700 focus:bg-white focus:ring-2 focus:ring-emerald-700/10 transition-all"
               />
-              <span className="truncate">{region.name}</span>
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors cursor-pointer"
+                  aria-label="Clear search"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Live Search Suggestions Dropdown */}
+            {isSearching && (
+              <p className="text-[11px] text-emerald-700 mt-1.5 pl-1 flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-emerald-600 animate-pulse" />
+                Searching addresses...
+              </p>
+            )}
+            {searchResults.length > 0 && (
+              <div className="mt-2 max-h-44 overflow-y-auto space-y-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-md">
+                {searchResults.map((item, idx) => {
+                  const label =
+                    typeof item === "string"
+                      ? item
+                      : item.description || item.formattedAddress || item.name;
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() =>
+                        handleSelect(label, {
+                          lat: item.lat || 28.6139,
+                          lon: item.lon || 77.209,
+                        })
+                      }
+                      className="w-full text-left px-3 py-2 text-xs text-slate-800 hover:bg-emerald-50 hover:text-emerald-950 rounded-xl flex items-center gap-2.5 transition-colors cursor-pointer"
+                    >
+                      <MapPin className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
+                      <span className="truncate font-medium">{label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* 2. USE CURRENT LOCATION (Directly below search field) */}
+          <div>
+            <button
+              type="button"
+              onClick={detectLocation}
+              disabled={isDetecting}
+              className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-emerald-50 py-3 px-4 text-xs sm:text-sm font-bold text-emerald-950 border border-emerald-200/80 hover:bg-emerald-100 hover:border-emerald-300 transition-all cursor-pointer disabled:opacity-60 shadow-2xs"
+            >
+              <LocateFixed
+                className={`h-4 w-4 text-emerald-700 shrink-0 ${isDetecting ? "animate-spin" : ""}`}
+              />
+              <span>
+                {isDetecting ? "Detecting GPS Location..." : "Use Current Location"}
+              </span>
             </button>
-          ))}
+            {status && (
+              <p className="mt-2 text-center text-[11px] font-semibold text-emerald-800 bg-emerald-100/60 rounded-xl py-1.5 px-2.5 border border-emerald-200/50">
+                {status}
+              </p>
+            )}
+          </div>
+
+          {/* 3. ADD NEW ADDRESS (Directly below current location) */}
+          <div className="border-t border-slate-100 pt-3">
+            <button
+              type="button"
+              onClick={() => {
+                setShowAddForm(!showAddForm);
+                setFormError("");
+              }}
+              className="flex w-full items-center justify-between rounded-2xl bg-slate-50 hover:bg-slate-100 px-4 py-3 text-xs sm:text-sm font-bold text-slate-800 border border-slate-200/70 transition-all cursor-pointer"
+            >
+              <span className="flex items-center gap-2 text-emerald-800">
+                <Plus className="h-4 w-4" />
+                <span>Add New Address</span>
+              </span>
+              <ChevronDown
+                className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${showAddForm ? "rotate-180" : ""}`}
+              />
+            </button>
+
+            {/* Expandable Add Address Form */}
+            {showAddForm && (
+              <form
+                onSubmit={handleSaveNewAddress}
+                className="mt-3 rounded-2xl bg-slate-50/80 border border-slate-200 p-4 space-y-3 animate-rise-in"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                    New Address Details
+                  </span>
+                  {/* Address Type selector */}
+                  <div className="flex items-center gap-1.5">
+                    {["Home", "Work", "Other"].map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() =>
+                          setAddressForm((prev) => ({ ...prev, type: t }))
+                        }
+                        className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition-all cursor-pointer ${
+                          addressForm.type === t
+                            ? "bg-emerald-800 text-white shadow-2xs"
+                            : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2.5 text-xs">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                      House / Flat / Building No. *
+                    </label>
+                    <input
+                      type="text"
+                      value={addressForm.houseNo}
+                      onChange={(e) =>
+                        setAddressForm((prev) => ({
+                          ...prev,
+                          houseNo: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g. Flat 402, Tower B, Green Glen Heights"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 outline-none focus:border-emerald-700"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                      Area / Locality *
+                    </label>
+                    <input
+                      type="text"
+                      value={addressForm.area}
+                      onChange={(e) =>
+                        setAddressForm((prev) => ({
+                          ...prev,
+                          area: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g. Sector 62, Near Metro Station"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 outline-none focus:border-emerald-700"
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 mb-1">
+                        City
+                      </label>
+                      <input
+                        type="text"
+                        value={addressForm.city}
+                        onChange={(e) =>
+                          setAddressForm((prev) => ({
+                            ...prev,
+                            city: e.target.value,
+                          }))
+                        }
+                        placeholder="Noida"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-900 outline-none focus:border-emerald-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 mb-1">
+                        State
+                      </label>
+                      <input
+                        type="text"
+                        value={addressForm.state}
+                        onChange={(e) =>
+                          setAddressForm((prev) => ({
+                            ...prev,
+                            state: e.target.value,
+                          }))
+                        }
+                        placeholder="UP"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-900 outline-none focus:border-emerald-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 mb-1">
+                        PIN Code
+                      </label>
+                      <input
+                        type="text"
+                        value={addressForm.pincode}
+                        onChange={(e) =>
+                          setAddressForm((prev) => ({
+                            ...prev,
+                            pincode: e.target.value,
+                          }))
+                        }
+                        placeholder="201304"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-900 outline-none focus:border-emerald-700"
+                      />
+                    </div>
+                  </div>
+
+                  {formError && (
+                    <p className="text-[11px] text-rose-600 font-semibold">
+                      {formError}
+                    </p>
+                  )}
+
+                  <button
+                    type="submit"
+                    className="w-full mt-2 rounded-xl bg-slate-950 hover:bg-emerald-900 text-white font-bold py-2.5 text-xs transition-colors cursor-pointer shadow-xs"
+                  >
+                    Save Address
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+
+          {/* 4. ZERO POPULAR REGIONS - COMPLETELY REMOVED */}
+
+          {/* 5. SAVED ADDRESSES (Directly below Add New Address) */}
+          <div className="border-t border-slate-100 pt-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                Saved Addresses ({savedAddresses.length})
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              {savedAddresses.map((addr) => {
+                const isSelected =
+                  value === addr.formattedAddress ||
+                  value === addr.city ||
+                  value.includes(addr.city);
+                return (
+                  <button
+                    key={addr.id}
+                    type="button"
+                    onClick={() =>
+                      handleSelect(addr.formattedAddress, {
+                        fullAddress: addr.formattedAddress,
+                        city: addr.city,
+                        state: addr.state,
+                      })
+                    }
+                    className={`w-full text-left rounded-2xl p-3 border transition-all cursor-pointer flex items-start gap-3 ${
+                      isSelected
+                        ? "border-emerald-600 bg-emerald-50/50 shadow-2xs"
+                        : "border-slate-200/80 bg-white hover:border-emerald-300 hover:bg-slate-50/60"
+                    }`}
+                  >
+                    <div
+                      className={`flex h-8 w-8 items-center justify-center rounded-xl shrink-0 mt-0.5 ${
+                        isSelected
+                          ? "bg-emerald-700 text-white"
+                          : "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      {addr.type === "Home" ? (
+                        <Home className="h-4 w-4" />
+                      ) : addr.type === "Work" ? (
+                        <Briefcase className="h-4 w-4" />
+                      ) : (
+                        <MapPin className="h-4 w-4" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-xs font-bold text-slate-900 truncate">
+                          {addr.title || addr.type}
+                        </span>
+                        {isSelected && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full shrink-0">
+                            <Check className="h-3 w-3" /> Active
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed line-clamp-2">
+                        {addr.formattedAddress}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -296,13 +624,13 @@ export default function ArgentNavbar({
       if (!insideDesktop && !insideMobile) {
         setDropdownOpen(false);
       }
-      if (locationOpen) setLocationOpen(false);
       if (notificationsOpen) setNotificationsOpen(false);
     };
 
     const handleKeyDown = (e) => {
       if (e.key === "Escape") {
         setDropdownOpen(false);
+        setLocationOpen(false);
       }
     };
 
@@ -312,7 +640,7 @@ export default function ArgentNavbar({
       window.removeEventListener("click", handleClickOutside);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [locationOpen, notificationsOpen]);
+  }, [notificationsOpen]);
 
   const searchResults = search.trim()
     ? services
@@ -377,10 +705,24 @@ export default function ArgentNavbar({
 
   return (
     <>
+      {/* Global Location Selection Modal */}
+      {locationOpen && (
+        <LocationPicker
+          value={location}
+          onChange={(newLoc, coords) => {
+            onLocationChange?.(newLoc, coords);
+            setLocationOpen(false);
+          }}
+          onClose={() => setLocationOpen(false)}
+        />
+      )}
+
       {/* =========================================================================
           TOP HEADER (Fixed at top)
           - Desktop (md+): Single Main Navbar
-          - Mobile (<md): Row 1 Main Header -> Row 2 Location -> Row 3 Search Bar
+          - Mobile (<md):
+            - Logged Out: Search Bar Only
+            - Logged In:  Row 1 [Logo] [Location][Cart][Notification] -> Row 2 Search Bar
          ========================================================================= */}
       <header className="fixed left-0 right-0 top-0 z-50 select-none">
         {/* ==================== DESKTOP / LAPTOP (md and above) ==================== */}
@@ -562,31 +904,21 @@ export default function ArgentNavbar({
               {/* RIGHT SIDE ACTIONS */}
               <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
                 {/* Location button: Displayed for BOTH Logged-In and Logged-Out */}
-                <div className="relative" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setLocationOpen(!locationOpen);
-                      setNotificationsOpen(false);
-                    }}
-                    className="flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-100/80 transition-colors cursor-pointer"
-                    title="Choose service location"
-                  >
-                    <MapPin className="h-4 w-4 text-emerald-700 shrink-0" />
-                    <span className="max-w-[120px] truncate">{location}</span>
-                    <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                  </button>
-                  {locationOpen && (
-                    <LocationPicker
-                      value={location}
-                      onChange={(newLoc, coords) => {
-                        onLocationChange?.(newLoc, coords);
-                        setLocationOpen(false);
-                      }}
-                      onClose={() => setLocationOpen(false)}
-                    />
-                  )}
-                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLocationOpen(true);
+                    setNotificationsOpen(false);
+                  }}
+                  className="flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-100/80 transition-colors cursor-pointer"
+                  title="Choose service location"
+                >
+                  <MapPin className="h-4 w-4 text-emerald-700 shrink-0" />
+                  <span className="max-w-[120px] truncate font-medium text-slate-800">
+                    {location || "Delhi NCR"}
+                  </span>
+                  <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                </button>
 
                 {!isAuthenticated ? (
                   /* BEFORE LOGIN: [ Sign in / Log in ] ONLY (No Cart, No Notification, No Profile) */
@@ -676,63 +1008,52 @@ export default function ArgentNavbar({
                [ 🔍 Search for services, e.g. Home Cleaning, AC Repair... ]
         */}
         <div className="block md:hidden px-3 pt-2.5">
-          <div className="rounded-2xl border border-white/80 bg-white/95 shadow-[0_8px_30px_rgba(27,45,39,0.08)] backdrop-blur-xl p-2.5 sm:p-3 space-y-2">
-            {/* ROW 1: TOP ROW
-                - Logged Out: [ Argent Your ]
-                - Logged In:  [ Argent Your ] [ 📍 Location ] [ 🛒 Cart ] [ 🔔 Notification ]
+          <div
+            className={`rounded-2xl border border-white/80 bg-white/95 shadow-[0_8px_30px_rgba(27,45,39,0.08)] backdrop-blur-xl p-2.5 sm:p-3 ${
+              isAuthenticated ? "space-y-2" : ""
+            }`}
+          >
+            {/* ROW 1: ONLY WHEN LOGGED IN
+                - When NOT logged in: Row 1 is completely omitted (no logo, no company name, no location, no cart, no notification).
+                - When logged in: [ Argent Your ] on left, [ 📍 Location ] [ 🛒 Cart ] [ 🔔 Notification ] on right.
             */}
-            <div className="flex items-center justify-between gap-1.5 sm:gap-2">
-              {/* Left: Argent Your Logo */}
-              <button
-                type="button"
-                onClick={onLogoClick}
-                className="flex shrink-0 items-center gap-1.5 sm:gap-2 cursor-pointer"
-                title="Argent Your"
-              >
-                <img
-                  src="/argent-logo.png"
-                  alt="Argent Your"
-                  className="h-8 w-8 rounded-xl object-contain shadow-xs shrink-0"
-                />
-                <span className="text-sm sm:text-base font-black tracking-tight text-slate-900 whitespace-nowrap">
-                  Argent Your
-                </span>
-              </button>
+            {isAuthenticated && (
+              <div className="flex items-center justify-between gap-1.5 sm:gap-2">
+                {/* Left: Argent Your Logo */}
+                <button
+                  type="button"
+                  onClick={onLogoClick}
+                  className="flex shrink-0 items-center gap-1.5 sm:gap-2 cursor-pointer"
+                  title="Argent Your"
+                >
+                  <img
+                    src="/argent-logo.png"
+                    alt="Argent Your"
+                    className="h-8 w-8 rounded-xl object-contain shadow-xs shrink-0"
+                  />
+                  <span className="text-sm sm:text-base font-black tracking-tight text-slate-900 whitespace-nowrap">
+                    Argent Your
+                  </span>
+                </button>
 
-              {/* Right: Location + Cart + Notification ONLY when isAuthenticated (Location hidden before login) */}
-              {isAuthenticated && (
+                {/* Right: Location + Cart + Notification */}
                 <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
                   {/* 📍 Location Selector (ONLY after login on mobile) */}
-                  <div
-                    className="relative shrink-0"
-                    onClick={(e) => e.stopPropagation()}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLocationOpen(true);
+                      setNotificationsOpen(false);
+                    }}
+                    className="flex items-center gap-1 rounded-xl px-2 py-1.5 text-xs font-semibold text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer bg-slate-50/90 border border-slate-200/70 shrink-0"
+                    title="Select service location"
                   >
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLocationOpen(!locationOpen);
-                        setNotificationsOpen(false);
-                      }}
-                      className="flex items-center gap-1 rounded-xl px-2 py-1.5 text-xs font-semibold text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer bg-slate-50/90 border border-slate-200/70"
-                      title="Select service location"
-                    >
-                      <MapPin className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
-                      <span className="max-w-[60px] min-[360px]:max-w-[95px] sm:max-w-[130px] truncate font-bold text-slate-900">
-                        {location || "Delhi NCR"}
-                      </span>
-                      <ChevronDown className="h-3 w-3 text-slate-400 shrink-0" />
-                    </button>
-                    {locationOpen && (
-                      <LocationPicker
-                        value={location}
-                        onChange={(newLoc, coords) => {
-                          onLocationChange?.(newLoc, coords);
-                          setLocationOpen(false);
-                        }}
-                        onClose={() => setLocationOpen(false)}
-                      />
-                    )}
-                  </div>
+                    <MapPin className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
+                    <span className="max-w-[60px] min-[360px]:max-w-[95px] sm:max-w-[130px] truncate font-bold text-slate-900">
+                      {location || "Delhi NCR"}
+                    </span>
+                    <ChevronDown className="h-3 w-3 text-slate-400 shrink-0" />
+                  </button>
 
                   {/* 🛒 Cart */}
                   <button
@@ -773,10 +1094,10 @@ export default function ArgentNavbar({
                     )}
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
-            {/* ROW 2: SEARCH BAR (Occupies available width in its own separate row) */}
+            {/* ROW 2 (OR ONLY ROW WHEN LOGGED OUT): SEARCH BAR (Occupies available width in its own row) */}
             <div ref={mobileSearchWrapRef} className="relative w-full">
               <div className="relative w-full">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />

@@ -745,7 +745,21 @@ function ProfessionalsPage({ path, onNavigate }) {
 
 function PageShell({ title, subtitle, children, onNavigate, onAuthOpen }) {
   const [search, setSearch] = useState("");
-  const [location, setLocation] = useState("Delhi NCR");
+  const [location, setLocation] = useState(() => {
+    try {
+      return localStorage.getItem("argent_selected_location") || "Delhi NCR";
+    } catch {
+      return "Delhi NCR";
+    }
+  });
+
+  useEffect(() => {
+    if (location) {
+      try {
+        localStorage.setItem("argent_selected_location", location);
+      } catch {}
+    }
+  }, [location]);
   const [authOpen, setAuthOpen] = useState(false);
   const openAuth = onAuthOpen || (() => setAuthOpen(true));
   return (
