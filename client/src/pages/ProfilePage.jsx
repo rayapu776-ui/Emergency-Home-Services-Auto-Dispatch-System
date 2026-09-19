@@ -1416,24 +1416,16 @@ export default function ProfilePage({
       )}
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-8">
-        {/* Top Breadcrumb Navigation */}
-        <div className="flex items-center justify-between">
+        {/* Top Navigation */}
+        <div className="flex items-center">
           <button
+            type="button"
             onClick={onHome}
-            className="inline-flex items-center gap-2 text-sm font-bold text-emerald-800 hover:text-emerald-950 transition-colors cursor-pointer"
+            aria-label="Back"
+            className="inline-flex items-center text-emerald-800 hover:text-emerald-950 transition-colors cursor-pointer"
           >
-            <ArrowLeft className="h-4 w-4" />
-            <img
-              src="/argent-logo.png"
-              alt="Argent Your"
-              className="h-5 w-5 rounded-md object-contain shadow-2xs"
-            />
-            <span>Back to Argent Your Home</span>
+            <ArrowLeft className="h-5 w-5" />
           </button>
-          <div className="flex items-center gap-2 text-xs font-bold text-emerald-800">
-            <ShieldCheck className="h-4 w-4 text-emerald-600" />
-            <span>Argent 100% Service Guarantee</span>
-          </div>
         </div>
 
         {standaloneBookings ? (
