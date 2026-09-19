@@ -83,16 +83,22 @@ export const notificationService = {
    * Check if Email provider (SMTP) is configured
    */
   isEmailConfigured() {
-    const { SMTP_HOST, SMTP_USER, SMTP_PASS, ENABLE_ETHEREAL_DEV } = process.env;
-    return Boolean((SMTP_HOST && SMTP_USER && SMTP_PASS) || ENABLE_ETHEREAL_DEV === "true");
+    const { SMTP_HOST, SMTP_USER, SMTP_PASS, ENABLE_ETHEREAL_DEV } =
+      process.env;
+    return Boolean(
+      (SMTP_HOST && SMTP_USER && SMTP_PASS) || ENABLE_ETHEREAL_DEV === "true",
+    );
   },
 
   /**
    * Check if SMS provider (Twilio) is configured
    */
   isSmsConfigured() {
-    const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER } = process.env;
-    return Boolean(TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_PHONE_NUMBER);
+    const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER } =
+      process.env;
+    return Boolean(
+      TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_PHONE_NUMBER,
+    );
   },
 
   /**
@@ -148,7 +154,9 @@ export const notificationService = {
     } else if (ENABLE_ETHEREAL_DEV === "true") {
       // Local development test account on Ethereal
       try {
-        console.log("ℹ️ [Nodemailer] Generating Ethereal SMTP test account for localhost development...");
+        console.log(
+          "ℹ️ [Nodemailer] Generating Ethereal SMTP test account for localhost development...",
+        );
         const testAccount = await nodemailer.createTestAccount();
         transporter = nodemailer.createTransport({
           host: "smtp.ethereal.email",
@@ -160,27 +168,41 @@ export const notificationService = {
           },
         });
       } catch (etherealErr) {
-        console.error("❌ [Nodemailer] Failed creating Ethereal test account:", etherealErr.message);
+        console.error(
+          "❌ [Nodemailer] Failed creating Ethereal test account:",
+          etherealErr.message,
+        );
       }
     }
 
     if (!transporter) {
       console.error("\n" + "=".repeat(70));
-      console.error("❌ [EMAIL OTP DELIVERY FAILURE - PROVIDER NOT CONFIGURED]");
+      console.error(
+        "❌ [EMAIL OTP DELIVERY FAILURE - PROVIDER NOT CONFIGURED]",
+      );
       console.error(`Target Recipient: ${destination}`);
-      console.error("Reason: SMTP Email provider credentials are not configured in server/.env.");
-      console.error("To enable real email OTP delivery, configure the following in server/.env:");
+      console.error(
+        "Reason: SMTP Email provider credentials are not configured in server/.env.",
+      );
+      console.error(
+        "To enable real email OTP delivery, configure the following in server/.env:",
+      );
       console.error("  - SMTP_HOST (e.g. smtp.gmail.com or smtp.sendgrid.net)");
       console.error("  - SMTP_PORT (e.g. 587 or 465)");
       console.error("  - SMTP_USER (e.g. your-email@gmail.com)");
-      console.error("  - SMTP_PASS (e.g. your 16-character Google App Password)");
-      console.error("  - SMTP_FROM (e.g. \"Argent Your\" <your-email@gmail.com>)");
+      console.error(
+        "  - SMTP_PASS (e.g. your 16-character Google App Password)",
+      );
+      console.error(
+        '  - SMTP_FROM (e.g. "Argent Your" <your-email@gmail.com>)',
+      );
       console.error("=".repeat(70) + "\n");
 
       return {
         success: false,
         error: "Unable to send authentication code. Please try again.",
-        reason: "Email provider credentials (SMTP_HOST, SMTP_USER, SMTP_PASS) are not configured in server/.env.",
+        reason:
+          "Email provider credentials (SMTP_HOST, SMTP_USER, SMTP_PASS) are not configured in server/.env.",
       };
     }
 
@@ -199,7 +221,9 @@ export const notificationService = {
       console.log(`📧 Destination: ${destination}`);
       console.log(`🆔 Message ID:  ${info.messageId}`);
       if (ENABLE_ETHEREAL_DEV === "true") {
-        console.log(`🔗 Ethereal Preview URL: ${nodemailer.getTestMessageUrl(info)}`);
+        console.log(
+          `🔗 Ethereal Preview URL: ${nodemailer.getTestMessageUrl(info)}`,
+        );
       }
       console.log("=".repeat(70) + "\n");
 
@@ -239,9 +263,15 @@ export const notificationService = {
       console.error("\n" + "=".repeat(70));
       console.error("❌ [SMS OTP DELIVERY FAILURE - PROVIDER NOT CONFIGURED]");
       console.error(`Target Recipient: ${destination}`);
-      console.error("Reason: Twilio SMS credentials are not configured in server/.env.");
-      console.error("To enable real SMS delivery, configure the following in server/.env:");
-      console.error("  - TWILIO_ACCOUNT_SID (e.g. ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)");
+      console.error(
+        "Reason: Twilio SMS credentials are not configured in server/.env.",
+      );
+      console.error(
+        "To enable real SMS delivery, configure the following in server/.env:",
+      );
+      console.error(
+        "  - TWILIO_ACCOUNT_SID (e.g. ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)",
+      );
       console.error("  - TWILIO_AUTH_TOKEN (e.g. your_auth_token)");
       console.error("  - TWILIO_PHONE_NUMBER (e.g. +1234567890)");
       console.error("  - DEFAULT_COUNTRY_CODE (e.g. +91 or +1)");
@@ -250,7 +280,8 @@ export const notificationService = {
       return {
         success: false,
         error: "Unable to send authentication code. Please try again.",
-        reason: "Twilio credentials (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER) are not configured in server/.env.",
+        reason:
+          "Twilio credentials (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER) are not configured in server/.env.",
       };
     }
 

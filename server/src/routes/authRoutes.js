@@ -135,7 +135,9 @@ router.post("/login-step1", async (req, res) => {
 
     if (!sessionInfo.success) {
       return res.status(503).json({
-        error: sessionInfo.error || "Unable to send authentication code. Please try again.",
+        error:
+          sessionInfo.error ||
+          "Unable to send authentication code. Please try again.",
         details: sessionInfo.reason,
       });
     }
@@ -156,11 +158,9 @@ router.post("/verify-otp", async (req, res) => {
   try {
     const { tempSessionToken, otp } = req.body;
     if (!tempSessionToken || !otp) {
-      return res
-        .status(400)
-        .json({
-          error: "Session token and 6-digit verification code are required",
-        });
+      return res.status(400).json({
+        error: "Session token and 6-digit verification code are required",
+      });
     }
 
     const result = await otpService.verifyOtp(tempSessionToken, otp);
@@ -219,7 +219,9 @@ router.post("/resend-otp", async (req, res) => {
     if (!result.success) {
       const statusCode = result.cooldownRemaining ? 400 : 503;
       return res.status(statusCode).json({
-        error: result.error || "Unable to send authentication code. Please try again.",
+        error:
+          result.error ||
+          "Unable to send authentication code. Please try again.",
         cooldownRemaining: result.cooldownRemaining,
         details: result.reason,
       });
@@ -308,7 +310,9 @@ router.post("/login", async (req, res) => {
 
     if (!sessionInfo.success) {
       return res.status(503).json({
-        error: sessionInfo.error || "Unable to send authentication code. Please try again.",
+        error:
+          sessionInfo.error ||
+          "Unable to send authentication code. Please try again.",
         details: sessionInfo.reason,
       });
     }

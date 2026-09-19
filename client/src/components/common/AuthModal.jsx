@@ -315,11 +315,11 @@ export default function AuthModal({
       window.setTimeout(onClose, 300);
     } catch (err) {
       setStatus("");
-      console.error("[Auth] OTP verify error:", err.response?.data || err.message);
-      setError(
-        err.response?.data?.error ||
-          "Invalid authentication code.",
+      console.error(
+        "[Auth] OTP verify error:",
+        err.response?.data || err.message,
       );
+      setError(err.response?.data?.error || "Invalid authentication code.");
     }
   };
 

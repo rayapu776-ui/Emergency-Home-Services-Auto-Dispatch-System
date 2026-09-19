@@ -111,7 +111,9 @@ export const otpService = {
     if (!sendResult.success) {
       return {
         success: false,
-        error: sendResult.error || "Unable to send authentication code. Please try again.",
+        error:
+          sendResult.error ||
+          "Unable to send authentication code. Please try again.",
         reason: sendResult.reason,
       };
     }
@@ -128,7 +130,15 @@ export const otpService = {
     await query.run(
       `INSERT INTO otp_sessions (id, user_id, otp_hash, channel, destination, attempts, cooldown_until, expires_at)
        VALUES (?, ?, ?, ?, ?, 0, ?, ?)`,
-      [sessionId, user.id, otpHash, channel, destination, cooldownUntil, expiresAt],
+      [
+        sessionId,
+        user.id,
+        otpHash,
+        channel,
+        destination,
+        cooldownUntil,
+        expiresAt,
+      ],
     );
 
     return {
@@ -278,7 +288,9 @@ export const otpService = {
     if (!sendResult.success) {
       return {
         success: false,
-        error: sendResult.error || "Unable to send authentication code. Please try again.",
+        error:
+          sendResult.error ||
+          "Unable to send authentication code. Please try again.",
         reason: sendResult.reason,
       };
     }
