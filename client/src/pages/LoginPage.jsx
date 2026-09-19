@@ -440,7 +440,7 @@ function AllServicesCatalogPage({
         currentRoute="/services"
         onNavigate={onNavigate}
       />
-      <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-20 pt-40 sm:pt-44 space-y-8">
+      <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-24 md:pb-16 pt-36 md:pt-28 space-y-8">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
@@ -646,7 +646,7 @@ function DedicatedPage({
         currentRoute={route}
         onNavigate={onNavigate}
       />
-      <main className="mx-auto max-w-7xl px-5 pb-20 pt-40 sm:pt-44 lg:px-8">
+      <main className="mx-auto max-w-7xl px-5 pb-24 md:pb-16 pt-36 md:pt-28 lg:px-8">
         <button
           onClick={onHome}
           className="mb-8 flex items-center gap-2 text-sm font-bold text-emerald-800 hover:text-emerald-950"
@@ -924,7 +924,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
 
   if (route === "/checkout")
     return (
-      <div className="min-h-screen bg-[#f6f7f3] text-slate-950 selection:bg-emerald-200">
+      <div className="min-h-screen bg-[#f6f7f3] text-slate-950 selection:bg-emerald-200 pb-20 md:pb-0">
         <ArgentNavbar
           onLogoClick={goHome}
           onAuthOpen={() => setAuthOpen(true)}
@@ -1153,7 +1153,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
           currentRoute={route}
           onNavigate={navigate}
         />
-        <div className="pt-36 sm:pt-40 lg:pt-44">
+        <div className="pt-36 md:pt-28 pb-20 md:pb-10">
           <OffersPage
             onHome={goHome}
             onNavigate={navigate}
@@ -1239,7 +1239,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
           currentRoute={route}
           onNavigate={navigate}
         />
-        <div className="pt-36 sm:pt-40 lg:pt-44">
+        <div className="pt-36 md:pt-28 pb-20 md:pb-10">
           <CategoryViewPage
             categorySlug={catSlug}
             onHome={goHome}
@@ -1428,7 +1428,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
         onNavigate={navigate}
       />
       <main>
-        <section className="px-5 pb-12 pt-40 sm:pt-44 lg:px-8">
+        <section className="px-5 pb-12 pt-36 md:pt-28 lg:px-8">
           <div className="mx-auto grid max-w-7xl items-center gap-10 lg:grid-cols-[0.88fr_1.12fr]">
             <div className="animate-rise-in">
               <p className="eyebrow">Trusted care, beautifully delivered</p>
