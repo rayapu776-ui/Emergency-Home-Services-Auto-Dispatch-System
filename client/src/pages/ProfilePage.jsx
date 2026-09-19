@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   AlertCircle,
-  ArrowLeft,
   Award,
   Bell,
   Calendar,
@@ -54,6 +53,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { allServicesCatalog } from "../data/servicesData";
+import userStore from "../services/userStore";
 import { promotionsData } from "../data/promotionsData";
 
 function AvatarSourceModal({
@@ -105,7 +105,11 @@ function AvatarSourceModal({
         throw new Error("Live camera is not supported on this browser.");
       }
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: facing, width: { ideal: 640 }, height: { ideal: 640 } },
+        video: {
+          facingMode: facing,
+          width: { ideal: 640 },
+          height: { ideal: 640 },
+        },
         audio: false,
       });
       setCameraStream(stream);
@@ -120,7 +124,7 @@ function AvatarSourceModal({
       setCameraError(
         err.name === "NotAllowedError" || err.name === "PermissionDeniedError"
           ? "Camera permission denied. Please allow camera access in your browser or use Choose from Gallery."
-          : "Could not access device camera directly. You can use your device's native camera or choose from gallery."
+          : "Could not access device camera directly. You can use your device's native camera or choose from gallery.",
       );
       setMode("camera-fallback");
     }
@@ -162,18 +166,20 @@ function AvatarSourceModal({
     const validTypes = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
     const validExtensions = [".jpg", ".jpeg", ".png", ".webp"];
     const hasValidExt = validExtensions.some((ext) =>
-      file.name?.toLowerCase().endsWith(ext)
+      file.name?.toLowerCase().endsWith(ext),
     );
 
     if (!validTypes.includes(file.type) && !hasValidExt) {
       setValidationError(
-        "Unsupported file format. Please choose a JPG, JPEG, PNG, or WEBP photo."
+        "Unsupported file format. Please choose a JPG, JPEG, PNG, or WEBP photo.",
       );
       return;
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      setValidationError("Image size exceeds 10MB limit. Please choose a smaller photo.");
+      setValidationError(
+        "Image size exceeds 10MB limit. Please choose a smaller photo.",
+      );
       return;
     }
 
@@ -184,7 +190,9 @@ function AvatarSourceModal({
       setMode("preview");
     };
     reader.onerror = () => {
-      setValidationError("Failed to read image file. Please try another image.");
+      setValidationError(
+        "Failed to read image file. Please try another image.",
+      );
     };
     reader.readAsDataURL(file);
   };
@@ -455,6 +463,7 @@ export default function ProfilePage({
   initialTab = "overview",
   onTabChange,
   onHome,
+  onBack,
   onNavigateToService,
   onBookService,
   onNavigateAdmin,
@@ -494,6 +503,18 @@ export default function ProfilePage({
         inline: "center",
         block: "nearest",
       });
+    }
+  };
+
+  const handleBackAction = () => {
+    if (onBack) {
+      onBack();
+      return;
+    }
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      onHome?.();
     }
   };
 
@@ -573,279 +594,77 @@ export default function ProfilePage({
         phone: user.phone || prev.phone,
         address: user.address || prev.address,
         avatar:
-          localStorage.getItem("profile_avatar") ||
-          user.avatar ||
-          prev.avatar,
+          localStorage.getItem("profile_avatar") || user.avatar || prev.avatar,
       }));
     }
   }, [user]);
 
-  // Demo Bookings Data with all 4 states
-  const [bookings, setBookings] = useState([
-    {
-      id: "AY-9402",
-      serviceName: "AC Foam-Jet Deep Service",
-      category: "AC & Appliance Repair",
-      image:
-        "https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=400&q=85",
-      slug: "ac-foam-jet-service",
-      scheduledDate: "Today, 19 Sep",
-      scheduledTime: "3:30 PM - 5:00 PM",
-      status: "In Progress",
-      statusStep: 3, // 1: Requested, 2: Assigned, 3: In Progress, 4: Completed
-      price: "$35.00",
-      totalPaid: "$38.50",
-      paymentMethod: "UPI (Google Pay)",
-      address: "Flat 402, Green Glen Heights, Sector 62, Noida, Uttar Pradesh",
-      technician: {
-        name: "Rajesh Kumar",
-        rating: "4.9",
-        reviews: "348",
-        experience: "7 years",
-        phone: "+91 98765 21000",
-        avatar:
-          "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80",
-      },
-    },
-    {
-      id: "AY-8911",
-      serviceName: "Home Refresh Deep Cleaning",
-      category: "Home Cleaning",
-      image:
-        "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=400&q=85",
-      slug: "home-refresh-clean",
-      scheduledDate: "Tomorrow, 20 Sep",
-      scheduledTime: "10:00 AM - 11:30 AM",
-      status: "Confirmed",
-      statusStep: 2,
-      price: "$29.00",
-      totalPaid: "$32.50",
-      paymentMethod: "Saved Card (•••• 4242)",
-      address: "Flat 402, Green Glen Heights, Sector 62, Noida, Uttar Pradesh",
-      technician: {
-        name: "Amit Sharma",
-        rating: "4.8",
-        reviews: "215",
-        experience: "5 years",
-        phone: "+91 98112 34567",
-        avatar:
-          "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80",
-      },
-    },
-    {
-      id: "AY-7810",
-      serviceName: "Electrician Expert Visit",
-      category: "Electrician",
-      image:
-        "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=400&q=85",
-      slug: "electrician-visit",
-      scheduledDate: "14 Sep 2026",
-      scheduledTime: "1:00 PM - 2:00 PM",
-      status: "Completed",
-      statusStep: 4,
-      price: "$19.00",
-      totalPaid: "$22.50",
-      paymentMethod: "Cash on Service",
-      address: "Flat 402, Green Glen Heights, Sector 62, Noida, Uttar Pradesh",
-      technician: {
-        name: "Sunil Verma",
-        rating: "5.0",
-        reviews: "520",
-        experience: "9 years",
-        phone: "+91 98450 99881",
-        avatar:
-          "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=300&q=80",
-      },
-    },
-    {
-      id: "AY-6932",
-      serviceName: "Water Purifier (RO/UV) Service",
-      category: "AC & Appliance Repair",
-      image:
-        "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=400&q=85",
-      slug: "water-purifier-service",
-      scheduledDate: "02 Sep 2026",
-      scheduledTime: "11:30 AM - 12:30 PM",
-      status: "Completed",
-      statusStep: 4,
-      price: "$24.00",
-      totalPaid: "$27.50",
-      paymentMethod: "Saved Card (•••• 8812)",
-      address: "Flat 402, Green Glen Heights, Sector 62, Noida, Uttar Pradesh",
-      technician: {
-        name: "Ravi Shankar",
-        rating: "4.9",
-        reviews: "190",
-        experience: "4 years",
-        phone: "+91 98710 44332",
-        avatar:
-          "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=300&q=80",
-      },
-    },
-    {
-      id: "AY-5521",
-      serviceName: "Men's Haircut & Styling",
-      category: "Men's Salon & Grooming",
-      image:
-        "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=400&q=85",
-      slug: "mens-haircut",
-      scheduledDate: "28 Aug 2026",
-      scheduledTime: "5:00 PM - 6:00 PM",
-      status: "Cancelled",
-      cancellationReason: "Change of plans / rescheduled to later date",
-      statusStep: 1,
-      price: "$20.00",
-      totalPaid: "$0.00 (Refunded)",
-      paymentMethod: "UPI (PhonePe)",
-      address: "Flat 402, Green Glen Heights, Sector 62, Noida, Uttar Pradesh",
-      technician: null,
-    },
-  ]);
+  // Real Persistent Bookings Data
+  const [bookings, setBookings] = useState(() => {
+    return userStore.getBookings(user?.id);
+  });
+
+  useEffect(() => {
+    const local = userStore.getBookings(user?.id);
+    setBookings(local);
+    if (user?.id) {
+      userStore.fetchBookingsFromApi(user.id).then((apiBookings) => {
+        if (Array.isArray(apiBookings)) {
+          setBookings(apiBookings);
+        }
+      });
+    }
+  }, [user?.id]);
 
   // Saved Addresses
-  const [addresses, setAddresses] = useState([
-    {
-      id: "addr-1",
-      type: "Home",
-      isDefault: true,
-      line1: "Flat 402, Green Glen Heights",
-      line2: "Sector 62, Near Electronic City Metro",
-      city: "Noida",
-      state: "Uttar Pradesh",
-      postalCode: "201304",
-      phone: "+91 98765 43210",
-      recipient: "Rahul Sharma",
-    },
-    {
-      id: "addr-2",
-      type: "Work",
-      isDefault: false,
-      line1: "Tower B, 7th Floor, Cyber City",
-      line2: "DLF Phase 2, Sector 24",
-      city: "Gurugram",
-      state: "Haryana",
-      postalCode: "122002",
-      phone: "+91 98765 43210",
-      recipient: "Rahul Sharma (Office)",
-    },
-    {
-      id: "addr-3",
-      type: "Other",
-      isDefault: false,
-      line1: "Villa 14, Palm Grove Enclave",
-      line2: "Greater Kailash II",
-      city: "New Delhi",
-      state: "Delhi",
-      postalCode: "110048",
-      phone: "+91 98110 55443",
-      recipient: "Parents Home",
-    },
-  ]);
+  const [addresses, setAddresses] = useState(() => {
+    return userStore.getAddresses(user?.id, user);
+  });
 
-  // Payment Methods (Strictly masked card numbers)
-  const [paymentMethods, setPaymentMethods] = useState([
-    {
-      id: "card-1",
-      brand: "Visa",
-      maskedNumber: "•••• •••• •••• 4242",
-      cardholder: "Rahul Sharma",
-      expiry: "08/28",
-      isDefault: true,
-      type: "Credit Card",
-    },
-    {
-      id: "card-2",
-      brand: "Mastercard",
-      maskedNumber: "•••• •••• •••• 8812",
-      cardholder: "Rahul Sharma",
-      expiry: "11/29",
-      isDefault: false,
-      type: "Debit Card",
-    },
-    {
-      id: "upi-1",
-      brand: "UPI",
-      maskedNumber: "rahul.sharma@okaxis",
-      cardholder: "Rahul Sharma",
-      expiry: "N/A",
-      isDefault: false,
-      type: "UPI ID",
-    },
-  ]);
+  useEffect(() => {
+    setAddresses(userStore.getAddresses(user?.id, user));
+  }, [user?.id]);
+
+  // Payment Methods
+  const [paymentMethods, setPaymentMethods] = useState(() => {
+    return userStore.getPaymentMethods(user?.id);
+  });
+
+  useEffect(() => {
+    setPaymentMethods(userStore.getPaymentMethods(user?.id));
+  }, [user?.id]);
 
   // Saved / Wishlisted Services
-  const [savedServicesList, setSavedServicesList] = useState([
-    {
-      name: "At-Home Salon Glow Facial",
-      category: "Women's Salon & Spa",
-      price: "From $32",
-      rating: "4.9",
-      reviews: "4.8k",
-      slug: "at-home-salon-glow",
-      image:
-        "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=500&q=85",
-    },
-    {
-      name: "AC Foam-Jet Deep Service",
-      category: "AC & Appliance Repair",
-      price: "From $35",
-      rating: "4.9",
-      reviews: "8.1k",
-      slug: "ac-foam-jet-service",
-      image:
-        "https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=500&q=85",
-    },
-    {
-      name: "Smart Home Setup & Automation",
-      category: "Smart Home Products",
-      price: "From $39",
-      rating: "4.9",
-      reviews: "1.8k",
-      slug: "smart-home-setup",
-      image:
-        "https://images.unsplash.com/photo-1558008258-3256797b43f3?auto=format&fit=crop&w=500&q=85",
-    },
-  ]);
+  const [savedServicesList, setSavedServicesList] = useState(() => {
+    return userStore.getSavedServices(user?.id);
+  });
+
+  useEffect(() => {
+    setSavedServicesList(userStore.getSavedServices(user?.id));
+  }, [user?.id]);
 
   // Notifications List
-  const [notifications, setNotifications] = useState([
-    {
-      id: "notif-1",
-      title: "Technician En Route",
-      message:
-        "Rajesh Kumar has departed and is scheduled to reach your location in 15 mins for AC Foam-Jet Deep Service.",
-      time: "10 minutes ago",
-      read: false,
-      type: "service",
-    },
-    {
-      id: "notif-2",
-      title: "Booking Confirmed",
-      message:
-        "Your booking for Home Refresh Deep Cleaning (#AY-8911) is confirmed for Tomorrow, 10:00 AM.",
-      time: "2 hours ago",
-      read: true,
-      type: "booking",
-    },
-    {
-      id: "notif-3",
-      title: "Special Member Discount Unlocked",
-      message:
-        "Use coupon code ARGENT20 to get 20% off on your next doorstep maintenance appointment.",
-      time: "Yesterday",
-      read: true,
-      type: "promo",
-    },
-    {
-      id: "notif-4",
-      title: "Service Completed",
-      message:
-        "Electrician Expert Visit (#AY-7810) was successfully completed. Please take a moment to rate Sunil.",
-      time: "4 days ago",
-      read: true,
-      type: "service",
-    },
-  ]);
+  const [notifications, setNotifications] = useState(() => {
+    return userStore.getNotifications(user?.id);
+  });
+
+  useEffect(() => {
+    const localNotifs = userStore.getNotifications(user?.id);
+    setNotifications(localNotifs);
+    if (user?.id) {
+      userStore.fetchNotificationsFromApi(user.id).then((apiNotifs) => {
+        if (Array.isArray(apiNotifs) && apiNotifs.length > 0) {
+          setNotifications(apiNotifs);
+        }
+      });
+    }
+  }, [user?.id]);
+
+  // Rating modal states
+  const [ratingTargetBooking, setRatingTargetBooking] = useState(null);
+  const [ratingStars, setRatingStars] = useState(5);
+  const [ratingFeedback, setRatingFeedback] = useState("");
+  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
 
   // Support Tickets
   const [supportTickets, setSupportTickets] = useState([
@@ -1152,22 +971,15 @@ export default function ProfilePage({
   };
 
   // Reschedule Booking Handler
-  const handleConfirmReschedule = () => {
+  const handleConfirmReschedule = async () => {
     if (!rescheduleBookingTarget) return;
-
-    setBookings((prev) =>
-      prev.map((b) =>
-        b.id === rescheduleBookingTarget.id
-          ? {
-              ...b,
-              scheduledDate: rescheduleDate,
-              scheduledTime: rescheduleTime,
-              status: "Confirmed",
-            }
-          : b,
-      ),
+    const updated = await userStore.rescheduleBooking(
+      user?.id,
+      rescheduleBookingTarget.id,
+      rescheduleDate,
+      rescheduleTime,
     );
-
+    if (updated) setBookings(updated);
     showToast(
       `Booking #${rescheduleBookingTarget.id} rescheduled to ${rescheduleDate} (${rescheduleTime})!`,
     );
@@ -1175,26 +987,65 @@ export default function ProfilePage({
   };
 
   // Cancel Booking Handler
-  const handleConfirmCancellation = () => {
+  const handleConfirmCancellation = async () => {
     if (!cancelBookingTarget) return;
-
-    setBookings((prev) =>
-      prev.map((b) =>
-        b.id === cancelBookingTarget.id
-          ? {
-              ...b,
-              status: "Cancelled",
-              cancellationReason: cancelReason,
-              statusStep: 1,
-            }
-          : b,
-      ),
+    const updated = await userStore.cancelBooking(
+      user?.id,
+      cancelBookingTarget.id,
+      cancelReason,
     );
-
+    if (updated) setBookings(updated);
     showToast(
       `Booking #${cancelBookingTarget.id} has been cancelled. Refund initiated if applicable.`,
     );
     setCancelBookingTarget(null);
+  };
+
+  // Complete Booking Handler
+  const handleCompleteBooking = async (target) => {
+    if (!target) return;
+    const updated = await userStore.completeBooking(user?.id, target.id);
+    if (updated) setBookings(updated);
+    if (selectedBookingForDetails?.id === target.id) {
+      setSelectedBookingForDetails((prev) => ({
+        ...prev,
+        status: "Completed",
+        statusStep: 4,
+      }));
+    }
+    showToast(
+      `Booking #${target.id} marked as completed! You can now rate your technician.`,
+    );
+  };
+
+  // Submit Rating & Review Handler
+  const handleSubmitRating = async (e) => {
+    e?.preventDefault();
+    if (!ratingTargetBooking) return;
+    setIsSubmittingRating(true);
+    try {
+      const updated = await userStore.rateBooking(
+        user?.id,
+        ratingTargetBooking.id,
+        ratingStars,
+        ratingFeedback,
+      );
+      if (updated) setBookings(updated);
+      if (selectedBookingForDetails?.id === ratingTargetBooking.id) {
+        setSelectedBookingForDetails((prev) => ({
+          ...prev,
+          rating: ratingStars,
+          feedback: ratingFeedback,
+        }));
+      }
+      showToast(`Thank you! Your ${ratingStars}-star rating has been saved.`);
+      setRatingTargetBooking(null);
+      setRatingFeedback("");
+    } catch {
+      showToast("Could not record review, please try again.");
+    } finally {
+      setIsSubmittingRating(false);
+    }
   };
 
   // Live Chat Send Message Handler
@@ -1326,12 +1177,13 @@ export default function ProfilePage({
     return true; // 'all'
   });
 
-  const totalBookingsCount = bookings.length + 8; // Including past archive
+  const totalBookingsCount = bookings.length;
   const upcomingCount = bookings.filter(
     (b) => b.status === "In Progress" || b.status === "Confirmed",
   ).length;
-  const completedCount =
-    bookings.filter((b) => b.status === "Completed").length + 8;
+  const completedCount = bookings.filter(
+    (b) => b.status === "Completed",
+  ).length;
   const savedCount = savedServicesList.length;
   const unreadNotificationsCount = notifications.filter((n) => !n.read).length;
 
@@ -1435,17 +1287,17 @@ export default function ProfilePage({
 
   // Reusable Bookings Dashboard Component (Used for standalone /bookings and in profile tab)
   const renderBookingsSection = () => (
-    <div className="space-y-6 animate-rise-in">
+    <div className="space-y-6 animate-rise-in w-full max-w-full min-w-0 box-border">
       {/* Argent Dark Emerald Hero Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-900 p-6 sm:p-7 text-white shadow-lg">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-900 p-5 sm:p-7 text-white shadow-lg w-full max-w-full min-w-0 box-border">
         <div className="absolute -right-12 -bottom-12 h-48 w-48 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
-          <div className="space-y-1.5">
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-5 min-w-0">
+          <div className="space-y-1.5 min-w-0">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1 text-[11px] font-bold text-emerald-300 border border-emerald-500/30">
               <Clock className="h-3.5 w-3.5 text-emerald-400" />
               <span>Doorstep Service Management</span>
             </span>
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white tracking-tight break-words">
               My Bookings & Dispatches
             </h1>
             <p className="text-xs sm:text-sm text-emerald-100/80 max-w-xl leading-relaxed">
@@ -1455,8 +1307,8 @@ export default function ProfilePage({
           </div>
 
           {/* Metric summary badges */}
-          <div className="flex items-center gap-2.5 self-start sm:self-auto shrink-0">
-            <div className="rounded-2xl bg-white/10 backdrop-blur-md px-4 py-2 border border-white/10 text-center min-w-[80px]">
+          <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto shrink-0 w-full sm:w-auto">
+            <div className="flex-1 sm:flex-initial rounded-2xl bg-white/10 backdrop-blur-md px-4 py-2 border border-white/10 text-center min-w-[75px]">
               <span className="text-[10px] uppercase font-bold text-emerald-300 block">
                 Total
               </span>
@@ -1464,7 +1316,7 @@ export default function ProfilePage({
                 {totalBookingsCount}
               </span>
             </div>
-            <div className="rounded-2xl bg-emerald-500/20 backdrop-blur-md px-4 py-2 border border-emerald-400/30 text-center min-w-[80px]">
+            <div className="flex-1 sm:flex-initial rounded-2xl bg-emerald-500/20 backdrop-blur-md px-4 py-2 border border-emerald-400/30 text-center min-w-[75px]">
               <span className="text-[10px] uppercase font-bold text-emerald-200 block">
                 Active
               </span>
@@ -1546,8 +1398,8 @@ export default function ProfilePage({
       )}
 
       {/* Filter Tabs Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full max-w-full min-w-0">
+        <div className="min-w-0">
           <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
             Appointment Records
           </h2>
@@ -1558,8 +1410,8 @@ export default function ProfilePage({
           </p>
         </div>
 
-        {/* Status Filter Tabs */}
-        <div className="flex items-center gap-1.5 rounded-2xl bg-slate-200/70 p-1.5 text-xs font-bold text-slate-700 self-start sm:self-auto overflow-x-auto scrollbar-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {/* Status Filter Tabs - Horizontally scrollable on mobile, flexible on desktop */}
+        <div className="flex items-center gap-1.5 rounded-2xl bg-slate-200/70 p-1.5 text-xs font-bold text-slate-700 max-w-full overflow-x-auto scrollbar-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden shrink-0">
           {[
             { id: "all", label: "All", count: bookings.length },
             { id: "upcoming", label: "Upcoming", count: upcomingBookingsCount },
@@ -1581,7 +1433,7 @@ export default function ProfilePage({
                 key={tab.id}
                 type="button"
                 onClick={() => setBookingFilter(tab.id)}
-                className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 transition-all cursor-pointer whitespace-nowrap ${
+                className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 transition-all cursor-pointer whitespace-nowrap text-xs shrink-0 ${
                   isActive
                     ? "bg-slate-950 text-white shadow-xs font-black"
                     : "text-slate-700 hover:text-slate-950 hover:bg-white/60"
@@ -1612,11 +1464,14 @@ export default function ProfilePage({
             </div>
             <div className="space-y-1">
               <h4 className="text-base font-bold text-slate-900">
-                No {bookingFilter} bookings found
+                {bookings.length === 0
+                  ? "No bookings yet"
+                  : `No ${bookingFilter} bookings found`}
               </h4>
               <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                You currently have no doorstep service appointments under the "
-                {bookingFilter}" filter.
+                {bookings.length === 0
+                  ? "You have not booked any doorstep services yet. Certified professionals are ready to assist you."
+                  : `You currently have no doorstep service appointments under the "${bookingFilter}" filter.`}
               </p>
             </div>
             <div className="flex items-center justify-center gap-3 pt-2">
@@ -1642,16 +1497,16 @@ export default function ProfilePage({
           filteredBookings.map((b) => (
             <div
               key={b.id}
-              className="rounded-3xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-xs hover:shadow-md hover:border-emerald-700/40 transition-all space-y-4"
+              className="rounded-2xl sm:rounded-3xl border border-slate-200/90 bg-white p-3.5 sm:p-6 shadow-xs hover:shadow-md hover:border-emerald-700/40 transition-all space-y-3 sm:space-y-4 w-full max-w-full min-w-0 box-border overflow-hidden"
             >
-              {/* Card Top */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-                <div className="flex items-center gap-2.5">
-                  <span className="rounded-xl bg-slate-100 px-3 py-1 text-xs font-black text-slate-800">
+              {/* Card Top: compact horizontal row */}
+              <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2.5 sm:pb-4 min-w-0 w-full">
+                <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 flex-wrap">
+                  <span className="rounded-lg sm:rounded-xl bg-slate-100 px-2 sm:px-3 py-0.5 sm:py-1 text-[11px] sm:text-xs font-black text-slate-800 shrink-0">
                     #{b.id}
                   </span>
                   <span
-                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wider ${
+                    className={`inline-flex items-center gap-1 sm:gap-1.5 rounded-full px-2.5 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-[11px] font-black uppercase tracking-wider shrink-0 ${
                       b.status === "In Progress"
                         ? "bg-amber-100 text-amber-950 border border-amber-300/60"
                         : b.status === "Confirmed"
@@ -1670,53 +1525,53 @@ export default function ProfilePage({
                     {b.status}
                   </span>
                   {isGuest && (
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-extrabold uppercase text-slate-500">
-                      Sample Preview
+                    <span className="rounded-full bg-slate-100 px-1.5 sm:px-2 py-0.5 text-[9px] font-extrabold uppercase text-slate-500 shrink-0">
+                      Sample
                     </span>
                   )}
                 </div>
 
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                <div className="flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-bold text-slate-700 shrink-0 text-right">
                   <span>
-                    Total Paid:{" "}
-                    <strong className="text-emerald-900 text-sm font-black">
+                    Paid:{" "}
+                    <strong className="text-emerald-900 text-xs sm:text-sm font-black">
                       {b.totalPaid}
                     </strong>
                   </span>
-                  <span className="text-slate-300">•</span>
-                  <span className="text-[11px] text-slate-500 font-medium">
+                  <span className="hidden sm:inline text-slate-300">•</span>
+                  <span className="hidden sm:inline text-[11px] text-slate-500 font-medium">
                     {b.paymentMethod}
                   </span>
                 </div>
               </div>
 
               {/* Service Details & Assigned Technician */}
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4 min-w-0 w-full">
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0 w-full flex-1">
                   <img
                     src={b.image}
                     alt={b.serviceName}
-                    className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl object-cover shadow-2xs shrink-0 border border-slate-100"
+                    className="h-14 w-14 sm:h-20 sm:w-20 rounded-xl sm:rounded-2xl object-cover shadow-2xs shrink-0 border border-slate-100"
                   />
-                  <div className="space-y-1 min-w-0">
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800">
+                  <div className="space-y-0.5 sm:space-y-1 min-w-0 flex-1">
+                    <span className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider text-emerald-800 block">
                       {b.category}
                     </span>
-                    <h3 className="text-base font-bold text-slate-900 truncate">
+                    <h3 className="text-xs sm:text-base font-bold text-slate-900 truncate">
                       {b.serviceName}
                     </h3>
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
-                      <span className="flex items-center gap-1 font-semibold text-emerald-900 bg-emerald-50 px-2.5 py-0.5 rounded-lg border border-emerald-100">
-                        <Calendar className="h-3.5 w-3.5 text-emerald-700" />
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-slate-600 pt-0.5">
+                      <span className="flex items-center gap-1 font-semibold text-emerald-900 bg-emerald-50 px-2 sm:px-2.5 py-0.5 rounded-md sm:rounded-lg border border-emerald-100 shrink-0">
+                        <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-emerald-700" />
                         {b.scheduledDate}
                       </span>
-                      <span className="flex items-center gap-1 text-slate-600 bg-slate-50 px-2.5 py-0.5 rounded-lg border border-slate-100">
-                        <Clock className="h-3.5 w-3.5 text-slate-500" />
+                      <span className="flex items-center gap-1 text-slate-600 bg-slate-50 px-2 sm:px-2.5 py-0.5 rounded-md sm:rounded-lg border border-slate-100 shrink-0">
+                        <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-slate-500" />
                         {b.scheduledTime}
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-400 truncate max-w-md flex items-center gap-1 pt-0.5">
-                      <MapPin className="h-3 w-3 text-emerald-700 shrink-0" />
+                    <p className="text-[10px] sm:text-[11px] text-slate-400 truncate max-w-full flex items-center gap-1 pt-0.5 min-w-0">
+                      <MapPin className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-emerald-700 shrink-0" />
                       <span className="truncate">{b.address}</span>
                     </p>
                   </div>
@@ -1724,17 +1579,17 @@ export default function ProfilePage({
 
                 {/* Technician Card */}
                 {b.technician && (
-                  <div className="flex items-center gap-3 rounded-2xl bg-emerald-50/70 border border-emerald-100 p-3 self-start lg:self-auto min-w-[220px]">
+                  <div className="flex items-center gap-2.5 sm:gap-3 rounded-xl sm:rounded-2xl bg-emerald-50/70 border border-emerald-100 p-2 sm:p-3 w-full lg:w-auto min-w-0 box-border shrink-0">
                     <img
                       src={b.technician.avatar}
                       alt={b.technician.name}
-                      className="h-10 w-10 rounded-full object-cover border-2 border-white shadow-2xs shrink-0"
+                      className="h-8 w-8 sm:h-10 sm:w-10 rounded-full object-cover border-2 border-white shadow-2xs shrink-0"
                     />
-                    <div className="text-xs min-w-0">
-                      <p className="font-bold text-slate-900 truncate">
+                    <div className="text-xs min-w-0 flex-1">
+                      <p className="font-bold text-slate-900 truncate text-xs sm:text-sm">
                         {b.technician.name}
                       </p>
-                      <p className="text-[11px] text-slate-500 flex items-center gap-1">
+                      <p className="text-[10px] sm:text-[11px] text-slate-500 flex items-center gap-1">
                         <span className="font-extrabold text-amber-600">
                           ★ {b.technician.rating}
                         </span>
@@ -1750,30 +1605,30 @@ export default function ProfilePage({
 
               {/* Cancellation Reason if cancelled */}
               {b.status === "Cancelled" && b.cancellationReason && (
-                <div className="rounded-2xl bg-rose-50 border border-rose-100 p-3 text-xs text-rose-800">
+                <div className="rounded-xl sm:rounded-2xl bg-rose-50 border border-rose-100 p-2.5 sm:p-3 text-xs text-rose-800 break-words">
                   <strong>Reason for cancellation:</strong>{" "}
                   {b.cancellationReason}
                 </div>
               )}
 
               {/* Action Buttons */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">
-                <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center justify-between gap-2 pt-2.5 sm:pt-3 border-t border-slate-100 w-full min-w-0 flex-wrap sm:flex-nowrap">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                   <button
                     type="button"
                     onClick={() => setSelectedBookingForDetails(b)}
-                    className="rounded-xl bg-slate-950 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800 transition-colors shadow-2xs cursor-pointer flex items-center gap-1.5"
+                    className="rounded-lg sm:rounded-xl bg-slate-950 px-3 sm:px-4 py-1.5 sm:py-2 text-[11px] sm:text-xs font-bold text-white hover:bg-emerald-800 transition-colors shadow-2xs cursor-pointer flex items-center gap-1.5"
                   >
-                    <span>View Details / Receipt</span>
+                    <span>View Details</span>
                   </button>
 
                   {(b.status === "Confirmed" || b.status === "In Progress") && (
                     <button
                       type="button"
                       onClick={() => setRescheduleBookingTarget(b)}
-                      className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                      className="rounded-lg sm:rounded-xl border border-slate-200 bg-white px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-[11px] sm:text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
                     >
-                      Reschedule Slot
+                      Reschedule
                     </button>
                   )}
 
@@ -1781,17 +1636,36 @@ export default function ProfilePage({
                     <button
                       type="button"
                       onClick={() => setCancelBookingTarget(b)}
-                      className="rounded-xl border border-rose-200 bg-rose-50/60 px-3.5 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 transition-colors cursor-pointer"
+                      className="rounded-lg sm:rounded-xl border border-rose-200 bg-rose-50/60 px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-[11px] sm:text-xs font-bold text-rose-700 hover:bg-rose-100 transition-colors cursor-pointer"
                     >
-                      Cancel Booking
+                      Cancel
                     </button>
                   )}
+
+                  {b.status === "Completed" &&
+                    (b.rating ? (
+                      <span className="inline-flex items-center gap-1 rounded-lg sm:rounded-xl bg-amber-50 border border-amber-200/80 px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-bold text-amber-900">
+                        ★ {b.rating}/5 Rated
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRatingTargetBooking(b);
+                          setRatingStars(5);
+                          setRatingFeedback("");
+                        }}
+                        className="rounded-lg sm:rounded-xl border border-amber-300 bg-amber-500 hover:bg-amber-600 text-slate-950 px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-[11px] sm:text-xs font-bold transition-colors cursor-pointer shadow-2xs"
+                      >
+                        ★ Rate Service
+                      </button>
+                    ))}
 
                   {(b.status === "Completed" || b.status === "Cancelled") && (
                     <button
                       type="button"
                       onClick={() => onNavigateToService?.(b.slug)}
-                      className="rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-900 hover:bg-emerald-100 transition-colors cursor-pointer"
+                      className="rounded-lg sm:rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-[11px] sm:text-xs font-bold text-emerald-900 hover:bg-emerald-100 transition-colors cursor-pointer"
                     >
                       Book Again
                     </button>
@@ -1799,14 +1673,24 @@ export default function ProfilePage({
                 </div>
 
                 {b.technician && (
-                  <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                  <div className="flex items-center gap-1.5 sm:gap-2 text-xs font-bold text-slate-600 shrink-0">
                     <a
                       href={`tel:${b.technician.phone ? b.technician.phone.replace(/[^\d+]/g, "") : ""}`}
                       onClick={(e) => handleCallTechnician(e, b.technician)}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors"
+                      className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors text-[11px] sm:text-xs"
+                      title={`Call ${b.technician.name}`}
                     >
-                      <Phone className="h-3.5 w-3.5 text-emerald-700" />
-                      <span>Call Pro</span>
+                      <Phone className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-emerald-700" />
+                      <span>Call</span>
+                    </a>
+                    <a
+                      href={`sms:${b.technician.phone ? b.technician.phone.replace(/[^\d+]/g, "") : ""}?body=${encodeURIComponent("Hello, I have a service booking with Argent Your.")}`}
+                      onClick={(e) => handleSmsTechnician(e, b.technician)}
+                      className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors text-[11px] sm:text-xs"
+                      title={`SMS ${b.technician.name}`}
+                    >
+                      <MessageSquare className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-emerald-700" />
+                      <span>SMS</span>
                     </a>
                   </div>
                 )}
@@ -1819,7 +1703,7 @@ export default function ProfilePage({
   );
 
   return (
-    <div className="min-h-screen bg-[#f6f7f3] text-slate-950 pb-28 sm:pb-32 md:pb-20 pt-36 sm:pt-40 md:pt-28 lg:pt-32">
+    <div className="min-h-screen bg-[#f6f7f3] text-slate-950 pb-28 sm:pb-32 md:pb-20 pt-4 sm:pt-6 md:pt-24 lg:pt-26 w-full max-w-full overflow-x-hidden box-border">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-xs font-bold text-white shadow-2xl border border-slate-800 animate-rise-in max-w-sm">
@@ -1828,21 +1712,9 @@ export default function ProfilePage({
         </div>
       )}
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-8">
-        {/* Top Navigation */}
-        <div className="flex items-center">
-          <button
-            type="button"
-            onClick={onHome}
-            aria-label="Back"
-            className="inline-flex items-center text-emerald-800 hover:text-emerald-950 transition-colors cursor-pointer"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-        </div>
-
+      <div className="mx-auto max-w-7xl px-3.5 sm:px-6 lg:px-8 space-y-8 w-full max-w-full min-w-0 box-border">
         {standaloneBookings ? (
-          <div className="mx-auto max-w-5xl space-y-6">
+          <div className="mx-auto max-w-5xl space-y-6 w-full max-w-full min-w-0 box-border">
             {renderBookingsSection()}
           </div>
         ) : (
@@ -1850,7 +1722,7 @@ export default function ProfilePage({
             {/* Profile Master Header Card */}
             <div className="relative overflow-hidden rounded-3xl border border-white/80 bg-white/80 p-5 sm:p-7 shadow-sm backdrop-blur-md">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
-                <div className="flex items-center gap-4 sm:gap-5">
+                <div className="flex items-start sm:items-center gap-4 sm:gap-5 min-w-0 flex-1">
                   {/* Avatar with Camera Overlay */}
                   <div className="relative group shrink-0">
                     <img
@@ -1869,7 +1741,7 @@ export default function ProfilePage({
                   </div>
 
                   {/* User Details */}
-                  <div className="space-y-1">
+                  <div className="space-y-1 min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <h1 className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight">
                         {profileForm.name}
@@ -1892,9 +1764,9 @@ export default function ProfilePage({
                       </span>
                     </div>
 
-                    <p className="flex items-center gap-1 text-[11px] text-slate-500 font-medium pt-0.5">
-                      <MapPin className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
-                      <span className="truncate max-w-xs sm:max-w-md">
+                    <p className="flex items-start gap-1.5 text-[11px] sm:text-xs text-slate-500 font-medium pt-0.5 min-w-0">
+                      <MapPin className="h-3.5 w-3.5 text-emerald-700 shrink-0 mt-0.5" />
+                      <span className="break-words leading-relaxed text-slate-600">
                         {profileForm.address}
                       </span>
                     </p>
@@ -2045,7 +1917,7 @@ export default function ProfilePage({
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                       {/* Card 1: Total Bookings */}
                       <div
-                        onClick={() => setActiveTab("bookings")}
+                        onClick={() => handleTabClick("bookings")}
                         className="rounded-3xl border border-white/80 bg-white/90 p-4 shadow-xs backdrop-blur-md hover:shadow-md transition-all cursor-pointer group"
                       >
                         <div className="flex items-center justify-between">
@@ -2068,7 +1940,7 @@ export default function ProfilePage({
                       <div
                         onClick={() => {
                           setBookingFilter("upcoming");
-                          setActiveTab("bookings");
+                          handleTabClick("bookings");
                         }}
                         className="rounded-3xl border border-white/80 bg-white/90 p-4 shadow-xs backdrop-blur-md hover:shadow-md transition-all cursor-pointer group"
                       >
@@ -2095,7 +1967,7 @@ export default function ProfilePage({
                       <div
                         onClick={() => {
                           setBookingFilter("completed");
-                          setActiveTab("bookings");
+                          handleTabClick("bookings");
                         }}
                         className="rounded-3xl border border-white/80 bg-white/90 p-4 shadow-xs backdrop-blur-md hover:shadow-md transition-all cursor-pointer group"
                       >
@@ -2117,7 +1989,7 @@ export default function ProfilePage({
 
                       {/* Card 4: Saved Services */}
                       <div
-                        onClick={() => setActiveTab("saved")}
+                        onClick={() => handleTabClick("saved")}
                         className="rounded-3xl border border-white/80 bg-white/90 p-4 shadow-xs backdrop-blur-md hover:shadow-md transition-all cursor-pointer group"
                       >
                         <div className="flex items-center justify-between">
@@ -2175,7 +2047,7 @@ export default function ProfilePage({
                           </button>
                           <button
                             type="button"
-                            onClick={() => setActiveTab("offers")}
+                            onClick={() => handleTabClick("offers")}
                             className="rounded-2xl bg-white px-4 py-2.5 text-xs font-bold text-slate-950 hover:bg-emerald-100 transition-all shadow-md cursor-pointer"
                           >
                             View All Offers
@@ -2199,7 +2071,7 @@ export default function ProfilePage({
                           </div>
                           <button
                             type="button"
-                            onClick={() => setActiveTab("bookings")}
+                            onClick={() => handleTabClick("bookings")}
                             className="text-xs font-bold text-emerald-800 hover:underline cursor-pointer"
                           >
                             See All ({upcomingCount})
@@ -2267,7 +2139,7 @@ export default function ProfilePage({
                     {/* Quick Access Grid to Key Sections */}
                     <div className="grid sm:grid-cols-3 gap-4">
                       <div
-                        onClick={() => setActiveTab("addresses")}
+                        onClick={() => handleTabClick("addresses")}
                         className="rounded-3xl border border-white/80 bg-white/80 p-5 shadow-xs hover:shadow-md transition-all cursor-pointer group"
                       >
                         <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-800 group-hover:bg-slate-950 group-hover:text-white transition-colors">
@@ -2282,7 +2154,7 @@ export default function ProfilePage({
                       </div>
 
                       <div
-                        onClick={() => setActiveTab("payments")}
+                        onClick={() => handleTabClick("payments")}
                         className="rounded-3xl border border-white/80 bg-white/80 p-5 shadow-xs hover:shadow-md transition-all cursor-pointer group"
                       >
                         <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-800 group-hover:bg-slate-950 group-hover:text-white transition-colors">
@@ -2297,7 +2169,7 @@ export default function ProfilePage({
                       </div>
 
                       <div
-                        onClick={() => setActiveTab("support")}
+                        onClick={() => handleTabClick("support")}
                         className="rounded-3xl border border-white/80 bg-white/80 p-5 shadow-xs hover:shadow-md transition-all cursor-pointer group"
                       >
                         <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-800 group-hover:bg-slate-950 group-hover:text-white transition-colors">
@@ -3513,14 +3385,47 @@ export default function ProfilePage({
             </div>
 
             {/* Modal Footer */}
-            <div className="border-t border-slate-100 px-6 sm:px-7 py-3 bg-slate-50 shrink-0 flex items-center justify-between">
-              <span className="text-[11px] text-slate-500 font-medium">
-                Argent Safety Guarantee Included
-              </span>
+            <div className="border-t border-slate-100 px-6 sm:px-7 py-3 bg-slate-50 shrink-0 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                {selectedBookingForDetails.status !== "Completed" &&
+                  selectedBookingForDetails.status !== "Cancelled" && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleCompleteBooking(selectedBookingForDetails)
+                      }
+                      className="rounded-xl border border-emerald-600 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors cursor-pointer"
+                    >
+                      Mark Completed
+                    </button>
+                  )}
+                {selectedBookingForDetails.status === "Completed" &&
+                  !selectedBookingForDetails.rating && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRatingTargetBooking(selectedBookingForDetails);
+                        setRatingStars(5);
+                        setRatingFeedback("");
+                      }}
+                      className="rounded-xl bg-amber-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-600 transition-colors cursor-pointer flex items-center gap-1"
+                    >
+                      <Star className="h-3.5 w-3.5 fill-white" />
+                      Rate Service
+                    </button>
+                  )}
+                {selectedBookingForDetails.status === "Completed" &&
+                  selectedBookingForDetails.rating && (
+                    <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
+                      <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
+                      Rated {selectedBookingForDetails.rating}/5
+                    </span>
+                  )}
+              </div>
               <button
                 type="button"
                 onClick={() => setSelectedBookingForDetails(null)}
-                className="rounded-xl bg-slate-950 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800 transition-colors cursor-pointer"
+                className="rounded-xl bg-slate-950 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800 transition-colors cursor-pointer shrink-0"
               >
                 Done
               </button>
@@ -3722,6 +3627,123 @@ export default function ProfilePage({
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================
+          MODAL 4B: RATE SERVICE MODAL
+      =================================================================== */}
+      {ratingTargetBooking && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm animate-rise-in"
+          onClick={() => setRatingTargetBooking(null)}
+        >
+          <div
+            className="relative w-full max-w-md rounded-3xl border border-slate-100 bg-white p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-600">
+                  Rate Your Experience
+                </span>
+                <h3 className="text-base font-black text-slate-900">
+                  #{ratingTargetBooking.id} · {ratingTargetBooking.serviceName}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRatingTargetBooking(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={handleSubmitRating}
+              className="mt-4 space-y-4 text-xs"
+            >
+              {ratingTargetBooking.technician && (
+                <div className="flex items-center gap-3 rounded-2xl bg-slate-50 p-3 border border-slate-100">
+                  <img
+                    src={ratingTargetBooking.technician.photo}
+                    alt={ratingTargetBooking.technician.name}
+                    className="h-10 w-10 rounded-xl object-cover"
+                  />
+                  <div>
+                    <p className="font-bold text-slate-900">
+                      {ratingTargetBooking.technician.name}
+                    </p>
+                    <p className="text-[11px] text-slate-500">
+                      Service Professional · Certified
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-2 text-center">
+                  How would you rate the service quality?
+                </label>
+                <div className="flex justify-center items-center gap-2 py-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setRatingStars(star)}
+                      className="p-1 text-2xl transition-transform hover:scale-125 cursor-pointer"
+                    >
+                      <Star
+                        className={`h-8 w-8 ${
+                          star <= ratingStars
+                            ? "text-amber-400 fill-amber-400"
+                            : "text-slate-200"
+                        }`}
+                      />
+                    </button>
+                  ))}
+                </div>
+                <p className="text-center font-bold text-slate-700 text-xs">
+                  {ratingStars === 5 && "Excellent! ⭐⭐⭐⭐⭐"}
+                  {ratingStars === 4 && "Very Good! ⭐⭐⭐⭐"}
+                  {ratingStars === 3 && "Average ⭐⭐⭐"}
+                  {ratingStars === 2 && "Poor ⭐⭐"}
+                  {ratingStars === 1 && "Terrible ⭐"}
+                </p>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1.5">
+                  Feedback / Review (Optional)
+                </label>
+                <textarea
+                  rows={3}
+                  value={ratingFeedback}
+                  onChange={(e) => setRatingFeedback(e.target.value)}
+                  placeholder="Share details about the technician's punctuality, work quality, or cleanliness..."
+                  className="w-full rounded-2xl border border-slate-200 p-3 text-xs text-slate-800 focus:border-slate-900 focus:outline-none resize-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setRatingTargetBooking(null)}
+                  className="rounded-xl border border-slate-200 px-4 py-2.5 font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingRating}
+                  className="rounded-xl bg-slate-950 px-5 py-2.5 font-bold text-white hover:bg-emerald-800 transition-colors shadow-sm cursor-pointer disabled:opacity-50"
+                >
+                  {isSubmittingRating ? "Submitting..." : "Submit Review"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

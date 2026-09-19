@@ -43,7 +43,9 @@ export const otpService = {
     } else {
       const digits = destination.replace(/\D/g, "");
       const lastFour = digits.length >= 4 ? digits.slice(-4) : digits;
-      const countryCode = destination.trim().startsWith("+") ? destination.trim().split(" ")[0].slice(0, 3) : "+91";
+      const countryCode = destination.trim().startsWith("+")
+        ? destination.trim().split(" ")[0].slice(0, 3)
+        : "+91";
       return `${countryCode} ******${lastFour}`;
     }
   },
@@ -94,9 +96,7 @@ export const otpService = {
   async createOtpSession(user, rawIdentifier) {
     const isEmail = rawIdentifier.includes("@");
     const channel = isEmail ? "email" : "sms";
-    const destination = isEmail
-      ? user.email || rawIdentifier
-      : rawIdentifier || user.phone || user.email;
+    const destination = rawIdentifier.trim();
 
     const plainOtp = this.generateOtp();
 
@@ -148,6 +148,7 @@ export const otpService = {
       maskedDestination: this.maskDestination(channel, destination),
       cooldownSeconds: Math.ceil(COOLDOWN_MS / 1000),
       expiresInSeconds: Math.ceil(OTP_EXPIRY_MS / 1000),
+      devCode: sendResult.devCode || undefined,
     };
   },
 
@@ -315,6 +316,7 @@ export const otpService = {
       ),
       cooldownSeconds: Math.ceil(COOLDOWN_MS / 1000),
       expiresInSeconds: Math.ceil(OTP_EXPIRY_MS / 1000),
+      devCode: sendResult.devCode || undefined,
     };
   },
 };

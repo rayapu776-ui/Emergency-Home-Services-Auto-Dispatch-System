@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Bell,
   CheckCircle2,
@@ -8,66 +8,44 @@ import {
   Wrench,
   X,
 } from "lucide-react";
-
-const initialNotifications = [
-  {
-    id: "1",
-    title: "Booking confirmed: AC foam-jet service",
-    description:
-      "Your service booking #AY-9402 is confirmed for today at 3:00 PM.",
-    time: "Just now",
-    type: "booking",
-    unread: true,
-  },
-  {
-    id: "2",
-    title: "Service provider assigned: Rajesh Kumar is on the way",
-    description:
-      "Rajesh Kumar (Plumbing & HVAC Expert) will arrive in approx. 18 mins.",
-    time: "15m ago",
-    type: "dispatch",
-    unread: true,
-  },
-  {
-    id: "3",
-    title: "Service completed: Electrician visit",
-    description:
-      "Job #AY-9180 was completed. Tap here to rate your professional.",
-    time: "Yesterday",
-    type: "completed",
-    unread: true,
-  },
-  {
-    id: "4",
-    title: "Exclusive offer: 20% off on Salon for Women",
-    description:
-      "Use coupon code GLOW20 at checkout on any women's salon or spa service.",
-    time: "2 days ago",
-    type: "offer",
-    unread: false,
-  },
-  {
-    id: "5",
-    title: "Reminder: Upcoming Water Purifier Service tomorrow at 10:00 AM",
-    description:
-      "Scheduled filter inspection and cleaning by Argent Your vetted technician.",
-    time: "3 days ago",
-    type: "reminder",
-    unread: false,
-  },
-];
+import { useAuth } from "../../context/AuthContext";
+import userStore from "../../services/userStore";
 
 export default function NotificationDropdown({ onClose }) {
-  const [notifications, setNotifications] = useState(initialNotifications);
+  const { user } = useAuth();
+  const [notifications, setNotifications] = useState(() =>
+    userStore.getNotifications(user?.id),
+  );
 
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+  useEffect(() => {
+    setNotifications(userStore.getNotifications(user?.id));
+    if (user?.id) {
+      userStore.fetchNotificationsFromApi(user.id).then((apiNotifs) => {
+        if (Array.isArray(apiNotifs) && apiNotifs.length > 0) {
+          setNotifications(apiNotifs);
+        }
+      });
+    }
+  }, [user?.id]);
+
+  const markAllAsRead = async () => {
+    const updated = await userStore.markAllNotificationsRead(user?.id);
+    if (updated) {
+      setNotifications(updated);
+    } else {
+      setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+    }
   };
 
-  const markOneAsRead = (id) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, unread: false } : n)),
-    );
+  const markOneAsRead = async (id) => {
+    const updated = await userStore.markNotificationRead(user?.id, id);
+    if (updated) {
+      setNotifications(updated);
+    } else {
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, unread: false } : n)),
+      );
+    }
   };
 
   const getIcon = (type) => {
@@ -103,15 +81,17 @@ export default function NotificationDropdown({ onClose }) {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={markAllAsRead}
-            className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 transition-colors"
-          >
-            Mark all read
-          </button>
+          {notifications.length > 0 && (
+            <button
+              onClick={markAllAsRead}
+              className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 transition-colors cursor-pointer"
+            >
+              Mark all read
+            </button>
+          )}
           <button
             onClick={onClose}
-            className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
             aria-label="Close notifications"
           >
             <X className="h-3.5 w-3.5" />
@@ -120,37 +100,47 @@ export default function NotificationDropdown({ onClose }) {
       </div>
 
       <div className="mt-2 max-h-80 overflow-y-auto divide-y divide-slate-100 space-y-1 pr-1">
-        {notifications.map((item) => (
-          <div
-            key={item.id}
-            onClick={() => markOneAsRead(item.id)}
-            className={`cursor-pointer rounded-xl p-2.5 transition-colors hover:bg-slate-50 ${
-              item.unread ? "bg-emerald-50/40" : ""
-            }`}
-          >
-            <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white border border-slate-200/80 shadow-xs">
-                {getIcon(item.type)}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-1">
-                  <p className="text-xs font-bold text-slate-900 truncate">
-                    {item.title}
-                  </p>
-                  {item.unread && (
-                    <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-600" />
-                  )}
+        {notifications.length === 0 ? (
+          <div className="py-8 text-center text-slate-400">
+            <Bell className="h-8 w-8 mx-auto mb-2 opacity-30" />
+            <p className="text-xs font-semibold">No notifications yet</p>
+            <p className="text-[10px] mt-0.5">
+              Booking updates and alerts will appear here
+            </p>
+          </div>
+        ) : (
+          notifications.map((item) => (
+            <div
+              key={item.id}
+              onClick={() => markOneAsRead(item.id)}
+              className={`cursor-pointer rounded-xl p-2.5 transition-colors hover:bg-slate-50 ${
+                item.unread ? "bg-emerald-50/40" : ""
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white border border-slate-200/80 shadow-xs">
+                  {getIcon(item.type)}
                 </div>
-                <p className="mt-1 text-[11px] leading-relaxed text-slate-600 line-clamp-2">
-                  {item.description}
-                </p>
-                <span className="mt-1.5 inline-block text-[10px] font-medium text-slate-400">
-                  {item.time}
-                </span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-1">
+                    <p className="text-xs font-bold text-slate-900 truncate">
+                      {item.title}
+                    </p>
+                    {item.unread && (
+                      <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-600" />
+                    )}
+                  </div>
+                  <p className="mt-1 text-[11px] leading-relaxed text-slate-600 line-clamp-2">
+                    {item.description}
+                  </p>
+                  <span className="mt-1.5 inline-block text-[10px] font-medium text-slate-400">
+                    {item.time}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
       <div className="mt-3 border-t border-slate-100 pt-2 text-center">

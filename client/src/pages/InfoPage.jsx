@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  ArrowLeft,
   ArrowRight,
   BriefcaseBusiness,
   CheckCircle2,
@@ -777,13 +776,7 @@ function PageShell({ title, subtitle, children, onNavigate, onAuthOpen }) {
         currentRoute={window.location.pathname}
         onNavigate={onNavigate}
       />
-      <main className="mx-auto max-w-6xl px-5 pb-28 sm:pb-32 md:pb-20 pt-36 sm:pt-40 md:pt-28 lg:pt-32 lg:px-8">
-        <button
-          onClick={() => onNavigate("/")}
-          className="mb-7 flex items-center gap-2 text-sm font-bold text-emerald-800"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back to Home
-        </button>
+      <main className="mx-auto max-w-6xl px-5 pb-28 sm:pb-32 md:pb-20 pt-4 sm:pt-6 md:pt-28 lg:pt-32 lg:px-8">
         <div className="rounded-[28px] bg-[#e2eee5] p-8 sm:p-14">
           <p className="eyebrow">Argent Your / Information</p>
           <h1 className="display-font mt-4 max-w-4xl text-5xl leading-tight sm:text-6xl">

@@ -40,6 +40,7 @@ import CategoryViewPage from "./CategoryViewPage";
 import OffersPage from "./OffersPage";
 import HeroPromoCarousel from "../components/common/HeroPromoCarousel";
 import { allServicesCatalog } from "../data/servicesData";
+import userStore from "../services/userStore";
 
 const image = (id, width = 900) =>
   `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${width}&q=85`;
@@ -415,16 +416,74 @@ function AllServicesCatalogPage({
   ];
 
   const trimmedQuery = searchQuery.trim().toLowerCase();
-  const queryTokens = trimmedQuery ? trimmedQuery.split(/\s+/).filter(Boolean) : [];
+  const queryTokens = trimmedQuery
+    ? trimmedQuery.split(/\s+/).filter(Boolean)
+    : [];
 
   const synonymMap = {
-    ac: ["air conditioner", "cooling", "hvac", "foam jet", "gas refill", "appliance", "ac service"],
-    repair: ["service", "fix", "leak", "maintenance", "installation", "replacement", "unclog"],
-    plumbing: ["plumber", "pipe", "tap", "leak", "drain", "water tank", "flush"],
-    cleaning: ["clean", "deep clean", "vacuum", "sanitize", "wash", "scrub", "maid"],
-    electrician: ["electric", "wiring", "fan", "switch", "light", "mcb", "fuse"],
-    salon: ["grooming", "haircut", "facial", "spa", "massage", "barber", "waxing"],
-    carpenter: ["wood", "door", "furniture", "lock", "cabinet", "shelf", "hinge"],
+    ac: [
+      "air conditioner",
+      "cooling",
+      "hvac",
+      "foam jet",
+      "gas refill",
+      "appliance",
+      "ac service",
+    ],
+    repair: [
+      "service",
+      "fix",
+      "leak",
+      "maintenance",
+      "installation",
+      "replacement",
+      "unclog",
+    ],
+    plumbing: [
+      "plumber",
+      "pipe",
+      "tap",
+      "leak",
+      "drain",
+      "water tank",
+      "flush",
+    ],
+    cleaning: [
+      "clean",
+      "deep clean",
+      "vacuum",
+      "sanitize",
+      "wash",
+      "scrub",
+      "maid",
+    ],
+    electrician: [
+      "electric",
+      "wiring",
+      "fan",
+      "switch",
+      "light",
+      "mcb",
+      "fuse",
+    ],
+    salon: [
+      "grooming",
+      "haircut",
+      "facial",
+      "spa",
+      "massage",
+      "barber",
+      "waxing",
+    ],
+    carpenter: [
+      "wood",
+      "door",
+      "furniture",
+      "lock",
+      "cabinet",
+      "shelf",
+      "hinge",
+    ],
     painting: ["paint", "wall", "color", "whitewash", "distemper"],
   };
 
@@ -455,7 +514,9 @@ function AllServicesCatalogPage({
     const matchesCategory =
       selectedCategory === "All" || item.category === selectedCategory;
 
-    return queryTokens.length > 0 ? matchesSearch : matchesCategory && matchesSearch;
+    return queryTokens.length > 0
+      ? matchesSearch
+      : matchesCategory && matchesSearch;
   });
 
   return (
@@ -473,17 +534,10 @@ function AllServicesCatalogPage({
         currentRoute="/services"
         onNavigate={onNavigate}
       />
-      <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-28 sm:pb-32 md:pb-16 pt-36 sm:pt-40 md:pt-28 lg:pt-32 space-y-8">
+      <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-28 sm:pb-32 md:pb-16 pt-4 sm:pt-6 md:pt-24 lg:pt-26 space-y-8">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <button
-              onClick={onHome}
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 hover:text-emerald-950 mb-3 cursor-pointer"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              <span>Back to Home</span>
-            </button>
             <p className="eyebrow">Complete Doorstep Catalog</p>
             <h1 className="display-font mt-1 text-3xl sm:text-4xl lg:text-5xl font-black text-slate-950 tracking-tight">
               All Argent Your Services
@@ -523,7 +577,9 @@ function AllServicesCatalogPage({
             <div className="flex items-center gap-2 text-emerald-900 font-bold">
               <Search className="h-3.5 w-3.5 text-emerald-700" />
               <span>
-                Showing {filteredServices.length} {filteredServices.length === 1 ? "service" : "services"} matching &ldquo;{searchQuery}&rdquo;
+                Showing {filteredServices.length}{" "}
+                {filteredServices.length === 1 ? "service" : "services"}{" "}
+                matching &ldquo;{searchQuery}&rdquo;
               </span>
             </div>
             <button
@@ -565,7 +621,10 @@ function AllServicesCatalogPage({
                 No services found for &ldquo;{searchQuery}&rdquo;
               </h3>
               <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
-                We couldn&apos;t find any services matching this search. Try searching for &ldquo;AC&rdquo;, &ldquo;Cleaning&rdquo;, &ldquo;Plumbing&rdquo;, &ldquo;Electrical&rdquo;, or &ldquo;Salon&rdquo;.
+                We couldn&apos;t find any services matching this search. Try
+                searching for &ldquo;AC&rdquo;, &ldquo;Cleaning&rdquo;,
+                &ldquo;Plumbing&rdquo;, &ldquo;Electrical&rdquo;, or
+                &ldquo;Salon&rdquo;.
               </p>
             </div>
             <button
@@ -725,13 +784,7 @@ function DedicatedPage({
         currentRoute={route}
         onNavigate={onNavigate}
       />
-      <main className="mx-auto max-w-7xl px-5 pb-28 sm:pb-32 md:pb-16 pt-36 sm:pt-40 md:pt-28 lg:pt-32 lg:px-8">
-        <button
-          onClick={onHome}
-          className="mb-8 flex items-center gap-2 text-sm font-bold text-emerald-800 hover:text-emerald-950"
-        >
-          <ChevronLeft className="h-4 w-4" /> Back to Home
-        </button>
+      <main className="mx-auto max-w-7xl px-5 pb-28 sm:pb-32 md:pb-16 pt-4 sm:pt-6 md:pt-28 lg:pt-32 lg:px-8">
         <div className="grid items-center gap-10 lg:grid-cols-2">
           <div>
             <p className="eyebrow">
@@ -842,6 +895,9 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
   const isAuthenticated = Boolean(authIsAuthenticated || user);
   const [authOpen, setAuthOpen] = useState(false);
   const [route, setRoute] = useState(() => window.location.pathname || "/");
+  const [routeHistory, setRouteHistory] = useState(() => [
+    window.location.pathname || "/",
+  ]);
   const [location, setLocation] = useState(() => {
     try {
       return localStorage.getItem("argent_selected_location") || "Delhi NCR";
@@ -860,41 +916,83 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutService, setCheckoutService] = useState(null);
   const [appliedCoupon, setAppliedCoupon] = useState("");
-  const [cartItems, setCartItems] = useState([
-    {
-      name: "AC foam-jet service",
-      price: "From $35",
-      quantity: 1,
-      image: images.appliance,
-      slug: "ac-foam-jet-service",
-    },
-    {
-      name: "Home refresh clean",
-      price: "From $19",
-      quantity: 1,
-      image: images.cleaning,
-      slug: "home-refresh-clean",
-    },
-  ]);
+  const [cartItems, setCartItems] = useState(() => {
+    return userStore.getCart(user?.id);
+  });
+
+  useEffect(() => {
+    const activeCart = userStore.getCart(user?.id);
+    setCartItems(activeCart);
+    if (user?.id) {
+      userStore.fetchCartFromApi(user.id).then((apiCart) => {
+        if (Array.isArray(apiCart)) setCartItems(apiCart);
+      });
+    }
+  }, [user?.id]);
+
+  const handleAddToCart = (item) => {
+    const updated = userStore.addToCart(user?.id, item);
+    setCartItems(updated);
+    setCartOpen(true);
+  };
+
+  const handleUpdateCartQuantity = (key, qty) => {
+    const updated = userStore.updateCartQuantity(user?.id, key, qty);
+    setCartItems(updated);
+  };
+
+  const handleRemoveCartItem = (key) => {
+    const updated = userStore.removeFromCart(user?.id, key);
+    setCartItems(updated);
+  };
 
   const navigate = (path) => {
     if (route === path) return;
-    window.history.pushState({}, "", path);
+    setRouteHistory((prev) => [...prev, path]);
+    window.history.pushState({ path }, "", path);
     setRoute(path);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const goHome = () => {
     if (route === "/") return;
-    window.history.pushState({}, "", "/");
+    setRouteHistory((prev) => [...prev, "/"]);
+    window.history.pushState({ path: "/" }, "", "/");
     setRoute("/");
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const goBack = () => {
+    if (routeHistory.length > 1) {
+      const newHistory = [...routeHistory];
+      newHistory.pop(); // remove current route
+      const previousRoute = newHistory[newHistory.length - 1];
+      setRouteHistory(newHistory);
+      window.history.pushState({ path: previousRoute }, "", previousRoute);
+      setRoute(previousRoute);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else if (route !== "/" && route !== "/profile") {
+      navigate("/profile");
+    } else {
+      goHome();
+    }
   };
 
   const goCategory = (name) => navigate(`/services/${slugify(name)}`);
 
   useEffect(() => {
-    const syncRoute = () => setRoute(window.location.pathname || "/");
+    const syncRoute = () => {
+      const current = window.location.pathname || "/";
+      setRoute(current);
+      setRouteHistory((prev) => {
+        if (prev[prev.length - 1] === current) return prev;
+        const index = prev.lastIndexOf(current);
+        if (index !== -1) {
+          return prev.slice(0, index + 1);
+        }
+        return [...prev, current];
+      });
+    };
     window.addEventListener("popstate", syncRoute);
     return () => window.removeEventListener("popstate", syncRoute);
   }, []);
@@ -1033,10 +1131,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
       settings: "/settings",
     };
     const targetPath = tabToPath[tabId] || "/profile";
-    if (route !== targetPath) {
-      window.history.pushState({}, "", targetPath);
-      setRoute(targetPath);
-    }
+    navigate(targetPath);
   };
 
   const isBookingsRoute =
@@ -1047,7 +1142,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
   if (isCustomerDashboardRoute) {
     if (!isAuthenticated) {
       return (
-        <div className="min-h-screen bg-[#f6f7f3] text-slate-950 selection:bg-emerald-200">
+        <div className="min-h-screen bg-[#f6f7f3] text-slate-950 selection:bg-emerald-200 w-full max-w-full overflow-x-hidden">
           <ArgentNavbar
             onLogoClick={goHome}
             onAuthOpen={() => setAuthOpen(true)}
@@ -1061,7 +1156,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
             currentRoute={route}
             onNavigate={navigate}
           />
-          <main className="mx-auto max-w-md px-5 py-24 sm:py-32 text-center space-y-6 pt-36 sm:pt-40 md:pt-28">
+          <main className="mx-auto max-w-md px-5 py-12 sm:py-16 text-center space-y-6 pt-6 sm:pt-8 md:pt-28">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-sm">
               <CircleUserRound className="h-8 w-8" />
             </div>
@@ -1114,7 +1209,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
     const isStandaloneBookings = isBookingsRoute;
 
     return (
-      <div className="min-h-screen bg-[#f6f7f3] text-slate-950 selection:bg-emerald-200">
+      <div className="min-h-screen bg-[#f6f7f3] text-slate-950 selection:bg-emerald-200 w-full max-w-full overflow-x-hidden">
         <ArgentNavbar
           onLogoClick={goHome}
           onAuthOpen={() => setAuthOpen(true)}
@@ -1132,6 +1227,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
           initialTab={initialTab}
           onTabChange={handleProfileTabChange}
           onHome={goHome}
+          onBack={goBack}
           onNavigateToService={(slug) => navigate(`/services/${slug}`)}
           onBookService={(service, coupon) => {
             setCheckoutService(service);
@@ -1151,20 +1247,8 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
           isOpen={cartOpen}
           onClose={() => setCartOpen(false)}
           items={cartItems}
-          onUpdateQuantity={(key, qty) => {
-            setCartItems((prev) =>
-              prev.map((it) =>
-                it.slug === key || it.name === key
-                  ? { ...it, quantity: qty }
-                  : it,
-              ),
-            );
-          }}
-          onRemoveItem={(key) => {
-            setCartItems((prev) =>
-              prev.filter((it) => it.slug !== key && it.name !== key),
-            );
-          }}
+          onUpdateQuantity={handleUpdateCartQuantity}
+          onRemoveItem={handleRemoveCartItem}
           onCheckout={() => {
             if (cartItems.length > 0) {
               setCartOpen(false);
@@ -1197,7 +1281,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
     return (
       <InfoPage
         path={route}
-        onHome={goHome}
+        onHome={goBack}
         onAuthOpen={() => setAuthOpen(true)}
       />
     );
@@ -1220,8 +1304,18 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
         />
         <PaymentPage
           service={checkoutService || allServicesCatalog[0]}
-          onHome={goHome}
-          onViewBookings={() => navigate("/profile")}
+          onHome={goBack}
+          onViewBookings={() => navigate("/bookings")}
+          onOrderCreated={(orderData) => {
+            userStore.addBooking(user?.id, orderData);
+            if (orderData.slug) {
+              const remaining = userStore.removeFromCart(
+                user?.id,
+                orderData.slug,
+              );
+              setCartItems(remaining);
+            }
+          }}
           initialLocation={location}
           initialPromoCode={appliedCoupon}
           onAuthRequired={() => setAuthOpen(true)}
@@ -1233,20 +1327,8 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
           isOpen={cartOpen}
           onClose={() => setCartOpen(false)}
           items={cartItems}
-          onUpdateQuantity={(key, qty) => {
-            setCartItems((prev) =>
-              prev.map((it) =>
-                it.slug === key || it.name === key
-                  ? { ...it, quantity: qty }
-                  : it,
-              ),
-            );
-          }}
-          onRemoveItem={(key) => {
-            setCartItems((prev) =>
-              prev.filter((it) => it.slug !== key && it.name !== key),
-            );
-          }}
+          onUpdateQuantity={handleUpdateCartQuantity}
+          onRemoveItem={handleRemoveCartItem}
           onCheckout={() => {
             if (cartItems.length > 0) {
               setCartOpen(false);
@@ -1296,22 +1378,9 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
         />
         <ServiceDetailPage
           service={service}
-          onHome={goHome}
+          onHome={goBack}
           onBookNow={(item, extra) => handleProtectedBooking(item, extra)}
-          onAddToCart={(item) => {
-            setCartItems((prev) => {
-              const exists = prev.find((it) => it.slug === item.slug);
-              if (exists) {
-                return prev.map((it) =>
-                  it.slug === item.slug
-                    ? { ...it, quantity: (it.quantity || 1) + 1 }
-                    : it,
-                );
-              }
-              return [...prev, { ...item, quantity: 1 }];
-            });
-            setCartOpen(true);
-          }}
+          onAddToCart={handleAddToCart}
           onSelectRecommendation={(item) => navigate(`/services/${item.slug}`)}
         />
         <Footer
@@ -1321,20 +1390,8 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
           isOpen={cartOpen}
           onClose={() => setCartOpen(false)}
           items={cartItems}
-          onUpdateQuantity={(key, qty) => {
-            setCartItems((prev) =>
-              prev.map((it) =>
-                it.slug === key || it.name === key
-                  ? { ...it, quantity: qty }
-                  : it,
-              ),
-            );
-          }}
-          onRemoveItem={(key) => {
-            setCartItems((prev) =>
-              prev.filter((it) => it.slug !== key && it.name !== key),
-            );
-          }}
+          onUpdateQuantity={handleUpdateCartQuantity}
+          onRemoveItem={handleRemoveCartItem}
           onCheckout={() => {
             if (cartItems.length > 0) {
               setCartOpen(false);
@@ -1358,22 +1415,9 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
     return (
       <div className="min-h-screen bg-[#f6f7f3] text-slate-950 selection:bg-emerald-200">
         <AllServicesCatalogPage
-          onHome={goHome}
+          onHome={goBack}
           onNavigate={navigate}
-          onAddToCart={(item) => {
-            setCartItems((prev) => {
-              const exists = prev.find((it) => it.slug === item.slug);
-              if (exists) {
-                return prev.map((it) =>
-                  it.slug === item.slug
-                    ? { ...it, quantity: (it.quantity || 1) + 1 }
-                    : it,
-                );
-              }
-              return [...prev, { ...item, quantity: 1 }];
-            });
-            setCartOpen(true);
-          }}
+          onAddToCart={handleAddToCart}
           onProfileClick={() => navigate("/profile")}
           onCartClick={() => setCartOpen(true)}
           cartCount={cartItems.length}
@@ -1385,20 +1429,8 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
           isOpen={cartOpen}
           onClose={() => setCartOpen(false)}
           items={cartItems}
-          onUpdateQuantity={(key, qty) => {
-            setCartItems((prev) =>
-              prev.map((it) =>
-                it.slug === key || it.name === key
-                  ? { ...it, quantity: qty }
-                  : it,
-              ),
-            );
-          }}
-          onRemoveItem={(key) => {
-            setCartItems((prev) =>
-              prev.filter((it) => it.slug !== key && it.name !== key),
-            );
-          }}
+          onUpdateQuantity={handleUpdateCartQuantity}
+          onRemoveItem={handleRemoveCartItem}
           onCheckout={() => {
             if (cartItems.length > 0) {
               setCartOpen(false);
@@ -1433,9 +1465,9 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
           currentRoute={route}
           onNavigate={navigate}
         />
-        <div className="pt-36 sm:pt-40 md:pt-28 lg:pt-32 pb-28 sm:pb-32 md:pb-10">
+        <div className="pt-4 sm:pt-6 md:pt-24 lg:pt-26 pb-28 sm:pb-32 md:pb-10">
           <OffersPage
-            onHome={goHome}
+            onHome={goBack}
             onNavigate={navigate}
             onBookWithCoupon={(service, coupon) => {
               handleProtectedBooking(service, { couponCode: coupon });
@@ -1449,20 +1481,8 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
           isOpen={cartOpen}
           onClose={() => setCartOpen(false)}
           items={cartItems}
-          onUpdateQuantity={(key, qty) => {
-            setCartItems((prev) =>
-              prev.map((it) =>
-                it.slug === key || it.name === key
-                  ? { ...it, quantity: qty }
-                  : it,
-              ),
-            );
-          }}
-          onRemoveItem={(key) => {
-            setCartItems((prev) =>
-              prev.filter((it) => it.slug !== key && it.name !== key),
-            );
-          }}
+          onUpdateQuantity={handleUpdateCartQuantity}
+          onRemoveItem={handleRemoveCartItem}
           onCheckout={() => {
             if (cartItems.length > 0) {
               setCartOpen(false);
@@ -1519,26 +1539,13 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
           currentRoute={route}
           onNavigate={navigate}
         />
-        <div className="pt-36 sm:pt-40 md:pt-28 lg:pt-32 pb-28 sm:pb-32 md:pb-10">
+        <div className="pt-4 sm:pt-6 md:pt-24 lg:pt-26 pb-28 sm:pb-32 md:pb-10">
           <CategoryViewPage
             categorySlug={catSlug}
-            onHome={goHome}
+            onHome={goBack}
             onNavigate={navigate}
             onBookService={(service) => handleProtectedBooking(service)}
-            onAddToCart={(item) => {
-              setCartItems((prev) => {
-                const exists = prev.find((it) => it.slug === item.slug);
-                if (exists) {
-                  return prev.map((it) =>
-                    it.slug === item.slug
-                      ? { ...it, quantity: (it.quantity || 1) + 1 }
-                      : it,
-                  );
-                }
-                return [...prev, { ...item, quantity: 1 }];
-              });
-              setCartOpen(true);
-            }}
+            onAddToCart={handleAddToCart}
           />
         </div>
         <Footer
@@ -1548,20 +1555,8 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
           isOpen={cartOpen}
           onClose={() => setCartOpen(false)}
           items={cartItems}
-          onUpdateQuantity={(key, qty) => {
-            setCartItems((prev) =>
-              prev.map((it) =>
-                it.slug === key || it.name === key
-                  ? { ...it, quantity: qty }
-                  : it,
-              ),
-            );
-          }}
-          onRemoveItem={(key) => {
-            setCartItems((prev) =>
-              prev.filter((it) => it.slug !== key && it.name !== key),
-            );
-          }}
+          onUpdateQuantity={handleUpdateCartQuantity}
+          onRemoveItem={handleRemoveCartItem}
           onCheckout={() => {
             if (cartItems.length > 0) {
               setCartOpen(false);
@@ -1586,7 +1581,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
       <>
         <DedicatedPage
           route={route}
-          onHome={goHome}
+          onHome={goBack}
           onNavigate={navigate}
           onBook={book}
           authOpen={authOpen}
@@ -1603,20 +1598,8 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
           isOpen={cartOpen}
           onClose={() => setCartOpen(false)}
           items={cartItems}
-          onUpdateQuantity={(key, qty) => {
-            setCartItems((prev) =>
-              prev.map((it) =>
-                it.slug === key || it.name === key
-                  ? { ...it, quantity: qty }
-                  : it,
-              ),
-            );
-          }}
-          onRemoveItem={(key) => {
-            setCartItems((prev) =>
-              prev.filter((it) => it.slug !== key && it.name !== key),
-            );
-          }}
+          onUpdateQuantity={handleUpdateCartQuantity}
+          onRemoveItem={handleRemoveCartItem}
           onCheckout={() => {
             if (cartItems.length > 0) {
               setCartOpen(false);
@@ -1642,15 +1625,17 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
         onNavigate={navigate}
       />
       <main>
-        <section className="px-5 pb-12 pt-36 sm:pt-40 md:pt-28 lg:pt-32 lg:px-8">
-          <div className="mx-auto grid max-w-7xl items-center gap-10 lg:grid-cols-[0.88fr_1.12fr]">
+        <section className="px-5 pb-12 pt-36 sm:pt-40 md:pt-24 lg:pt-28 lg:px-8">
+          <div className="mx-auto grid max-w-7xl items-center gap-8 lg:gap-12 lg:grid-cols-2">
             <div className="animate-rise-in">
-              <p className="eyebrow">Trusted care, beautifully delivered</p>
-              <h1 className="display-font mt-5 max-w-2xl text-5xl leading-[0.98] tracking-[-0.04em] sm:text-6xl lg:text-[70px]">
+              <p className="eyebrow tracking-wider uppercase">
+                Trusted care, beautifully delivered
+              </p>
+              <h1 className="display-font mt-4 max-w-xl text-4xl sm:text-5xl lg:text-6xl font-black leading-[1.04] tracking-tight text-slate-950">
                 Home services at your{" "}
-                <em className="text-emerald-800">doorstep.</em>
+                <em className="text-emerald-800 not-italic">doorstep.</em>
               </h1>
-              <p className="mt-6 max-w-lg text-base leading-7 text-slate-600">
+              <p className="mt-5 max-w-lg text-sm sm:text-base leading-relaxed text-slate-600">
                 Professional services, delivered to your doorstep.
               </p>
               <button
@@ -1659,11 +1644,11 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
                     .getElementById("categories")
                     .scrollIntoView({ behavior: "smooth" })
                 }
-                className="mt-8 flex items-center gap-2 rounded-xl bg-slate-950 px-5 py-3.5 text-sm font-bold text-white transition-colors hover:bg-emerald-800"
+                className="mt-7 flex items-center gap-2 rounded-xl bg-slate-950 px-5 py-3 text-xs sm:text-sm font-bold text-white transition-colors hover:bg-emerald-800 shadow-sm cursor-pointer"
               >
                 Explore services <ArrowRight className="h-4 w-4" />
               </button>
-              <div className="mt-9 flex gap-5 text-xs font-semibold text-slate-500">
+              <div className="mt-8 flex flex-wrap gap-5 text-xs font-semibold text-slate-500">
                 <span className="flex items-center gap-2">
                   <Clock3 className="h-4 w-4 text-emerald-700" /> Same-day
                   support
@@ -1674,7 +1659,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
                 </span>
               </div>
             </div>
-            <div className="w-full">
+            <div className="w-full flex items-center justify-center">
               <HeroPromoCarousel
                 onSelectService={(item) => navigate(`/services/${item.slug}`)}
                 onUseCoupon={(slug, coupon) => {
@@ -1691,7 +1676,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
           <div className="mx-auto max-w-7xl">
             <div className="mb-7 flex items-end justify-between">
               <div>
-                <p className="eyebrow">Find your fit</p>
+                <p className="eyebrow tracking-wider uppercase">Our Services</p>
                 <h2 className="display-font mt-3 text-3xl sm:text-4xl">
                   What can we help with?
                 </h2>
@@ -1795,20 +1780,8 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
         isOpen={cartOpen}
         onClose={() => setCartOpen(false)}
         items={cartItems}
-        onUpdateQuantity={(key, qty) => {
-          setCartItems((prev) =>
-            prev.map((it) =>
-              it.slug === key || it.name === key
-                ? { ...it, quantity: qty }
-                : it,
-            ),
-          );
-        }}
-        onRemoveItem={(key) => {
-          setCartItems((prev) =>
-            prev.filter((it) => it.slug !== key && it.name !== key),
-          );
-        }}
+        onUpdateQuantity={handleUpdateCartQuantity}
+        onRemoveItem={handleRemoveCartItem}
         onCheckout={() => {
           if (cartItems.length > 0) {
             setCartOpen(false);

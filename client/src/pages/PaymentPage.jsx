@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import {
-  ArrowLeft,
   Calendar,
   Check,
   CheckCircle2,
@@ -28,6 +27,7 @@ export default function PaymentPage({
   service,
   onHome,
   onViewBookings,
+  onOrderCreated,
   initialLocation = "Delhi NCR",
   initialPromoCode = "",
   onAuthRequired,
@@ -182,65 +182,91 @@ export default function PaymentPage({
 
     setIsProcessing(true);
 
+    const paymentMethodLabel =
+      paymentMethod === "upi"
+        ? `UPI (${upiMethod.toUpperCase()})`
+        : paymentMethod === "saved_cards"
+          ? "Saved Card (Ending in 4242)"
+          : paymentMethod === "cards"
+            ? "Credit / Debit Card"
+            : paymentMethod === "net_banking"
+              ? `Net Banking (${selectedBank})`
+              : paymentMethod === "wallets"
+                ? `Wallet (${selectedWallet})`
+                : "Cash on Service";
+
+    let createdRecord = null;
+
     try {
-      await api
-        .post("/requests", {
-          category: service?.category || "Emergency Repair",
-          priority: "High",
-          description: `Service booking for ${service?.name || "Doorstep Service"} on ${selectedDate} (${selectedTime})`,
-          address: address,
-          latitude: coords.lat || 28.6139,
-          longitude: coords.lon || 77.209,
-        })
-        .catch((err) => {
-          console.warn(
-            "Backend request log info:",
-            err?.response?.data || err.message,
-          );
-        });
+      const res = await api.post("/requests", {
+        category: service?.category || "Emergency Repair",
+        priority: "High",
+        description: `Service booking for ${service?.name || "Doorstep Service"} on ${selectedDate} (${selectedTime})`,
+        address: address,
+        latitude: coords.lat || 28.6139,
+        longitude: coords.lon || 77.209,
+        service_name: service?.name || "Doorstep Service",
+        service_slug: service?.slug || "doorstep-service",
+        service_image: service?.image,
+        scheduled_date: selectedDate,
+        scheduled_time: selectedTime,
+        price: `$${rawPrice.toFixed(2)}`,
+        total_paid: `$${totalAmount.toFixed(2)}`,
+        payment_method: paymentMethodLabel,
+      });
+      createdRecord = res.data;
     } catch (err) {
       console.warn("Backend request error:", err);
     }
 
     setTimeout(() => {
       setIsProcessing(false);
+      const orderId =
+        createdRecord?.id || `AY-${Math.floor(10000 + Math.random() * 90000)}`;
+      const assignedTech = createdRecord?.technician || {
+        id: "tech-1",
+        name: "Rajesh Kumar",
+        rating: "4.9",
+        reviews: "142",
+        experience: "7 years",
+        phone: "+91 98101 11223",
+        avatar:
+          "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80",
+      };
+
       const orderData = {
-        orderId: `AY-${Math.floor(10000 + Math.random() * 90000)}`,
+        id: orderId,
+        orderId: orderId,
         serviceName: service?.name || "Doorstep Service",
-        serviceImage: service?.image,
+        category: service?.category || "Doorstep Service",
+        image:
+          service?.image ||
+          "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=400&q=85",
+        slug: service?.slug || "doorstep-service",
         scheduledDate: selectedDate,
         scheduledTime: selectedTime,
         address: address,
-        totalPaid: totalAmount.toFixed(2),
+        price: `$${rawPrice.toFixed(2)}`,
+        totalPaid: `$${totalAmount.toFixed(2)}`,
         customerName: user?.name || "Valued Customer",
-        paymentMethodUsed:
-          paymentMethod === "upi"
-            ? `UPI (${upiMethod.toUpperCase()})`
-            : paymentMethod === "saved_cards"
-              ? "Saved Card (Ending in 4242)"
-              : paymentMethod === "cards"
-                ? "Credit / Debit Card"
-                : paymentMethod === "net_banking"
-                  ? `Net Banking (${selectedBank})`
-                  : paymentMethod === "wallets"
-                    ? `Wallet (${selectedWallet})`
-                    : "Cash on Service",
-        technician: {
-          name: "Rajesh Kumar",
-          rating: "4.9",
-          experience: "7 years",
-          phone: "+91 98765 21000",
-        },
+        paymentMethod: paymentMethodLabel,
+        paymentMethodUsed: paymentMethodLabel,
+        status: "Confirmed",
+        statusStep: 2,
+        technician: assignedTech,
+        createdAt: new Date().toISOString(),
       };
+
       setConfirmedOrder(orderData);
       setIsConfirmed(true);
-    }, 1200);
+      onOrderCreated?.(orderData);
+    }, 1000);
   };
 
   // --- ORDER CONFIRMATION SCREEN ---
   if (isConfirmed && confirmedOrder) {
     return (
-      <div className="min-h-screen bg-[#f6f7f3] text-slate-950 pb-28 sm:pb-32 md:pb-20 pt-36 sm:pt-40 md:pt-28 lg:pt-32">
+      <div className="min-h-screen bg-[#f6f7f3] text-slate-950 pb-28 sm:pb-32 md:pb-20 pt-4 sm:pt-6 md:pt-28 lg:pt-32">
         <div className="mx-auto max-w-2xl px-4 sm:px-6">
           <div className="overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-xl backdrop-blur-md animate-rise-in">
             {/* Success Header */}
@@ -363,22 +389,10 @@ export default function PaymentPage({
 
   // --- MAIN CHECKOUT / PAYMENT FORM ---
   return (
-    <div className="min-h-screen bg-[#f6f7f3] text-slate-950 pb-28 sm:pb-32 md:pb-20 pt-36 sm:pt-40 md:pt-28 lg:pt-32">
+    <div className="min-h-screen bg-[#f6f7f3] text-slate-950 pb-28 sm:pb-32 md:pb-20 pt-4 sm:pt-6 md:pt-28 lg:pt-32">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-8">
-        {/* Top Back Nav */}
-        <div className="flex items-center justify-between">
-          <button
-            onClick={onHome}
-            className="inline-flex items-center gap-2.5 text-sm font-bold text-emerald-800 hover:text-emerald-950 transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <img
-              src="/argent-logo.png"
-              alt="Argent Your"
-              className="h-5 w-5 rounded-md object-contain shadow-2xs"
-            />
-            <span>Back to Argent Your</span>
-          </button>
+        {/* Security Badge */}
+        <div className="flex items-center justify-end">
           <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
             <Lock className="h-3.5 w-3.5 text-emerald-700" />
             <span>256-Bit SSL Encrypted Checkout</span>

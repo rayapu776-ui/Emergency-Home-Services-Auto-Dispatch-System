@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
   AlertCircle,
-  ArrowLeft,
   ArrowRight,
   Calendar,
   Check,
@@ -151,24 +150,8 @@ export default function ServiceDetailPage({
     service?.faqs && service.faqs.length > 0 ? service.faqs : defaultFaqs;
 
   return (
-    <div className="min-h-screen bg-[#f6f7f3] text-slate-950 pb-28 sm:pb-32 md:pb-20 pt-36 sm:pt-40 md:pt-28 lg:pt-32">
+    <div className="min-h-screen bg-[#f6f7f3] text-slate-950 pb-28 sm:pb-32 md:pb-20 pt-4 sm:pt-6 md:pt-28 lg:pt-32">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-10">
-        {/* Back Button */}
-        <div>
-          <button
-            onClick={onHome}
-            className="inline-flex items-center gap-2 text-sm font-bold text-emerald-800 hover:text-emerald-950 transition-colors cursor-pointer"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <img
-              src="/argent-logo.png"
-              alt="Argent Your"
-              className="h-5 w-5 rounded-md object-contain shadow-2xs"
-            />
-            <span>Back to Argent Your Catalog</span>
-          </button>
-        </div>
-
         {/* Hero Section: Interactive Multi-Photo Gallery & Service Specs */}
         <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr] items-start">
           {/* Left Column: Interactive Multi-Photo Gallery */}

@@ -14,6 +14,7 @@ import createTechnicianRouter from "./routes/technicianRoutes.js";
 import createAdminRouter from "./routes/adminRoutes.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
 import locationRoutes from "./routes/locationRoutes.js";
+import userDataRoutes from "./routes/userDataRoutes.js";
 
 dotenv.config();
 
@@ -56,6 +57,7 @@ app.use("/api/technicians", createTechnicianRouter(io));
 app.use("/api/admin", createAdminRouter(io));
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/location", locationRoutes);
+app.use("/api/user", userDataRoutes);
 
 // Serve static files from client build in production
 const clientDistPath = path.resolve(__dirname, "../../client/dist");

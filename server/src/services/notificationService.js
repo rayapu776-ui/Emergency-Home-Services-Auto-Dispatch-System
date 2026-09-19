@@ -129,33 +129,64 @@ export const notificationService = {
    */
   async sendEmailOtp({ destination, code, userName }) {
     const {
+      SMTP_SERVICE,
       SMTP_HOST,
       SMTP_PORT = 587,
       SMTP_SECURE,
       SMTP_USER,
       SMTP_PASS,
-      SMTP_FROM = '"Argent Your Verification" <noreply@argentyour.com>',
+      SMTP_FROM,
       ENABLE_ETHEREAL_DEV,
+      DEV_ALLOW_SIMULATED_OTP,
     } = process.env;
 
-    let transporter;
+    const fromAddress =
+      SMTP_FROM ||
+      (SMTP_USER
+        ? `"Argent Your Verification" <${SMTP_USER}>`
+        : '"Argent Your Verification" <noreply@argentyour.com>');
+
+    let transporter = null;
 
     // Check if real SMTP is configured
-    if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
-      transporter = nodemailer.createTransport({
-        host: SMTP_HOST,
-        port: Number(SMTP_PORT),
-        secure: SMTP_SECURE === "true" || Number(SMTP_PORT) === 465,
+    if (SMTP_USER && SMTP_PASS) {
+      const transportConfig = {
         auth: {
           user: SMTP_USER,
           pass: SMTP_PASS,
         },
-      });
+        tls: {
+          rejectUnauthorized: false,
+        },
+      };
+
+      if (SMTP_SERVICE) {
+        transportConfig.service = SMTP_SERVICE;
+      } else if (SMTP_HOST) {
+        transportConfig.host = SMTP_HOST;
+        transportConfig.port = Number(SMTP_PORT) || 587;
+        transportConfig.secure =
+          SMTP_SECURE === "true" || Number(SMTP_PORT) === 465;
+      } else if (SMTP_USER.toLowerCase().endsWith("@gmail.com")) {
+        transportConfig.service = "gmail";
+      } else {
+        transportConfig.host = "smtp.gmail.com";
+        transportConfig.port = 587;
+      }
+
+      try {
+        transporter = nodemailer.createTransport(transportConfig);
+      } catch (tErr) {
+        console.error(
+          "❌ [Nodemailer] Transporter creation failed:",
+          tErr.message,
+        );
+      }
     } else if (ENABLE_ETHEREAL_DEV === "true") {
       // Local development test account on Ethereal
       try {
         console.log(
-          "ℹ️ [Nodemailer] Generating Ethereal SMTP test account for localhost development...",
+          "ℹ️ [Nodemailer] Generating Ethereal SMTP test account for development...",
         );
         const testAccount = await nodemailer.createTestAccount();
         transporter = nodemailer.createTransport({
@@ -177,25 +208,28 @@ export const notificationService = {
 
     if (!transporter) {
       console.log("\n" + "=".repeat(70));
-      console.log("🔒 [AUTH CODE SECURE SERVER DISPATCH - EMAIL]");
+      console.log("🔒 [AUTH CODE LOCAL VERIFICATION GATEWAY - EMAIL]");
       console.log(`👤 Recipient:   ${userName}`);
       console.log(`📧 Destination: ${destination}`);
       console.log(`🔑 Auth Code:   ${code}`);
       console.log("⏱ Valid for:   10 minutes");
-      console.log("ℹ️ Note: Set SMTP_HOST, SMTP_USER, SMTP_PASS in server/.env for production automated email delivery.");
+      console.log(
+        "💡 Notice: Set SMTP_USER and SMTP_PASS in server/.env for live inbox dispatch",
+      );
       console.log("=".repeat(70) + "\n");
 
       return {
         success: true,
         channel: "email",
         destination,
-        deliveryMode: "server_console",
+        deliveryMode: "local_gateway",
+        devCode: code,
       };
     }
 
     try {
       const info = await transporter.sendMail({
-        from: SMTP_FROM,
+        from: fromAddress,
         to: destination,
         subject: `${code} is your Argent Your verification code`,
         text: `Your Argent Your verification code is: ${code}. Valid for 10 minutes. Do not share this code.`,
@@ -207,6 +241,10 @@ export const notificationService = {
       console.log(`👤 Recipient:  ${userName}`);
       console.log(`📧 Destination: ${destination}`);
       console.log(`🆔 Message ID:  ${info.messageId}`);
+      if (ENABLE_ETHEREAL_DEV === "true") {
+        const previewUrl = nodemailer.getTestMessageUrl(info);
+        if (previewUrl) console.log(`🔗 Ethereal Preview: ${previewUrl}`);
+      }
       console.log("=".repeat(70) + "\n");
 
       return {
@@ -224,7 +262,7 @@ export const notificationService = {
 
       return {
         success: false,
-        error: "Unable to send authentication code via email provider. Please verify credentials.",
+        error: `Unable to deliver verification code to ${destination}. Please try again later.`,
         reason: err.message,
       };
     }
@@ -239,23 +277,27 @@ export const notificationService = {
       TWILIO_AUTH_TOKEN,
       TWILIO_PHONE_NUMBER,
       DEFAULT_COUNTRY_CODE = "+91",
+      DEV_ALLOW_SIMULATED_OTP,
     } = process.env;
 
     if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_PHONE_NUMBER) {
       console.log("\n" + "=".repeat(70));
-      console.log("🔒 [AUTH CODE SECURE SERVER DISPATCH - SMS]");
+      console.log("🔒 [AUTH CODE LOCAL VERIFICATION GATEWAY - SMS]");
       console.log(`👤 Recipient:   ${userName}`);
       console.log(`📱 Destination: ${destination}`);
       console.log(`🔑 Auth Code:   ${code}`);
       console.log("⏱ Valid for:   10 minutes");
-      console.log("ℹ️ Note: Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER in server/.env for SMS delivery.");
+      console.log(
+        "💡 Notice: Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER in server/.env for live mobile SMS dispatch",
+      );
       console.log("=".repeat(70) + "\n");
 
       return {
         success: true,
         channel: "sms",
         destination,
-        deliveryMode: "server_console",
+        deliveryMode: "local_gateway",
+        devCode: code,
       };
     }
 
@@ -295,7 +337,7 @@ export const notificationService = {
 
       return {
         success: false,
-        error: "Unable to send authentication code. Please try again.",
+        error: `Unable to deliver SMS verification code to ${destination}. Please verify the phone number or try again later.`,
         reason: err.message,
       };
     }

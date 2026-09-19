@@ -56,6 +56,57 @@ export const query = {
 export async function initDb() {
   const schema = fs.readFileSync(SCHEMA_PATH, "utf8");
   await query.exec(schema);
+
+  // Safe table column upgrades for service_requests
+  const columnsToAdd = [
+    { col: "service_name", type: "TEXT" },
+    { col: "service_slug", type: "TEXT" },
+    { col: "service_image", type: "TEXT" },
+    { col: "scheduled_date", type: "TEXT" },
+    { col: "scheduled_time", type: "TEXT" },
+    { col: "price", type: "TEXT" },
+    { col: "total_paid", type: "TEXT" },
+    { col: "payment_method", type: "TEXT" },
+  ];
+
+  for (const { col, type } of columnsToAdd) {
+    try {
+      await query.run(`ALTER TABLE service_requests ADD COLUMN ${col} ${type}`);
+    } catch {
+      // Column already exists
+    }
+  }
+
+  // Create user_cart and user_notifications tables if not present
+  try {
+    await query.exec(`
+      CREATE TABLE IF NOT EXISTS user_cart (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        slug TEXT NOT NULL,
+        name TEXT NOT NULL,
+        price TEXT NOT NULL,
+        quantity INTEGER DEFAULT 1,
+        image TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+
+      CREATE TABLE IF NOT EXISTS user_notifications (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        type TEXT DEFAULT 'booking',
+        unread INTEGER DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+    `);
+  } catch (err) {
+    console.error("Error creating user tables:", err);
+  }
+
   console.log("Database tables verified / initialized successfully.");
 }
 

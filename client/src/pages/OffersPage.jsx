@@ -3,7 +3,6 @@ import {
   ArrowRight,
   BadgePercent,
   Check,
-  ChevronLeft,
   Clock,
   Copy,
   Flame,
@@ -20,7 +19,8 @@ const ACTIVE_COUPONS = [
     code: "ARGENT50",
     discount: "Flat $50 OFF",
     title: "Sitewide Welcome Savings",
-    description: "Get $50 off on all doorstep services with a cart value of $149 or more.",
+    description:
+      "Get $50 off on all doorstep services with a cart value of $149 or more.",
     minOrder: "$149",
     expiry: "Valid till end of month",
     badge: "Most Popular",
@@ -31,7 +31,8 @@ const ACTIVE_COUPONS = [
     code: "CLEAN20",
     discount: "20% OFF",
     title: "Deep Sanitization Special",
-    description: "Enjoy 20% discount on complete home deep cleaning, kitchen & bathroom packages.",
+    description:
+      "Enjoy 20% discount on complete home deep cleaning, kitchen & bathroom packages.",
     minOrder: "$39",
     expiry: "Limited slots today",
     badge: "Trending",
@@ -42,7 +43,8 @@ const ACTIVE_COUPONS = [
     code: "FIRSTFREE",
     discount: "FREE Diagnostic",
     title: "First Doorstep Inspection Free",
-    description: "Zero diagnostic fee on your very first emergency plumbing, electrical, or appliance service.",
+    description:
+      "Zero diagnostic fee on your very first emergency plumbing, electrical, or appliance service.",
     minOrder: "$0",
     expiry: "New customers only",
     badge: "Zero Risk",
@@ -53,7 +55,8 @@ const ACTIVE_COUPONS = [
     code: "FESTIVE25",
     discount: "25% OFF",
     title: "Salon & Spa Care Bundle",
-    description: "Pamper yourself with 25% discount on all at-home salon, waxing, facial, and massage therapies.",
+    description:
+      "Pamper yourself with 25% discount on all at-home salon, waxing, facial, and massage therapies.",
     minOrder: "$49",
     expiry: "Valid this week",
     badge: "Self-Care",
@@ -64,7 +67,8 @@ const ACTIVE_COUPONS = [
     code: "EMERGENCY10",
     discount: "Instant $10 OFF",
     title: "Priority Rapid Dispatch",
-    description: "Direct $10 deduction applied automatically on priority electrical and plumbing repairs.",
+    description:
+      "Direct $10 deduction applied automatically on priority electrical and plumbing repairs.",
     minOrder: "$25",
     expiry: "24/7 Support",
     badge: "Emergency",
@@ -130,19 +134,6 @@ export default function OffersPage({ onHome, onNavigate, onBookWithCoupon }) {
 
   return (
     <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-20 pt-6">
-      {/* Breadcrumbs */}
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-5">
-        <button
-          type="button"
-          onClick={onHome}
-          className="hover:text-emerald-800 transition-colors cursor-pointer"
-        >
-          Home
-        </button>
-        <span>/</span>
-        <span className="text-slate-900 font-bold">Offers & Deals</span>
-      </div>
-
       {/* Hero Banner */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0c1613] via-[#102a20] to-[#0b1411] text-white p-6 sm:p-8 lg:p-12 shadow-xl mb-10">
         <div className="relative z-10 max-w-2xl">
@@ -156,16 +147,18 @@ export default function OffersPage({ onHome, onNavigate, onBookWithCoupon }) {
           </h1>
 
           <p className="mt-3 text-sm sm:text-base text-slate-300 leading-relaxed max-w-xl">
-            Copy active promotional coupons to save on certified home cleaning, appliance repairs,
-            salon sessions, and doorstep services.
+            Copy active promotional coupons to save on certified home cleaning,
+            appliance repairs, salon sessions, and doorstep services.
           </p>
 
           <div className="mt-6 flex flex-wrap items-center gap-4 text-xs font-semibold text-emerald-200">
             <span className="inline-flex items-center gap-1.5">
-              <Sparkles className="h-4 w-4 text-amber-400" /> Instant Discount at Checkout
+              <Sparkles className="h-4 w-4 text-amber-400" /> Instant Discount
+              at Checkout
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <ShieldCheck className="h-4 w-4 text-emerald-400" /> 100% Quality Guaranteed
+              <ShieldCheck className="h-4 w-4 text-emerald-400" /> 100% Quality
+              Guaranteed
             </span>
           </div>
         </div>
@@ -210,12 +203,15 @@ export default function OffersPage({ onHome, onNavigate, onBookWithCoupon }) {
                 <h3 className="text-2xl font-black text-slate-900 tracking-tight">
                   {item.discount}
                 </h3>
-                <p className="text-xs font-bold text-slate-700 mt-1">{item.title}</p>
+                <p className="text-xs font-bold text-slate-700 mt-1">
+                  {item.title}
+                </p>
                 <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
                   {item.description}
                 </p>
                 <p className="text-[11px] text-slate-400 mt-2">
-                  Min. order: <strong className="text-slate-700">{item.minOrder}</strong>
+                  Min. order:{" "}
+                  <strong className="text-slate-700">{item.minOrder}</strong>
                 </p>
               </div>
 
@@ -284,8 +280,12 @@ export default function OffersPage({ onHome, onNavigate, onBookWithCoupon }) {
                 </div>
 
                 <div className="p-4">
-                  <h3 className="text-base font-bold text-slate-900">{combo.title}</h3>
-                  <p className="mt-1 text-xs text-slate-500">{combo.services}</p>
+                  <h3 className="text-base font-bold text-slate-900">
+                    {combo.title}
+                  </h3>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {combo.services}
+                  </p>
                 </div>
               </div>
 
@@ -294,15 +294,18 @@ export default function OffersPage({ onHome, onNavigate, onBookWithCoupon }) {
                   <span className="text-xs text-slate-400 line-through mr-1.5">
                     {combo.originalPrice}
                   </span>
-                  <span className="text-lg font-black text-slate-900">{combo.comboPrice}</span>
+                  <span className="text-lg font-black text-slate-900">
+                    {combo.comboPrice}
+                  </span>
                 </div>
 
                 <button
                   type="button"
                   onClick={() =>
                     onBookWithCoupon?.(
-                      allServicesCatalog.find((s) => s.slug === combo.serviceSlug) ||
-                        allServicesCatalog[0],
+                      allServicesCatalog.find(
+                        (s) => s.slug === combo.serviceSlug,
+                      ) || allServicesCatalog[0],
                       combo.coupon,
                     )
                   }

@@ -19,73 +19,162 @@ export default function createRequestRouter(io) {
           priority = "High",
           description,
           address,
-          latitude,
-          longitude,
+          latitude = 28.6139,
+          longitude = 77.209,
+          service_name,
+          service_slug,
+          service_image,
+          scheduled_date,
+          scheduled_time,
+          price,
+          total_paid,
+          payment_method,
         } = req.body;
 
-        if (
-          !category ||
-          !description ||
-          !address ||
-          latitude === undefined ||
-          longitude === undefined
-        ) {
+        if (!category && !service_name) {
           return res.status(400).json({
-            error:
-              "Category, description, address, and coordinates are required",
+            error: "Category or service name is required",
           });
         }
 
-        const requestId = uuidv4();
+        const requestId = `AY-${Math.floor(10000 + Math.random() * 90000)}`;
         const customerId = req.user.id;
+        const bookingDesc =
+          description ||
+          `Service booking for ${service_name || "Doorstep Service"}`;
+
+        // Find best certified technician for this category
+        let tech = await query.get(
+          `SELECT t.*, u.name, u.phone, u.avatar
+           FROM technicians t
+           JOIN users u ON t.user_id = u.id
+           WHERE t.category = ?
+           ORDER BY t.rating DESC LIMIT 1`,
+          [category],
+        );
+        if (!tech) {
+          tech = await query.get(
+            `SELECT t.*, u.name, u.phone, u.avatar
+             FROM technicians t
+             JOIN users u ON t.user_id = u.id
+             ORDER BY t.rating DESC LIMIT 1`,
+          );
+        }
+
+        const techId = tech ? tech.id : null;
+        const initialStatus = techId ? "ASSIGNED" : "REQUESTED";
 
         await query.run(
-          `INSERT INTO service_requests (id, customer_id, category, priority, description, address, latitude, longitude, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'REQUESTED')`,
+          `INSERT INTO service_requests (
+            id, customer_id, technician_id, category, priority, description, address, latitude, longitude,
+            status, service_name, service_slug, service_image, scheduled_date, scheduled_time, price, total_paid, payment_method
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             requestId,
             customerId,
-            category,
+            techId,
+            category || "Doorstep Service",
             priority,
-            description,
-            address,
+            bookingDesc,
+            address ||
+              "Flat 402, Green Glen Heights, Sector 62, Noida, Uttar Pradesh",
             latitude,
             longitude,
+            initialStatus,
+            service_name || "Doorstep Service",
+            service_slug || "service",
+            service_image ||
+              "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=400&q=85",
+            scheduled_date || "Today",
+            scheduled_time || "Priority Slot",
+            price || "$29.00",
+            total_paid || "$32.50",
+            payment_method || "UPI",
           ],
         );
 
         await query.run(
           `INSERT INTO status_logs (id, request_id, old_status, new_status, note)
-         VALUES (?, ?, NULL, 'REQUESTED', 'Emergency request logged. Scanning nearest available certified units.')`,
-          [uuidv4(), requestId],
+           VALUES (?, ?, NULL, ?, 'Booking created and confirmed.')`,
+          [uuidv4(), requestId, initialStatus],
         );
 
-        // Notify Admin room of new incoming emergency
+        // Generate Real Notifications for Customer
+        try {
+          await query.run(
+            `INSERT INTO user_notifications (id, user_id, title, description, type, unread)
+             VALUES (?, ?, ?, ?, 'booking', 1)`,
+            [
+              uuidv4(),
+              customerId,
+              `Booking Confirmed: ${service_name || "Doorstep Service"}`,
+              `Your booking #${requestId} is confirmed for ${scheduled_date || "Today"} (${scheduled_time || "Priority Slot"}).`,
+            ],
+          );
+
+          if (tech) {
+            await query.run(
+              `INSERT INTO user_notifications (id, user_id, title, description, type, unread)
+               VALUES (?, ?, ?, ?, 'dispatch', 1)`,
+              [
+                uuidv4(),
+                customerId,
+                `Service Provider Assigned: ${tech.name}`,
+                `${tech.name} (${tech.phone || "+91 98101 11223"}) has been assigned to your booking #${requestId}.`,
+              ],
+            );
+          }
+        } catch (notifErr) {
+          console.warn("Notification insert error:", notifErr);
+        }
+
+        // Notify Admin room of new booking
         io.to("role_admin").emit("new_emergency_alert", {
           requestId,
-          category,
+          category: category || "General",
           priority,
-          address,
+          address: address || "Customer Address",
           customerName: req.user.name,
         });
 
-        // Immediately initiate auto-dispatch engine
-        dispatchEngine.autoDispatch(requestId, io).catch((err) => {
-          console.error("Background dispatch error:", err);
-        });
-
-        const created = await query.get(
-          `SELECT sr.*, u.name as customer_name, u.phone as customer_phone
-         FROM service_requests sr
-         JOIN users u ON sr.customer_id = u.id
-         WHERE sr.id = ?`,
-          [requestId],
-        );
+        const created = {
+          id: requestId,
+          orderId: requestId,
+          serviceName: service_name || "Doorstep Service",
+          category: category || "Doorstep Service",
+          image:
+            service_image ||
+            "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=400&q=85",
+          slug: service_slug || "service",
+          scheduledDate: scheduled_date || "Today",
+          scheduledTime: scheduled_time || "Priority Slot",
+          status: "Confirmed",
+          statusStep: 2,
+          price: price || "$29.00",
+          totalPaid: total_paid || "$32.50",
+          paymentMethod: payment_method || "UPI",
+          address: address || "Customer Address",
+          rating: null,
+          feedback: null,
+          technician: tech
+            ? {
+                id: tech.id,
+                name: tech.name || "Rajesh Kumar",
+                phone: tech.phone || "+91 98101 11223",
+                rating: String(tech.rating || "4.9"),
+                reviews: String(tech.total_jobs || "142"),
+                experience: "7 years",
+                avatar:
+                  tech.avatar ||
+                  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80",
+              }
+            : null,
+        };
 
         res.status(201).json(created);
       } catch (err) {
         console.error("Create request error:", err);
-        res.status(500).json({ error: "Failed to create emergency request" });
+        res.status(500).json({ error: "Failed to create service booking" });
       }
     },
   );
@@ -95,10 +184,11 @@ export default function createRequestRouter(io) {
     try {
       let requests = [];
       if (req.user.role === "customer") {
-        requests = await query.all(
+        const rows = await query.all(
           `SELECT sr.*, 
                   t.vehicle_type, t.latitude as tech_lat, t.longitude as tech_lon,
-                  tu.name as technician_name, tu.phone as technician_phone, t.rating as technician_rating
+                  tu.name as technician_name, tu.phone as technician_phone, tu.avatar as technician_avatar,
+                  t.rating as technician_rating, t.total_jobs as technician_jobs
            FROM service_requests sr
            LEFT JOIN technicians t ON sr.technician_id = t.id
            LEFT JOIN users tu ON t.user_id = tu.id
@@ -106,6 +196,66 @@ export default function createRequestRouter(io) {
            ORDER BY sr.created_at DESC`,
           [req.user.id],
         );
+
+        requests = rows.map((sr) => {
+          const isCompleted = sr.status === "COMPLETED";
+          const isCancelled = sr.status === "CANCELLED";
+          const isInProgress =
+            sr.status === "IN_PROGRESS" ||
+            sr.status === "ON_THE_WAY" ||
+            sr.status === "ARRIVED";
+
+          const statusDisplay = isCompleted
+            ? "Completed"
+            : isCancelled
+              ? "Cancelled"
+              : isInProgress
+                ? "In Progress"
+                : "Confirmed";
+
+          const statusStep = isCompleted
+            ? 4
+            : isInProgress
+              ? 3
+              : isCancelled
+                ? 1
+                : 2;
+
+          return {
+            id: sr.id,
+            orderId: sr.id,
+            serviceName: sr.service_name || sr.description,
+            category: sr.category || "Doorstep Service",
+            image:
+              sr.service_image ||
+              "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=400&q=85",
+            slug: sr.service_slug || "service",
+            scheduledDate: sr.scheduled_date || "Today",
+            scheduledTime: sr.scheduled_time || "Priority Slot",
+            status: statusDisplay,
+            statusStep: statusStep,
+            price: sr.price || "$29.00",
+            totalPaid: sr.total_paid || "$32.50",
+            paymentMethod: sr.payment_method || "UPI",
+            address: sr.address,
+            rating: sr.rating,
+            feedback: sr.feedback,
+            createdAt: sr.created_at,
+            technician: sr.technician_id
+              ? {
+                  id: sr.technician_id,
+                  name: sr.technician_name || "Rajesh Kumar",
+                  phone: sr.technician_phone || "+91 98101 11223",
+                  rating: String(sr.technician_rating || "4.9"),
+                  reviews: String(sr.technician_jobs || "142"),
+                  experience: "7 years",
+                  avatar:
+                    sr.technician_avatar ||
+                    "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80",
+                }
+              : null,
+          };
+        });
       } else if (req.user.role === "technician") {
         const tech = await query.get(
           "SELECT id FROM technicians WHERE user_id = ?",
@@ -199,11 +349,9 @@ export default function createRequestRouter(io) {
         return res.status(404).json({ error: "Request not found" });
 
       if (req.user.role !== "admin" && reqRecord.customer_id !== req.user.id) {
-        return res
-          .status(403)
-          .json({
-            error: "Only the customer or an admin can rate this request",
-          });
+        return res.status(403).json({
+          error: "Only the customer or an admin can rate this request",
+        });
       }
 
       await query.run(
@@ -246,11 +394,9 @@ export default function createRequestRouter(io) {
         return res.status(404).json({ error: "Request not found" });
 
       if (req.user.role !== "admin" && currentReq.customer_id !== req.user.id) {
-        return res
-          .status(403)
-          .json({
-            error: "Only the customer or an admin can cancel this request",
-          });
+        return res.status(403).json({
+          error: "Only the customer or an admin can cancel this request",
+        });
       }
 
       await query.run(
@@ -279,6 +425,109 @@ export default function createRequestRouter(io) {
       res.json({ success: true, message: "Request cancelled" });
     } catch (err) {
       res.status(500).json({ error: "Failed to cancel request" });
+    }
+  });
+
+  // Mark service request as completed
+  router.post("/:id/complete", authenticateToken, async (req, res) => {
+    try {
+      const currentReq = await query.get(
+        "SELECT * FROM service_requests WHERE id = ?",
+        [req.params.id],
+      );
+      if (!currentReq)
+        return res.status(404).json({ error: "Request not found" });
+
+      await query.run(
+        `UPDATE service_requests SET status = 'COMPLETED', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        [req.params.id],
+      );
+
+      if (currentReq.technician_id) {
+        await query.run(
+          `UPDATE technicians SET is_busy = 0, total_jobs = total_jobs + 1, current_request_id = NULL WHERE id = ?`,
+          [currentReq.technician_id],
+        );
+      }
+
+      await query.run(
+        `INSERT INTO status_logs (id, request_id, old_status, new_status, note)
+         VALUES (?, ?, ?, 'COMPLETED', 'Service fulfilled and completed.')`,
+        [uuidv4(), req.params.id, currentReq.status],
+      );
+
+      try {
+        await query.run(
+          `INSERT INTO user_notifications (id, user_id, title, description, type, unread)
+           VALUES (?, ?, ?, ?, 'completed', 1)`,
+          [
+            uuidv4(),
+            currentReq.customer_id,
+            `Service Completed: #${req.params.id}`,
+            `Your service has been successfully completed. Tap to rate your professional.`,
+          ],
+        );
+      } catch {}
+
+      io.to(`request_${req.params.id}`).emit("request_updated", {
+        id: req.params.id,
+        status: "COMPLETED",
+      });
+
+      res.json({ success: true, message: "Service marked completed" });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to complete service request" });
+    }
+  });
+
+  // Reschedule service request
+  router.post("/:id/reschedule", authenticateToken, async (req, res) => {
+    try {
+      const { scheduledDate, scheduledTime } = req.body;
+      const currentReq = await query.get(
+        "SELECT * FROM service_requests WHERE id = ?",
+        [req.params.id],
+      );
+      if (!currentReq)
+        return res.status(404).json({ error: "Request not found" });
+
+      await query.run(
+        `UPDATE service_requests SET scheduled_date = ?, scheduled_time = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        [
+          scheduledDate || "Tomorrow",
+          scheduledTime || "10:00 AM",
+          req.params.id,
+        ],
+      );
+
+      await query.run(
+        `INSERT INTO status_logs (id, request_id, old_status, new_status, note)
+         VALUES (?, ?, ?, ?, ?)`,
+        [
+          uuidv4(),
+          req.params.id,
+          currentReq.status,
+          currentReq.status,
+          `Booking rescheduled to ${scheduledDate} (${scheduledTime})`,
+        ],
+      );
+
+      try {
+        await query.run(
+          `INSERT INTO user_notifications (id, user_id, title, description, type, unread)
+           VALUES (?, ?, ?, ?, 'booking', 1)`,
+          [
+            uuidv4(),
+            currentReq.customer_id,
+            `Booking Rescheduled: #${req.params.id}`,
+            `Your booking has been rescheduled to ${scheduledDate} (${scheduledTime}).`,
+          ],
+        );
+      } catch {}
+
+      res.json({ success: true, message: "Booking rescheduled successfully" });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to reschedule booking" });
     }
   });
 

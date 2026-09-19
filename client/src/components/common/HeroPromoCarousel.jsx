@@ -116,7 +116,7 @@ export default function HeroPromoCarousel({ onSelectService, onUseCoupon }) {
 
   return (
     <div
-      className="hero-promo-container relative w-full h-[420px] sm:h-[480px] lg:h-[530px] rounded-[2rem] overflow-hidden bg-slate-900 shadow-[0_24px_60px_rgba(25,53,45,0.14)] border border-white/60 select-none group"
+      className="hero-promo-container relative w-full h-[400px] sm:h-[440px] lg:h-[470px] rounded-3xl lg:rounded-[2rem] overflow-hidden bg-slate-900 shadow-[0_20px_50px_rgba(25,53,45,0.12)] border border-white/60 select-none group"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
       onTouchStart={handleTouchStart}

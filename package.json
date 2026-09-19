@@ -1,6 +1,7 @@
 {
   "name": "emergency-home-services-auto-dispatch-system",
   "version": "1.0.0",
+  "author": "Apu Ray",
   "description": "Emergency Home Services Auto-Dispatch System with Real-Time Routing and Tracking",
   "scripts": {
     "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",

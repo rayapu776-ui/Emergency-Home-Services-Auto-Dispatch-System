@@ -2,7 +2,6 @@ import React, { useState, useMemo } from "react";
 import {
   ArrowRight,
   CheckCircle2,
-  ChevronLeft,
   Filter,
   Plus,
   Search,
@@ -208,7 +207,11 @@ export default function CategoryViewPage({
 
     // Apply search query within this category with tokenized and synonym matching
     if (searchQuery.trim()) {
-      const qTokens = searchQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
+      const qTokens = searchQuery
+        .trim()
+        .toLowerCase()
+        .split(/\s+/)
+        .filter(Boolean);
       const synMap = {
         ac: ["air conditioner", "cooling", "hvac", "foam jet", "appliance"],
         repair: ["service", "fix", "leak", "maintenance", "installation"],
@@ -244,7 +247,9 @@ export default function CategoryViewPage({
     } else if (sortBy === "price-high") {
       list.sort((a, b) => (b.numericPrice || 25) - (a.numericPrice || 25));
     } else if (sortBy === "rating") {
-      list.sort((a, b) => parseFloat(b.rating || "4.8") - parseFloat(a.rating || "4.8"));
+      list.sort(
+        (a, b) => parseFloat(b.rating || "4.8") - parseFloat(a.rating || "4.8"),
+      );
     }
 
     return list;
@@ -291,10 +296,12 @@ export default function CategoryViewPage({
 
           <div className="mt-6 flex flex-wrap items-center gap-4 text-xs font-semibold text-emerald-200/90">
             <span className="inline-flex items-center gap-1.5">
-              <ShieldCheck className="h-4 w-4 text-emerald-400" /> 30-Day Post-Service Guarantee
+              <ShieldCheck className="h-4 w-4 text-emerald-400" /> 30-Day
+              Post-Service Guarantee
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <CheckCircle2 className="h-4 w-4 text-emerald-400" /> Background-Verified Pros
+              <CheckCircle2 className="h-4 w-4 text-emerald-400" />{" "}
+              Background-Verified Pros
             </span>
             <span className="inline-flex items-center gap-1.5">
               <Zap className="h-4 w-4 text-emerald-400" /> Upfront Pricing
@@ -375,14 +382,17 @@ export default function CategoryViewPage({
       <div className="mt-8">
         <div className="flex items-center justify-between mb-4">
           <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-            Showing {filteredServices.length} {filteredServices.length === 1 ? "Service" : "Services"}
+            Showing {filteredServices.length}{" "}
+            {filteredServices.length === 1 ? "Service" : "Services"}
           </p>
         </div>
 
         {filteredServices.length === 0 ? (
           <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center">
             <Filter className="mx-auto h-8 w-8 text-slate-400 mb-2" />
-            <h3 className="text-base font-bold text-slate-800">No services found</h3>
+            <h3 className="text-base font-bold text-slate-800">
+              No services found
+            </h3>
             <p className="mt-1 text-xs text-slate-500">
               Try adjusting your subcategory or clearing the search filter.
             </p>
@@ -441,8 +451,12 @@ export default function CategoryViewPage({
                 {/* Pricing & CTA Controls */}
                 <div className="mt-4 pt-3.5 border-t border-slate-100 flex items-center justify-between gap-2">
                   <div>
-                    <span className="text-[10px] text-slate-400 font-medium block">Starting at</span>
-                    <span className="text-base font-black text-slate-900">{item.price}</span>
+                    <span className="text-[10px] text-slate-400 font-medium block">
+                      Starting at
+                    </span>
+                    <span className="text-base font-black text-slate-900">
+                      {item.price}
+                    </span>
                   </div>
 
                   <div className="flex items-center gap-1.5">
@@ -479,9 +493,12 @@ export default function CategoryViewPage({
               <ShieldCheck className="h-5 w-5" />
             </div>
             <div>
-              <h4 className="text-sm font-bold text-slate-900">30-Day Doorstep Guarantee</h4>
+              <h4 className="text-sm font-bold text-slate-900">
+                30-Day Doorstep Guarantee
+              </h4>
               <p className="mt-1 text-xs text-slate-500 leading-relaxed">
-                If you encounter any issue with the completed job, we dispatch a senior expert for a free revisit.
+                If you encounter any issue with the completed job, we dispatch a
+                senior expert for a free revisit.
               </p>
             </div>
           </div>
@@ -491,9 +508,12 @@ export default function CategoryViewPage({
               <ThumbsUp className="h-5 w-5" />
             </div>
             <div>
-              <h4 className="text-sm font-bold text-slate-900">Upfront Transparent Pricing</h4>
+              <h4 className="text-sm font-bold text-slate-900">
+                Upfront Transparent Pricing
+              </h4>
               <p className="mt-1 text-xs text-slate-500 leading-relaxed">
-                No hidden costs or unexpected charges. You approve the diagnostic quote before work begins.
+                No hidden costs or unexpected charges. You approve the
+                diagnostic quote before work begins.
               </p>
             </div>
           </div>
@@ -503,9 +523,12 @@ export default function CategoryViewPage({
               <Zap className="h-5 w-5" />
             </div>
             <div>
-              <h4 className="text-sm font-bold text-slate-900">Standard 45-Min Arrival</h4>
+              <h4 className="text-sm font-bold text-slate-900">
+                Standard 45-Min Arrival
+              </h4>
               <p className="mt-1 text-xs text-slate-500 leading-relaxed">
-                Our automated dispatch system routes nearest verified professionals straight to your doorstep.
+                Our automated dispatch system routes nearest verified
+                professionals straight to your doorstep.
               </p>
             </div>
           </div>

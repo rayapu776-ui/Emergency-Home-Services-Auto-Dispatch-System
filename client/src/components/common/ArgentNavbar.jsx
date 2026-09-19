@@ -610,6 +610,9 @@ export default function ArgentNavbar({
   onNavigate,
 }) {
   const { user, isAuthenticated } = useAuth();
+  const cleanPath =
+    (currentRoute || "").split("?")[0].replace(/\/+$/, "") || "/";
+  const isHomePage = cleanPath === "/";
   const [search, setSearch] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [locationOpen, setLocationOpen] = useState(false);
@@ -725,17 +728,21 @@ export default function ArgentNavbar({
 
       {/* =========================================================================
           TOP HEADER (Fixed at top)
-          - Desktop (md+): Single Main Navbar
+          - Desktop (md+): Single Main Navbar on all pages
           - Mobile (<md):
-            - Logged Out: Search Bar Only
-            - Logged In:  Row 1 [Logo] [Location][Cart][Notification] -> Row 2 Search Bar
+            - Home page: Top Header visible (Search Bar + Logo/Location when logged in)
+            - Other pages: Top Header HIDDEN COMPLETELY on mobile
          ========================================================================= */}
-      <header className="fixed left-0 right-0 top-0 z-50 select-none">
+      <header
+        className={`left-0 right-0 top-0 z-50 select-none ${
+          isHomePage ? "fixed" : "hidden md:block md:fixed"
+        }`}
+      >
         {/* ==================== DESKTOP / LAPTOP (md and above) ==================== */}
-        <div className="hidden md:block px-4 lg:px-7 pt-4">
-          <div className="mx-auto max-w-7xl rounded-2xl border border-white/70 bg-white/85 shadow-[0_12px_40px_rgba(27,45,39,0.08)] backdrop-blur-xl">
-            <div className="flex h-[72px] items-center gap-3 px-4 sm:gap-4 lg:gap-6 lg:px-7">
-              {/* LEFT: Logo */}
+        <div className="hidden md:block px-4 sm:px-6 lg:px-8 pt-3 sm:pt-3.5">
+          <div className="mx-auto max-w-[1440px] rounded-2xl border border-white/80 bg-white/90 shadow-[0_8px_30px_rgba(27,45,39,0.06)] backdrop-blur-xl">
+            <div className="flex h-[66px] items-center gap-4 sm:gap-6 lg:gap-8 px-5 lg:px-8">
+              {/* LEFT: Logo + Company Name */}
               <button
                 type="button"
                 onClick={onLogoClick}
@@ -745,17 +752,17 @@ export default function ArgentNavbar({
                 <img
                   src="/argent-logo.png"
                   alt="Argent Your"
-                  className="h-10 w-10 rounded-xl object-contain shadow-sm transition-transform duration-200 group-hover:scale-105"
+                  className="h-9 w-9 rounded-xl object-contain shadow-2xs transition-transform duration-200 group-hover:scale-105 shrink-0"
                 />
-                <span className="text-lg font-bold tracking-tight text-slate-900 whitespace-nowrap">
+                <span className="text-base sm:text-lg font-bold tracking-tight text-slate-900 whitespace-nowrap">
                   Argent Your
                 </span>
               </button>
 
-              {/* CENTER: LARGE SEARCH BAR */}
+              {/* CENTER: LARGE SERVICE SEARCH BAR */}
               <div
                 ref={desktopSearchWrapRef}
-                className="relative flex-1 max-w-2xl lg:max-w-3xl mx-1 sm:mx-4"
+                className="relative flex-1 max-w-2xl lg:max-w-3xl xl:max-w-4xl mx-2 sm:mx-4"
               >
                 <div className="relative w-full">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
@@ -775,7 +782,7 @@ export default function ArgentNavbar({
                       }
                     }}
                     placeholder="Search anything..."
-                    className="w-full rounded-xl border border-slate-200/80 bg-white/80 py-2.5 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-all focus:border-emerald-700 focus:bg-white focus:ring-2 focus:ring-emerald-700/10 shadow-xs"
+                    className="w-full h-10 sm:h-11 rounded-xl border border-slate-200/80 bg-slate-50/70 hover:bg-white focus:bg-white py-2 pl-10 pr-10 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-all focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/10 shadow-2xs"
                   />
                   {search && (
                     <button
@@ -907,178 +914,58 @@ export default function ArgentNavbar({
                 )}
               </div>
 
-              {/* RIGHT SIDE ACTIONS */}
-              <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-                {/* Location button: Displayed for BOTH Logged-In and Logged-Out */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLocationOpen(true);
-                    setNotificationsOpen(false);
-                  }}
-                  className="flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-100/80 transition-colors cursor-pointer"
-                  title="Choose service location"
-                >
-                  <MapPin className="h-4 w-4 text-emerald-700 shrink-0" />
-                  <span className="max-w-[120px] truncate font-medium text-slate-800">
-                    {location || "Delhi NCR"}
-                  </span>
-                  <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                </button>
-
-                {!isAuthenticated ? (
-                  /* BEFORE LOGIN: [ Sign in / Log in ] ONLY (No Cart, No Notification, No Profile) */
+              {/* RIGHT SIDE ACTIONS: LOGGED-OUT vs LOGGED-IN */}
+              {!isAuthenticated ? (
+                /* LOGGED-OUT: ONLY "Sign in / Log in" BUTTON (No Location, No Cart, No Notification, No Profile) */
+                <div className="flex shrink-0 items-center">
                   <button
                     type="button"
                     onClick={onAuthOpen}
-                    className="flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-xs sm:text-sm font-bold text-white shadow-sm transition-all hover:bg-emerald-800 hover:shadow cursor-pointer"
+                    className="flex items-center gap-2 rounded-xl bg-slate-950 px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-sm transition-all hover:bg-emerald-800 hover:shadow cursor-pointer"
                   >
-                    <CircleUserRound className="h-4 w-4" />
+                    <CircleUserRound className="h-4 w-4 text-emerald-400" />
                     <span className="whitespace-nowrap">Sign in / Log in</span>
                   </button>
-                ) : (
-                  /* AFTER LOGIN: [ Cart ] [ Notification ] [ Profile ] */
-                  <>
-                    {/* Cart button */}
-                    <button
-                      type="button"
-                      onClick={onCartClick}
-                      className="relative rounded-xl p-2.5 text-slate-700 hover:bg-slate-100/80 hover:text-slate-900 transition-colors cursor-pointer"
-                      aria-label="Cart"
-                      title="View cart"
-                    >
-                      <ShoppingBag className="h-5 w-5" />
-                      {cartCount > 0 && (
-                        <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-700 px-1 text-[10px] font-black text-white shadow-xs">
-                          {cartCount}
-                        </span>
-                      )}
-                    </button>
-
-                    {/* Notification button */}
-                    <div
-                      className="relative"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setNotificationsOpen(!notificationsOpen);
-                          setLocationOpen(false);
-                        }}
-                        className="relative rounded-xl p-2.5 text-slate-700 hover:bg-slate-100/80 hover:text-slate-900 transition-colors cursor-pointer"
-                        aria-label="Notifications"
-                        title="Notifications"
-                      >
-                        <Bell className="h-5 w-5" />
-                        <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-emerald-600 ring-2 ring-white" />
-                      </button>
-                      {notificationsOpen && (
-                        <NotificationDropdown
-                          onClose={() => setNotificationsOpen(false)}
-                        />
-                      )}
-                    </div>
-
-                    {/* Profile button */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (currentRoute === "/profile") return;
-                        if (onNavigate) onNavigate("/profile");
-                        else onProfileClick?.();
-                      }}
-                      className={`relative rounded-xl p-2.5 transition-colors cursor-pointer ${
-                        currentRoute === "/profile"
-                          ? "bg-emerald-50 text-emerald-700 font-bold ring-1 ring-emerald-500/30"
-                          : "text-slate-700 hover:bg-slate-100/80 hover:text-slate-900"
-                      }`}
-                      aria-label="Profile"
-                      title="My Profile"
-                    >
-                      <CircleUserRound className="h-5 w-5" />
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ==================== MOBILE (under md) ==================== */}
-        {/* Sequence: EXACTLY TWO SEPARATE ROWS
-            1. TOP ROW:
-               - Logged Out: [ Argent Your ]                     [ 📍 Location ]
-               - Logged In:  [ Argent Your ] [ 📍 Location ] [ 🛒 Cart ] [ 🔔 Notification ]
-            2. SECOND ROW:
-               [ 🔍 Search for services, e.g. Home Cleaning, AC Repair... ]
-        */}
-        <div className="block md:hidden px-3 pt-2.5">
-          <div
-            className={`rounded-2xl border border-white/80 bg-white/95 shadow-[0_8px_30px_rgba(27,45,39,0.08)] backdrop-blur-xl p-2.5 sm:p-3 ${
-              isAuthenticated ? "space-y-2" : ""
-            }`}
-          >
-            {/* ROW 1: ONLY WHEN LOGGED IN
-                - When NOT logged in: Row 1 is completely omitted (no logo, no company name, no location, no cart, no notification).
-                - When logged in: [ Argent Your ] on left, [ 📍 Location ] [ 🛒 Cart ] [ 🔔 Notification ] on right.
-            */}
-            {isAuthenticated && (
-              <div className="flex items-center justify-between gap-1.5 sm:gap-2">
-                {/* Left: Argent Your Logo */}
-                <button
-                  type="button"
-                  onClick={onLogoClick}
-                  className="flex shrink-0 items-center gap-1.5 sm:gap-2 cursor-pointer"
-                  title="Argent Your"
-                >
-                  <img
-                    src="/argent-logo.png"
-                    alt="Argent Your"
-                    className="h-8 w-8 rounded-xl object-contain shadow-xs shrink-0"
-                  />
-                  <span className="text-sm sm:text-base font-black tracking-tight text-slate-900 whitespace-nowrap">
-                    Argent Your
-                  </span>
-                </button>
-
-                {/* Right: Location + Cart + Notification */}
-                <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
-                  {/* 📍 Location Selector (ONLY after login on mobile) */}
+                </div>
+              ) : (
+                /* LOGGED-IN: [ Location ] [ Cart ] [ Notification ] [ Profile ] */
+                <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 lg:gap-2.5">
+                  {/* 1. Location selector */}
                   <button
                     type="button"
                     onClick={() => {
                       setLocationOpen(true);
                       setNotificationsOpen(false);
                     }}
-                    className="flex items-center gap-1 rounded-xl px-2 py-1.5 text-xs font-semibold text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer bg-slate-50/90 border border-slate-200/70 shrink-0"
-                    title="Select service location"
+                    className="flex h-10 items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 hover:bg-slate-100/80 transition-colors cursor-pointer border border-transparent hover:border-slate-200/60"
+                    title="Choose service location"
                   >
-                    <MapPin className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
-                    <span className="max-w-[60px] min-[360px]:max-w-[95px] sm:max-w-[130px] truncate font-bold text-slate-900">
+                    <MapPin className="h-4 w-4 text-emerald-700 shrink-0" />
+                    <span className="max-w-[100px] lg:max-w-[130px] truncate font-medium text-slate-800">
                       {location || "Delhi NCR"}
                     </span>
-                    <ChevronDown className="h-3 w-3 text-slate-400 shrink-0" />
+                    <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                   </button>
 
-                  {/* 🛒 Cart */}
+                  {/* 2. Cart icon */}
                   <button
                     type="button"
                     onClick={onCartClick}
-                    className="relative p-1.5 rounded-xl text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
+                    className="relative flex h-10 w-10 items-center justify-center rounded-xl text-slate-700 hover:bg-slate-100/80 hover:text-slate-900 transition-colors cursor-pointer"
                     aria-label="Cart"
+                    title="View cart"
                   >
                     <ShoppingBag className="h-5 w-5" />
                     {cartCount > 0 && (
-                      <span className="absolute top-0 right-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-700 px-1 text-[10px] font-black text-white">
+                      <span className="absolute top-0.5 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-700 px-1 text-[10px] font-black text-white shadow-2xs">
                         {cartCount}
                       </span>
                     )}
                   </button>
 
-                  {/* 🔔 Notification */}
+                  {/* 3. Notification icon */}
                   <div
-                    className="relative shrink-0"
+                    className="relative flex items-center justify-center"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <button
@@ -1087,11 +974,12 @@ export default function ArgentNavbar({
                         setNotificationsOpen(!notificationsOpen);
                         setLocationOpen(false);
                       }}
-                      className="relative p-1.5 rounded-xl text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                      className="relative flex h-10 w-10 items-center justify-center rounded-xl text-slate-700 hover:bg-slate-100/80 hover:text-slate-900 transition-colors cursor-pointer"
                       aria-label="Notifications"
+                      title="Notifications"
                     >
                       <Bell className="h-5 w-5" />
-                      <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-emerald-600 ring-1 ring-white" />
+                      <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-emerald-600 ring-2 ring-white" />
                     </button>
                     {notificationsOpen && (
                       <NotificationDropdown
@@ -1099,139 +987,264 @@ export default function ArgentNavbar({
                       />
                     )}
                   </div>
-                </div>
-              </div>
-            )}
 
-            {/* ROW 2 (OR ONLY ROW WHEN LOGGED OUT): SEARCH BAR (Occupies available width in its own row) */}
-            <div ref={mobileSearchWrapRef} className="relative w-full">
-              <div className="relative w-full">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
-                    setDropdownOpen(true);
-                  }}
-                  onFocus={() => {
-                    if (search.trim()) setDropdownOpen(true);
-                  }}
-                  placeholder="Search for services, e.g. Home Cleaning, AC Repair..."
-                  className="w-full rounded-xl border border-slate-200/90 bg-white py-2 pl-9 pr-8 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/10 shadow-2xs"
-                />
-                {search && (
+                  {/* 4. Profile icon */}
                   <button
                     type="button"
                     onClick={() => {
-                      setSearch("");
-                      setDropdownOpen(false);
+                      if (currentRoute === "/profile") return;
+                      if (onNavigate) onNavigate("/profile");
+                      else onProfileClick?.();
                     }}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 hover:bg-slate-100 cursor-pointer"
-                    aria-label="Clear search"
+                    className={`relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors cursor-pointer ${
+                      currentRoute === "/profile"
+                        ? "bg-emerald-50 text-emerald-700 font-bold ring-1 ring-emerald-500/30"
+                        : "text-slate-700 hover:bg-slate-100/80 hover:text-slate-900"
+                    }`}
+                    aria-label="Profile"
+                    title="My Profile"
                   >
-                    <X className="h-3.5 w-3.5" />
+                    <CircleUserRound className="h-5 w-5" />
                   </button>
-                )}
-              </div>
-
-              {/* Mobile Search Dropdown Results: 100% Solid Opaque Background */}
-              {dropdownOpen && search.trim() && (
-                <div
-                  className="absolute left-0 right-0 top-full mt-2 z-[100] rounded-2xl border border-slate-200 bg-white shadow-2xl text-slate-900 overflow-hidden flex flex-col max-h-[60vh]"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="px-3.5 py-2.5 bg-slate-50 text-xs font-bold text-slate-700 border-b border-slate-100 flex items-center justify-between shrink-0">
-                    <span>Search Results ({searchResults.length})</span>
-                    <button
-                      type="button"
-                      onClick={() => setDropdownOpen(false)}
-                      className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-200/60 transition-colors cursor-pointer"
-                      aria-label="Close search results"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-
-                  <div className="overflow-y-auto overscroll-contain p-2 space-y-2 max-h-[50vh] scrollbar-thin bg-white">
-                    {searchResults.map((item) => (
-                      <button
-                        key={item.slug || item.name}
-                        type="button"
-                        onClick={() => handleSelectResult(item)}
-                        className="group flex w-full items-center gap-3 rounded-xl p-2.5 text-left bg-white hover:bg-emerald-50/80 border border-slate-100 hover:border-emerald-200 transition-all cursor-pointer shadow-2xs"
-                      >
-                        {item.image && (
-                          <img
-                            src={item.image}
-                            alt={item.name}
-                            className="h-12 w-12 rounded-xl object-cover shrink-0 border border-slate-100 group-hover:scale-105 transition-transform"
-                          />
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-emerald-950 truncate">
-                              {item.name}
-                            </p>
-                            <span className="text-xs font-extrabold text-emerald-900 bg-emerald-50 px-2 py-0.5 rounded-md shrink-0 border border-emerald-200/60">
-                              {item.price}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mt-0.5">
-                            <span className="font-semibold text-emerald-700 truncate">
-                              {item.category || "Argent Service"}
-                            </span>
-                            <span className="text-slate-300">•</span>
-                            <div className="flex items-center gap-1 font-semibold text-slate-700">
-                              <Star className="h-3 w-3 fill-amber-400 text-amber-400 shrink-0" />
-                              <span>{item.rating || "4.8"}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-center h-7 w-7 rounded-full bg-slate-100 text-slate-400 group-hover:bg-emerald-600 group-hover:text-white transition-colors shrink-0 ml-1">
-                          <ArrowRight className="h-3.5 w-3.5" />
-                        </div>
-                      </button>
-                    ))}
-
-                    {searchResults.length === 0 && (
-                      <div className="py-8 px-4 text-center bg-white">
-                        <p className="text-sm font-bold text-slate-800">
-                          No services found
-                        </p>
-                        <p className="text-xs text-slate-500 mt-1">
-                          Try searching for another service.
-                        </p>
-                        {relatedRecommendations.length > 0 && (
-                          <div className="mt-4 pt-3 border-t border-slate-100 text-left">
-                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-                              Popular suggestions:
-                            </p>
-                            <div className="space-y-1.5">
-                              {relatedRecommendations.slice(0, 3).map((rec) => (
-                                <button
-                                  key={rec.slug || rec.name}
-                                  type="button"
-                                  onClick={() => handleSelectResult(rec)}
-                                  className="flex w-full items-center justify-between p-2 rounded-lg bg-slate-50 hover:bg-emerald-50 text-xs font-semibold text-slate-800 transition-colors cursor-pointer"
-                                >
-                                  <span>{rec.name}</span>
-                                  <span className="text-emerald-700 font-bold">
-                                    {rec.price}
-                                  </span>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
                 </div>
               )}
             </div>
           </div>
         </div>
+
+        {/* ==================== MOBILE (under md) - ONLY ON HOME PAGE ==================== */}
+        {isHomePage && (
+          <div className="block md:hidden px-3 pt-2.5">
+            <div
+              className={`rounded-2xl border border-white/80 bg-white/95 shadow-[0_8px_30px_rgba(27,45,39,0.08)] backdrop-blur-xl p-2.5 sm:p-3 ${
+                isAuthenticated ? "space-y-2" : ""
+              }`}
+            >
+              {/* ROW 1: ONLY WHEN LOGGED IN
+                - When NOT logged in: Row 1 is completely omitted (no logo, no company name, no location, no cart, no notification).
+                - When logged in: [ Argent Your ] on left, [ 📍 Location ] [ 🛒 Cart ] [ 🔔 Notification ] on right.
+            */}
+              {isAuthenticated && (
+                <div className="flex items-center justify-between gap-1.5 sm:gap-2">
+                  {/* Left: Argent Your Logo */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (
+                        window.location.pathname === "/" ||
+                        window.location.pathname === ""
+                      ) {
+                        window.location.reload();
+                      } else {
+                        window.location.href = "/";
+                      }
+                    }}
+                    className="flex shrink-0 items-center gap-1.5 sm:gap-2 cursor-pointer"
+                    title="Argent Your"
+                  >
+                    <img
+                      src="/argent-logo.png"
+                      alt="Argent Your"
+                      className="h-8 w-8 rounded-xl object-contain shadow-xs shrink-0"
+                    />
+                    <span className="text-sm sm:text-base font-black tracking-tight text-slate-900 whitespace-nowrap">
+                      Argent Your
+                    </span>
+                  </button>
+
+                  {/* Right: Location + Cart + Notification */}
+                  <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
+                    {/* 📍 Location Selector (ONLY after login on mobile) */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLocationOpen(true);
+                        setNotificationsOpen(false);
+                      }}
+                      className="flex items-center gap-1 rounded-xl px-2 py-1.5 text-xs font-semibold text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer bg-slate-50/90 border border-slate-200/70 shrink-0"
+                      title="Select service location"
+                    >
+                      <MapPin className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
+                      <span className="max-w-[60px] min-[360px]:max-w-[95px] sm:max-w-[130px] truncate font-bold text-slate-900">
+                        {location || "Delhi NCR"}
+                      </span>
+                      <ChevronDown className="h-3 w-3 text-slate-400 shrink-0" />
+                    </button>
+
+                    {/* 🛒 Cart */}
+                    <button
+                      type="button"
+                      onClick={onCartClick}
+                      className="relative p-1.5 rounded-xl text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
+                      aria-label="Cart"
+                    >
+                      <ShoppingBag className="h-5 w-5" />
+                      {cartCount > 0 && (
+                        <span className="absolute top-0 right-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-700 px-1 text-[10px] font-black text-white">
+                          {cartCount}
+                        </span>
+                      )}
+                    </button>
+
+                    {/* 🔔 Notification */}
+                    <div
+                      className="relative shrink-0"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNotificationsOpen(!notificationsOpen);
+                          setLocationOpen(false);
+                        }}
+                        className="relative p-1.5 rounded-xl text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                        aria-label="Notifications"
+                      >
+                        <Bell className="h-5 w-5" />
+                        <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-emerald-600 ring-1 ring-white" />
+                      </button>
+                      {notificationsOpen && (
+                        <NotificationDropdown
+                          onClose={() => setNotificationsOpen(false)}
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ROW 2 (OR ONLY ROW WHEN LOGGED OUT): SEARCH BAR (Occupies available width in its own row) */}
+              <div ref={mobileSearchWrapRef} className="relative w-full">
+                <div className="relative w-full">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      setDropdownOpen(true);
+                    }}
+                    onFocus={() => {
+                      if (search.trim()) setDropdownOpen(true);
+                    }}
+                    placeholder="Search for services, e.g. Home Cleaning, AC Repair..."
+                    className="w-full rounded-xl border border-slate-200/90 bg-white py-2 pl-9 pr-8 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/10 shadow-2xs"
+                  />
+                  {search && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearch("");
+                        setDropdownOpen(false);
+                      }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 hover:bg-slate-100 cursor-pointer"
+                      aria-label="Clear search"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Mobile Search Dropdown Results: 100% Solid Opaque Background */}
+                {dropdownOpen && search.trim() && (
+                  <div
+                    className="absolute left-0 right-0 top-full mt-2 z-[100] rounded-2xl border border-slate-200 bg-white shadow-2xl text-slate-900 overflow-hidden flex flex-col max-h-[60vh]"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="px-3.5 py-2.5 bg-slate-50 text-xs font-bold text-slate-700 border-b border-slate-100 flex items-center justify-between shrink-0">
+                      <span>Search Results ({searchResults.length})</span>
+                      <button
+                        type="button"
+                        onClick={() => setDropdownOpen(false)}
+                        className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-200/60 transition-colors cursor-pointer"
+                        aria-label="Close search results"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="overflow-y-auto overscroll-contain p-2 space-y-2 max-h-[50vh] scrollbar-thin bg-white">
+                      {searchResults.map((item) => (
+                        <button
+                          key={item.slug || item.name}
+                          type="button"
+                          onClick={() => handleSelectResult(item)}
+                          className="group flex w-full items-center gap-3 rounded-xl p-2.5 text-left bg-white hover:bg-emerald-50/80 border border-slate-100 hover:border-emerald-200 transition-all cursor-pointer shadow-2xs"
+                        >
+                          {item.image && (
+                            <img
+                              src={item.image}
+                              alt={item.name}
+                              className="h-12 w-12 rounded-xl object-cover shrink-0 border border-slate-100 group-hover:scale-105 transition-transform"
+                            />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-emerald-950 truncate">
+                                {item.name}
+                              </p>
+                              <span className="text-xs font-extrabold text-emerald-900 bg-emerald-50 px-2 py-0.5 rounded-md shrink-0 border border-emerald-200/60">
+                                {item.price}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mt-0.5">
+                              <span className="font-semibold text-emerald-700 truncate">
+                                {item.category || "Argent Service"}
+                              </span>
+                              <span className="text-slate-300">•</span>
+                              <div className="flex items-center gap-1 font-semibold text-slate-700">
+                                <Star className="h-3 w-3 fill-amber-400 text-amber-400 shrink-0" />
+                                <span>{item.rating || "4.8"}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-center h-7 w-7 rounded-full bg-slate-100 text-slate-400 group-hover:bg-emerald-600 group-hover:text-white transition-colors shrink-0 ml-1">
+                            <ArrowRight className="h-3.5 w-3.5" />
+                          </div>
+                        </button>
+                      ))}
+
+                      {searchResults.length === 0 && (
+                        <div className="py-8 px-4 text-center bg-white">
+                          <p className="text-sm font-bold text-slate-800">
+                            No services found
+                          </p>
+                          <p className="text-xs text-slate-500 mt-1">
+                            Try searching for another service.
+                          </p>
+                          {relatedRecommendations.length > 0 && (
+                            <div className="mt-4 pt-3 border-t border-slate-100 text-left">
+                              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                                Popular suggestions:
+                              </p>
+                              <div className="space-y-1.5">
+                                {relatedRecommendations
+                                  .slice(0, 3)
+                                  .map((rec) => (
+                                    <button
+                                      key={rec.slug || rec.name}
+                                      type="button"
+                                      onClick={() => handleSelectResult(rec)}
+                                      className="flex w-full items-center justify-between p-2 rounded-lg bg-slate-50 hover:bg-emerald-50 text-xs font-semibold text-slate-800 transition-colors cursor-pointer"
+                                    >
+                                      <span>{rec.name}</span>
+                                      <span className="text-emerald-700 font-bold">
+                                        {rec.price}
+                                      </span>
+                                    </button>
+                                  ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* =========================================================================
@@ -1239,29 +1252,30 @@ export default function ArgentNavbar({
           Home | Bookings | Services | Offers | Profile / Account
          ========================================================================= */}
       {(() => {
-        const isHomeActive = currentRoute === "/";
+        const isHomeActive = isHomePage;
         const isBookingsActive =
-          currentRoute === "/bookings" ||
-          currentRoute === "/my-bookings" ||
-          Boolean(currentRoute?.startsWith("/bookings/"));
+          cleanPath === "/bookings" ||
+          cleanPath === "/my-bookings" ||
+          Boolean(cleanPath.startsWith("/bookings/"));
         const isServicesActive =
-          currentRoute === "/services" ||
-          Boolean(currentRoute?.startsWith("/services/")) ||
-          Boolean(currentRoute?.startsWith("/category/"));
+          cleanPath === "/services" ||
+          Boolean(cleanPath.startsWith("/services/")) ||
+          Boolean(cleanPath.startsWith("/category/"));
         const isOffersActive =
-          currentRoute === "/offers" ||
-          Boolean(currentRoute?.startsWith("/offers/"));
+          cleanPath === "/offers" ||
+          cleanPath === "/offers-and-rewards" ||
+          Boolean(cleanPath.startsWith("/offers/"));
         const isProfileActive =
-          currentRoute === "/profile" ||
-          currentRoute === "/addresses" ||
-          currentRoute === "/payments" ||
-          currentRoute === "/payment-methods" ||
-          currentRoute === "/saved" ||
-          currentRoute === "/saved-services" ||
-          currentRoute === "/notifications" ||
-          currentRoute === "/settings" ||
-          currentRoute === "/support" ||
-          currentRoute === "/help";
+          cleanPath === "/profile" ||
+          cleanPath === "/addresses" ||
+          cleanPath === "/payments" ||
+          cleanPath === "/payment-methods" ||
+          cleanPath === "/saved" ||
+          cleanPath === "/saved-services" ||
+          cleanPath === "/notifications" ||
+          cleanPath === "/settings" ||
+          cleanPath === "/support" ||
+          cleanPath === "/help";
 
         return (
           <nav
@@ -1273,7 +1287,10 @@ export default function ArgentNavbar({
               <button
                 type="button"
                 onClick={() => {
-                  if (isHomeActive) return;
+                  if (isHomeActive) {
+                    window.location.reload();
+                    return;
+                  }
                   if (onNavigate) onNavigate("/");
                   else onLogoClick?.();
                 }}
@@ -1296,7 +1313,10 @@ export default function ArgentNavbar({
                 type="button"
                 onClick={() => {
                   if (isAuthenticated) {
-                    if (isBookingsActive) return;
+                    if (isBookingsActive) {
+                      window.location.reload();
+                      return;
+                    }
                     if (onNavigate) onNavigate("/bookings");
                     else onProfileClick?.();
                   } else {
@@ -1321,7 +1341,10 @@ export default function ArgentNavbar({
               <button
                 type="button"
                 onClick={() => {
-                  if (currentRoute === "/services") return;
+                  if (isServicesActive) {
+                    window.location.reload();
+                    return;
+                  }
                   if (onNavigate) onNavigate("/services");
                 }}
                 className={`flex flex-col items-center justify-center py-1.5 transition-colors cursor-pointer ${
@@ -1342,7 +1365,10 @@ export default function ArgentNavbar({
               <button
                 type="button"
                 onClick={() => {
-                  if (isOffersActive) return;
+                  if (isOffersActive) {
+                    window.location.reload();
+                    return;
+                  }
                   if (onNavigate) onNavigate("/offers");
                 }}
                 className={`flex flex-col items-center justify-center py-1.5 transition-colors cursor-pointer ${
@@ -1364,7 +1390,10 @@ export default function ArgentNavbar({
                 type="button"
                 onClick={() => {
                   if (isAuthenticated) {
-                    if (currentRoute === "/profile") return;
+                    if (isProfileActive) {
+                      window.location.reload();
+                      return;
+                    }
                     if (onNavigate) onNavigate("/profile");
                     else onProfileClick?.();
                   } else {

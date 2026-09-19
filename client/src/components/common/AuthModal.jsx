@@ -208,8 +208,13 @@ export default function AuthModal({
           tempSessionToken: res.tempSessionToken,
           channel: res.channel,
           maskedDestination: res.maskedDestination,
+          devCode: res.devCode,
         });
-        setOtpDigits(["", "", "", "", "", ""]);
+        if (res.devCode) {
+          setOtpDigits(res.devCode.split(""));
+        } else {
+          setOtpDigits(["", "", "", "", "", ""]);
+        }
         setCooldown(res.cooldownSeconds || 30);
         setStatus("");
         setScreen("otp");
@@ -286,8 +291,12 @@ export default function AuthModal({
       const res = await resendOtp(otpSession.tempSessionToken);
       setCooldown(res.cooldownSeconds || 30);
       setStatus("A fresh 6-digit verification code has been dispatched.");
-      setOtpDigits(["", "", "", "", "", ""]);
-      otpInputRefs.current[0]?.focus();
+      if (res.devCode) {
+        setOtpDigits(res.devCode.split(""));
+      } else {
+        setOtpDigits(["", "", "", "", "", ""]);
+        otpInputRefs.current[0]?.focus();
+      }
       setTimeout(() => setStatus(""), 4000);
     } catch (err) {
       setStatus("");
@@ -416,9 +425,7 @@ export default function AuthModal({
             </div>
 
             <div className="mt-3 rounded-2xl bg-slate-50 border border-slate-200/80 p-3.5 space-y-1">
-              <p className="text-xs font-bold text-slate-500">
-                Code sent to:
-              </p>
+              <p className="text-xs font-bold text-slate-500">Code sent to:</p>
               <p className="text-sm sm:text-base font-black text-slate-900 tracking-wide font-mono">
                 {otpSession?.maskedDestination || "your registered contact"}
               </p>
@@ -478,11 +485,7 @@ export default function AuthModal({
                 disabled={Boolean(status) || otpDigits.join("").length < 6}
                 className="auth-primary w-full justify-center mt-2"
               >
-                {status ? (
-                  <LoaderCircle className="animate-spin" />
-                ) : (
-                  "Verify"
-                )}
+                {status ? <LoaderCircle className="animate-spin" /> : "Verify"}
               </button>
 
               <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs text-slate-500">
