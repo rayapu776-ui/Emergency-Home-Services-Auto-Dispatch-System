@@ -382,7 +382,7 @@ export default function ArgentNavbar({
           - Desktop (md+): Single Main Navbar
           - Mobile (<md): Row 1 Main Header -> Row 2 Location -> Row 3 Search Bar
          ========================================================================= */}
-      <header className="fixed left-0 right-0 top-0 z-40 select-none">
+      <header className="fixed left-0 right-0 top-0 z-50 select-none">
         {/* ==================== DESKTOP / LAPTOP (md and above) ==================== */}
         <div className="hidden md:block px-4 lg:px-7 pt-4">
           <div className="mx-auto max-w-7xl rounded-2xl border border-white/70 bg-white/85 shadow-[0_12px_40px_rgba(27,45,39,0.08)] backdrop-blur-xl">
@@ -447,12 +447,12 @@ export default function ArgentNavbar({
                 {/* Search Results Panel Desktop */}
                 {dropdownOpen && search.trim() && (
                   <div
-                    className="absolute left-0 right-0 top-full mt-2.5 z-50 rounded-3xl border border-white/70 bg-white/95 shadow-[0_25px_60px_-15px_rgba(15,23,42,0.2)] backdrop-blur-2xl animate-rise-in text-slate-900 overflow-hidden flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-slate-100/90"
+                    className="absolute left-0 right-0 top-full mt-2.5 z-[100] rounded-3xl border border-slate-200 bg-white shadow-[0_25px_60px_-15px_rgba(15,23,42,0.25)] animate-rise-in text-slate-900 overflow-hidden flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-slate-100"
                     onClick={(e) => e.stopPropagation()}
                   >
                     {/* LEFT SIDE — SEARCH RESULTS */}
-                    <div className="flex-1 min-w-0 p-4 sm:p-5 flex flex-col">
-                      <div className="px-1 pb-2.5 text-xs font-bold text-slate-700 flex items-center justify-between border-b border-slate-100/80 mb-3">
+                    <div className="flex-1 min-w-0 p-4 sm:p-5 flex flex-col bg-white">
+                      <div className="px-1 pb-2.5 text-xs font-bold text-slate-700 flex items-center justify-between border-b border-slate-100 mb-3">
                         <span>
                           Search Results ({searchResults.length}) for '{search}'
                         </span>
@@ -506,12 +506,11 @@ export default function ArgentNavbar({
                         ))}
                         {searchResults.length === 0 && (
                           <div className="py-12 px-4 text-center">
-                            <p className="text-sm font-semibold text-slate-700">
-                              No direct matches found for '{search}'
+                            <p className="text-sm font-bold text-slate-800">
+                              No services found
                             </p>
-                            <p className="text-xs text-slate-400 mt-1">
-                              Check related services on the right or try another
-                              keyword.
+                            <p className="text-xs text-slate-500 mt-1">
+                              Try searching for another service.
                             </p>
                           </div>
                         )}
@@ -678,7 +677,10 @@ export default function ArgentNavbar({
         */}
         <div className="block md:hidden px-3 pt-2.5">
           <div className="rounded-2xl border border-white/80 bg-white/95 shadow-[0_8px_30px_rgba(27,45,39,0.08)] backdrop-blur-xl p-2.5 sm:p-3 space-y-2">
-            {/* ROW 1: TOP ROW (Logo + Location, plus Cart & Bell when logged in) */}
+            {/* ROW 1: TOP ROW
+                - Logged Out: [ Argent Your ]
+                - Logged In:  [ Argent Your ] [ 📍 Location ] [ 🛒 Cart ] [ 🔔 Notification ]
+            */}
             <div className="flex items-center justify-between gap-1.5 sm:gap-2">
               {/* Left: Argent Your Logo */}
               <button
@@ -697,84 +699,81 @@ export default function ArgentNavbar({
                 </span>
               </button>
 
-              {/* Right: Location selector (and Cart + Notification if logged in) */}
-              <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
-                {/* 📍 Location Selector (always in TOP ROW for both logged out and logged in) */}
-                <div
-                  className="relative shrink-0"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setLocationOpen(!locationOpen);
-                      setNotificationsOpen(false);
-                    }}
-                    className="flex items-center gap-1 rounded-xl px-2 py-1.5 text-xs font-semibold text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer bg-slate-50/90 border border-slate-200/70"
-                    title="Select service location"
+              {/* Right: Location + Cart + Notification ONLY when isAuthenticated (Location hidden before login) */}
+              {isAuthenticated && (
+                <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
+                  {/* 📍 Location Selector (ONLY after login on mobile) */}
+                  <div
+                    className="relative shrink-0"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <MapPin className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
-                    <span className="max-w-[60px] min-[360px]:max-w-[95px] sm:max-w-[130px] truncate font-bold text-slate-900">
-                      {location || "Delhi NCR"}
-                    </span>
-                    <ChevronDown className="h-3 w-3 text-slate-400 shrink-0" />
-                  </button>
-                  {locationOpen && (
-                    <LocationPicker
-                      value={location}
-                      onChange={(newLoc, coords) => {
-                        onLocationChange?.(newLoc, coords);
-                        setLocationOpen(false);
-                      }}
-                      onClose={() => setLocationOpen(false)}
-                    />
-                  )}
-                </div>
-
-                {/* Logged-in only icons: Cart & Notification (NO Profile in top row) */}
-                {isAuthenticated && (
-                  <>
-                    {/* 🛒 Cart */}
                     <button
                       type="button"
-                      onClick={onCartClick}
-                      className="relative p-1.5 rounded-xl text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
-                      aria-label="Cart"
+                      onClick={() => {
+                        setLocationOpen(!locationOpen);
+                        setNotificationsOpen(false);
+                      }}
+                      className="flex items-center gap-1 rounded-xl px-2 py-1.5 text-xs font-semibold text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer bg-slate-50/90 border border-slate-200/70"
+                      title="Select service location"
                     >
-                      <ShoppingBag className="h-5 w-5" />
-                      {cartCount > 0 && (
-                        <span className="absolute top-0 right-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-700 px-1 text-[10px] font-black text-white">
-                          {cartCount}
-                        </span>
-                      )}
+                      <MapPin className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
+                      <span className="max-w-[60px] min-[360px]:max-w-[95px] sm:max-w-[130px] truncate font-bold text-slate-900">
+                        {location || "Delhi NCR"}
+                      </span>
+                      <ChevronDown className="h-3 w-3 text-slate-400 shrink-0" />
                     </button>
-
-                    {/* 🔔 Notification */}
-                    <div
-                      className="relative shrink-0"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setNotificationsOpen(!notificationsOpen);
+                    {locationOpen && (
+                      <LocationPicker
+                        value={location}
+                        onChange={(newLoc, coords) => {
+                          onLocationChange?.(newLoc, coords);
                           setLocationOpen(false);
                         }}
-                        className="relative p-1.5 rounded-xl text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                        aria-label="Notifications"
-                      >
-                        <Bell className="h-5 w-5" />
-                        <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-emerald-600 ring-1 ring-white" />
-                      </button>
-                      {notificationsOpen && (
-                        <NotificationDropdown
-                          onClose={() => setNotificationsOpen(false)}
-                        />
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
+                        onClose={() => setLocationOpen(false)}
+                      />
+                    )}
+                  </div>
+
+                  {/* 🛒 Cart */}
+                  <button
+                    type="button"
+                    onClick={onCartClick}
+                    className="relative p-1.5 rounded-xl text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
+                    aria-label="Cart"
+                  >
+                    <ShoppingBag className="h-5 w-5" />
+                    {cartCount > 0 && (
+                      <span className="absolute top-0 right-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-700 px-1 text-[10px] font-black text-white">
+                        {cartCount}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* 🔔 Notification */}
+                  <div
+                    className="relative shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNotificationsOpen(!notificationsOpen);
+                        setLocationOpen(false);
+                      }}
+                      className="relative p-1.5 rounded-xl text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                      aria-label="Notifications"
+                    >
+                      <Bell className="h-5 w-5" />
+                      <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-emerald-600 ring-1 ring-white" />
+                    </button>
+                    {notificationsOpen && (
+                      <NotificationDropdown
+                        onClose={() => setNotificationsOpen(false)}
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* ROW 2: SEARCH BAR (Occupies available width in its own separate row) */}
@@ -809,54 +808,94 @@ export default function ArgentNavbar({
                 )}
               </div>
 
-              {/* Mobile Search Dropdown Results */}
+              {/* Mobile Search Dropdown Results: 100% Solid Opaque Background */}
               {dropdownOpen && search.trim() && (
                 <div
-                  className="absolute left-0 right-0 top-full mt-2 z-50 rounded-2xl border border-white/80 bg-white/98 shadow-2xl backdrop-blur-2xl text-slate-900 overflow-hidden flex flex-col max-h-[65vh]"
+                  className="absolute left-0 right-0 top-full mt-2 z-[100] rounded-2xl border border-slate-200 bg-white shadow-2xl text-slate-900 overflow-hidden flex flex-col max-h-[60vh]"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="px-3 py-2 text-xs font-bold text-slate-700 border-b border-slate-100 flex items-center justify-between">
-                    <span>Results ({searchResults.length})</span>
+                  <div className="px-3.5 py-2.5 bg-slate-50 text-xs font-bold text-slate-700 border-b border-slate-100 flex items-center justify-between shrink-0">
+                    <span>Search Results ({searchResults.length})</span>
                     <button
                       type="button"
                       onClick={() => setDropdownOpen(false)}
-                      className="text-slate-400 p-0.5"
+                      className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-200/60 transition-colors cursor-pointer"
+                      aria-label="Close search results"
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
                   </div>
 
-                  <div className="overflow-y-auto p-2 space-y-1.5 max-h-[48vh]">
+                  <div className="overflow-y-auto overscroll-contain p-2 space-y-2 max-h-[50vh] scrollbar-thin bg-white">
                     {searchResults.map((item) => (
                       <button
                         key={item.slug || item.name}
                         type="button"
                         onClick={() => handleSelectResult(item)}
-                        className="flex w-full items-center gap-2.5 rounded-xl p-2 text-left bg-slate-50/80 hover:bg-emerald-50 border border-slate-100 transition-colors cursor-pointer"
+                        className="group flex w-full items-center gap-3 rounded-xl p-2.5 text-left bg-white hover:bg-emerald-50/80 border border-slate-100 hover:border-emerald-200 transition-all cursor-pointer shadow-2xs"
                       >
                         {item.image && (
                           <img
                             src={item.image}
                             alt={item.name}
-                            className="h-11 w-11 rounded-lg object-cover shrink-0"
+                            className="h-12 w-12 rounded-xl object-cover shrink-0 border border-slate-100 group-hover:scale-105 transition-transform"
                           />
                         )}
                         <div className="min-w-0 flex-1">
-                          <p className="text-xs font-bold text-slate-900 truncate">
-                            {item.name}
-                          </p>
-                          <p className="text-[11px] font-bold text-emerald-800">
-                            {item.price}
-                          </p>
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-emerald-950 truncate">
+                              {item.name}
+                            </p>
+                            <span className="text-xs font-extrabold text-emerald-900 bg-emerald-50 px-2 py-0.5 rounded-md shrink-0 border border-emerald-200/60">
+                              {item.price}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mt-0.5">
+                            <span className="font-semibold text-emerald-700 truncate">
+                              {item.category || "Argent Service"}
+                            </span>
+                            <span className="text-slate-300">•</span>
+                            <div className="flex items-center gap-1 font-semibold text-slate-700">
+                              <Star className="h-3 w-3 fill-amber-400 text-amber-400 shrink-0" />
+                              <span>{item.rating || "4.8"}</span>
+                            </div>
+                          </div>
                         </div>
-                        <ChevronRight className="h-4 w-4 text-slate-400 shrink-0" />
+                        <div className="flex items-center justify-center h-7 w-7 rounded-full bg-slate-100 text-slate-400 group-hover:bg-emerald-600 group-hover:text-white transition-colors shrink-0 ml-1">
+                          <ArrowRight className="h-3.5 w-3.5" />
+                        </div>
                       </button>
                     ))}
 
                     {searchResults.length === 0 && (
-                      <p className="text-xs text-slate-500 py-6 text-center">
-                        No matches found for '{search}'
-                      </p>
+                      <div className="py-8 px-4 text-center bg-white">
+                        <p className="text-sm font-bold text-slate-800">
+                          No services found
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Try searching for another service.
+                        </p>
+                        {relatedRecommendations.length > 0 && (
+                          <div className="mt-4 pt-3 border-t border-slate-100 text-left">
+                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                              Popular suggestions:
+                            </p>
+                            <div className="space-y-1.5">
+                              {relatedRecommendations.slice(0, 3).map((rec) => (
+                                <button
+                                  key={rec.slug || rec.name}
+                                  type="button"
+                                  onClick={() => handleSelectResult(rec)}
+                                  className="flex w-full items-center justify-between p-2 rounded-lg bg-slate-50 hover:bg-emerald-50 text-xs font-semibold text-slate-800 transition-colors cursor-pointer"
+                                >
+                                  <span>{rec.name}</span>
+                                  <span className="text-emerald-700 font-bold">{rec.price}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
