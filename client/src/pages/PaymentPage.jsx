@@ -242,7 +242,7 @@ export default function PaymentPage({
     return (
       <div className="min-h-screen bg-[#f6f7f3] text-slate-950 pb-28 sm:pb-32 md:pb-20 pt-36 sm:pt-40 md:pt-28 lg:pt-32">
         <div className="mx-auto max-w-2xl px-4 sm:px-6">
-          <div className="overflow-hidden rounded-3xl border border-white/80 bg-white shadow-xl backdrop-blur-md animate-rise-in">
+          <div className="overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-xl backdrop-blur-md animate-rise-in">
             {/* Success Header */}
             <div className="bg-gradient-to-r from-emerald-800 to-teal-800 p-8 text-center text-white space-y-3">
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-md ring-4 ring-white/30">
@@ -434,7 +434,7 @@ export default function PaymentPage({
 
             {/* Tab 1: UPI Interactive View */}
             {paymentMethod === "upi" && (
-              <div className="rounded-3xl border border-white/80 bg-white/90 p-6 sm:p-7 shadow-xs space-y-6 animate-rise-in">
+              <div className="rounded-3xl border border-slate-200/90 bg-white p-6 sm:p-7 shadow-xs space-y-6 animate-rise-in">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <h3 className="text-base font-bold text-slate-900">
                     Pay via Instant UPI
@@ -505,7 +505,7 @@ export default function PaymentPage({
 
             {/* Tab 2: Saved Cards View */}
             {paymentMethod === "saved_cards" && (
-              <div className="rounded-3xl border border-white/80 bg-white/90 p-6 sm:p-7 shadow-xs space-y-4 animate-rise-in">
+              <div className="rounded-3xl border border-slate-200/90 bg-white p-6 sm:p-7 shadow-xs space-y-4 animate-rise-in">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <h3 className="text-base font-bold text-slate-900">
                     Saved Credit & Debit Cards
@@ -580,7 +580,7 @@ export default function PaymentPage({
 
             {/* Tab 3: New Credit/Debit Card View */}
             {paymentMethod === "cards" && (
-              <div className="rounded-3xl border border-white/80 bg-white/90 p-6 sm:p-7 shadow-xs space-y-5 animate-rise-in">
+              <div className="rounded-3xl border border-slate-200/90 bg-white p-6 sm:p-7 shadow-xs space-y-5 animate-rise-in">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <h3 className="text-base font-bold text-slate-900">
                     Pay with Credit or Debit Card
@@ -678,7 +678,7 @@ export default function PaymentPage({
 
             {/* Tab 4: Net Banking */}
             {paymentMethod === "net_banking" && (
-              <div className="rounded-3xl border border-white/80 bg-white/90 p-6 sm:p-7 shadow-xs space-y-5 animate-rise-in">
+              <div className="rounded-3xl border border-slate-200/90 bg-white p-6 sm:p-7 shadow-xs space-y-5 animate-rise-in">
                 <h3 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">
                   Choose Your Bank
                 </h3>
@@ -711,7 +711,7 @@ export default function PaymentPage({
 
             {/* Tab 5: Wallets */}
             {paymentMethod === "wallets" && (
-              <div className="rounded-3xl border border-white/80 bg-white/90 p-6 sm:p-7 shadow-xs space-y-5 animate-rise-in">
+              <div className="rounded-3xl border border-slate-200/90 bg-white p-6 sm:p-7 shadow-xs space-y-5 animate-rise-in">
                 <h3 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">
                   Select Mobile Wallet
                 </h3>
@@ -741,7 +741,7 @@ export default function PaymentPage({
 
             {/* Tab 6: Cash on Service / COD */}
             {paymentMethod === "cod" && (
-              <div className="rounded-3xl border border-white/80 bg-white/90 p-6 sm:p-7 shadow-xs space-y-4 animate-rise-in">
+              <div className="rounded-3xl border border-slate-200/90 bg-white p-6 sm:p-7 shadow-xs space-y-4 animate-rise-in">
                 <h3 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">
                   Cash on Service
                 </h3>
@@ -759,7 +759,7 @@ export default function PaymentPage({
 
           {/* RIGHT COLUMN: Booking & Order Summary */}
           <div className="space-y-6">
-            <div className="rounded-3xl border border-white/80 bg-white/90 p-6 sm:p-7 shadow-sm space-y-6">
+            <div className="rounded-3xl border border-slate-200/90 bg-white p-6 sm:p-7 shadow-sm space-y-6">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <h2 className="text-lg font-bold text-slate-900">
                   Booking Summary

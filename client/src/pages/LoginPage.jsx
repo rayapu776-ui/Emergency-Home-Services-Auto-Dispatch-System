@@ -945,8 +945,13 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
     }
   };
 
+  const isBookingsRoute =
+    route === "/bookings" ||
+    route === "/my-bookings" ||
+    route.startsWith("/bookings/");
+
   if (isCustomerDashboardRoute) {
-    if (!isAuthenticated) {
+    if (!isAuthenticated && !isBookingsRoute) {
       return (
         <div className="min-h-screen bg-[#f6f7f3] text-slate-950 selection:bg-emerald-200">
           <ArgentNavbar
@@ -979,13 +984,16 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
     }
 
     const initialTab = profileTabRoutes[route] || "bookings";
+    const isStandaloneBookings = isBookingsRoute;
 
     return (
       <div className="min-h-screen bg-[#f6f7f3] text-slate-950 selection:bg-emerald-200">
         <ArgentNavbar
           onLogoClick={goHome}
           onAuthOpen={() => setAuthOpen(true)}
-          onProfileClick={() => navigate("/profile")}
+          onProfileClick={() =>
+            isAuthenticated ? navigate("/profile") : setAuthOpen(true)
+          }
           onCartClick={() => setCartOpen(true)}
           cartCount={cartItems.length}
           location={location}
@@ -1007,6 +1015,9 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
           }}
           onNavigateAdmin={onNavigateAdmin}
           onNavigateTechnician={onNavigateTechnician}
+          standaloneBookings={isStandaloneBookings}
+          isGuest={!isAuthenticated}
+          onAuthOpen={() => setAuthOpen(true)}
         />
         <Footer
           onNavigate={(path) => (path === "/" ? goHome() : navigate(path))}

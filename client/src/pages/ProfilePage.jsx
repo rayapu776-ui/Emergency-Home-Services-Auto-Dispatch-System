@@ -62,6 +62,9 @@ export default function ProfilePage({
   onBookService,
   onNavigateAdmin,
   onNavigateTechnician,
+  standaloneBookings = false,
+  isGuest = false,
+  onAuthOpen,
 }) {
   const { user, updateUser, logout } = useAuth();
 
@@ -109,7 +112,11 @@ export default function ProfilePage({
   }, [activeTab]);
 
   // Booking status filter in My Bookings tab: 'all' | 'upcoming' | 'active' | 'completed' | 'cancelled'
-  const [bookingFilter, setBookingFilter] = useState("upcoming");
+  const [bookingFilter, setBookingFilter] = useState("all");
+
+  // Guest booking lookup state
+  const [guestTrackingInput, setGuestTrackingInput] = useState("");
+  const [guestTrackingError, setGuestTrackingError] = useState("");
 
   // Modals state
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
@@ -915,6 +922,42 @@ export default function ProfilePage({
   const savedCount = savedServicesList.length;
   const unreadNotificationsCount = notifications.filter((n) => !n.read).length;
 
+  const upcomingBookingsCount = bookings.filter(
+    (b) => b.status === "Confirmed" || b.status === "Scheduled",
+  ).length;
+  const activeBookingsCount = bookings.filter(
+    (b) => b.status === "In Progress" || b.status === "Assigned",
+  ).length;
+  const completedBookingsCount = bookings.filter(
+    (b) => b.status === "Completed",
+  ).length;
+  const cancelledBookingsCount = bookings.filter(
+    (b) => b.status === "Cancelled",
+  ).length;
+
+  const handleGuestTrackBooking = (e) => {
+    e?.preventDefault();
+    const query = guestTrackingInput.trim().toLowerCase();
+    if (!query) {
+      setGuestTrackingError("Please enter a Booking ID (e.g. AY-9402) or phone number.");
+      return;
+    }
+    const found = bookings.find(
+      (b) =>
+        b.id.toLowerCase().includes(query) ||
+        b.serviceName.toLowerCase().includes(query) ||
+        (b.technician && b.technician.phone && b.technician.phone.includes(query)),
+    );
+    if (found) {
+      setGuestTrackingError("");
+      setSelectedBookingForDetails(found);
+    } else {
+      setGuestTrackingError(
+        `No booking found matching "${guestTrackingInput}". Try entering AY-9402 or AY-8911.`,
+      );
+    }
+  };
+
   const sidebarMenuItems = [
     { id: "overview", label: "My Profile", icon: User },
     {
@@ -973,6 +1016,361 @@ export default function ProfilePage({
     showToast(`Opening messaging app for ${tech.name}...`);
   };
 
+  // Reusable Bookings Dashboard Component (Used for standalone /bookings and in profile tab)
+  const renderBookingsSection = () => (
+    <div className="space-y-6 animate-rise-in">
+      {/* Argent Dark Emerald Hero Banner */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-900 p-6 sm:p-7 text-white shadow-lg">
+        <div className="absolute -right-12 -bottom-12 h-48 w-48 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+          <div className="space-y-1.5">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1 text-[11px] font-bold text-emerald-300 border border-emerald-500/30">
+              <Clock className="h-3.5 w-3.5 text-emerald-400" />
+              <span>Doorstep Service Management</span>
+            </span>
+            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+              My Bookings & Dispatches
+            </h1>
+            <p className="text-xs sm:text-sm text-emerald-100/80 max-w-xl leading-relaxed">
+              Review, reschedule, track live technician dispatch, or cancel your home service appointments.
+            </p>
+          </div>
+
+          {/* Metric summary badges */}
+          <div className="flex items-center gap-2.5 self-start sm:self-auto shrink-0">
+            <div className="rounded-2xl bg-white/10 backdrop-blur-md px-4 py-2 border border-white/10 text-center min-w-[80px]">
+              <span className="text-[10px] uppercase font-bold text-emerald-300 block">Total</span>
+              <span className="text-lg font-black text-white">{totalBookingsCount}</span>
+            </div>
+            <div className="rounded-2xl bg-emerald-500/20 backdrop-blur-md px-4 py-2 border border-emerald-400/30 text-center min-w-[80px]">
+              <span className="text-[10px] uppercase font-bold text-emerald-200 block">Active</span>
+              <span className="text-lg font-black text-emerald-300 flex items-center justify-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                {upcomingCount}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Guest Mode Callout / Lookup (if guest) */}
+      {isGuest && (
+        <div className="space-y-4">
+          <div className="rounded-3xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Search className="h-4 w-4 text-emerald-700" />
+                <span>Track Any Doorstep Booking</span>
+              </h3>
+              <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full">
+                Instant Lookup
+              </span>
+            </div>
+            <p className="text-xs text-slate-500">
+              Enter your Booking ID (e.g. AY-9402 or AY-8911) or contact number to track technician dispatch and view receipts without signing in.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="text"
+                placeholder="Enter Booking ID (e.g. AY-9402)..."
+                value={guestTrackingInput}
+                onChange={(e) => {
+                  setGuestTrackingInput(e.target.value);
+                  setGuestTrackingError("");
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleGuestTrackBooking();
+                }}
+                className="flex-1 rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-xs font-semibold text-slate-900 focus:border-emerald-600 focus:bg-white outline-none"
+              />
+              <button
+                type="button"
+                onClick={handleGuestTrackBooking}
+                className="rounded-2xl bg-slate-950 px-5 py-2.5 text-xs font-bold text-white hover:bg-emerald-800 transition-colors shadow-sm cursor-pointer"
+              >
+                Track Booking
+              </button>
+            </div>
+            {guestTrackingError && (
+              <p className="text-xs text-rose-600 font-medium">{guestTrackingError}</p>
+            )}
+          </div>
+
+          <div className="rounded-3xl border border-emerald-200/80 bg-emerald-50/70 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <span className="inline-flex items-center gap-1.5 text-xs font-black text-emerald-950">
+                <ShieldCheck className="h-4 w-4 text-emerald-700" />
+                Sign In for Full Account History & One-Tap Management
+              </span>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Sign in to view all past appointments, download GST tax invoices, manage saved addresses, and reschedule instantly.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onAuthOpen}
+              className="shrink-0 rounded-2xl bg-slate-950 px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-800 transition-colors cursor-pointer"
+            >
+              Sign In / Register
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Filter Tabs Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
+            Appointment Records
+          </h2>
+          <p className="text-xs text-slate-500">
+            Showing {filteredBookings.length} {bookingFilter !== "all" ? bookingFilter : ""} {filteredBookings.length === 1 ? "booking" : "bookings"}
+          </p>
+        </div>
+
+        {/* Status Filter Tabs */}
+        <div className="flex items-center gap-1.5 rounded-2xl bg-slate-200/70 p-1.5 text-xs font-bold text-slate-700 self-start sm:self-auto overflow-x-auto scrollbar-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {[
+            { id: "all", label: "All", count: bookings.length },
+            { id: "upcoming", label: "Upcoming", count: upcomingBookingsCount },
+            { id: "active", label: "In Progress", count: activeBookingsCount },
+            { id: "completed", label: "Completed", count: completedBookingsCount },
+            { id: "cancelled", label: "Cancelled", count: cancelledBookingsCount },
+          ].map((tab) => {
+            const isActive = bookingFilter === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setBookingFilter(tab.id)}
+                className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 transition-all cursor-pointer whitespace-nowrap ${
+                  isActive
+                    ? "bg-slate-950 text-white shadow-xs font-black"
+                    : "text-slate-700 hover:text-slate-950 hover:bg-white/60"
+                }`}
+              >
+                <span>{tab.label}</span>
+                <span
+                  className={`rounded-full px-1.5 py-0.2 text-[10px] font-black ${
+                    isActive
+                      ? "bg-emerald-500 text-slate-950"
+                      : "bg-slate-300 text-slate-700"
+                  }`}
+                >
+                  {tab.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Bookings List */}
+      <div className="space-y-4">
+        {filteredBookings.length === 0 ? (
+          <div className="rounded-3xl border border-slate-200/90 bg-white p-12 text-center space-y-4 shadow-xs">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-800 border border-emerald-100">
+              <Clock className="h-7 w-7" />
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-base font-bold text-slate-900">
+                No {bookingFilter} bookings found
+              </h4>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                You currently have no doorstep service appointments under the "{bookingFilter}" filter.
+              </p>
+            </div>
+            <div className="flex items-center justify-center gap-3 pt-2">
+              {bookingFilter !== "all" && (
+                <button
+                  type="button"
+                  onClick={() => setBookingFilter("all")}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  View All Bookings
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onHome}
+                className="rounded-xl bg-slate-950 px-5 py-2.5 text-xs font-bold text-white hover:bg-emerald-800 transition-colors shadow-sm cursor-pointer"
+              >
+                Explore Services & Book
+              </button>
+            </div>
+          </div>
+        ) : (
+          filteredBookings.map((b) => (
+            <div
+              key={b.id}
+              className="rounded-3xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-xs hover:shadow-md hover:border-emerald-700/40 transition-all space-y-4"
+            >
+              {/* Card Top */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                <div className="flex items-center gap-2.5">
+                  <span className="rounded-xl bg-slate-100 px-3 py-1 text-xs font-black text-slate-800">
+                    #{b.id}
+                  </span>
+                  <span
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wider ${
+                      b.status === "In Progress"
+                        ? "bg-amber-100 text-amber-950 border border-amber-300/60"
+                        : b.status === "Confirmed"
+                          ? "bg-emerald-100 text-emerald-950 border border-emerald-300/60"
+                          : b.status === "Completed"
+                            ? "bg-teal-100 text-teal-950 border border-teal-300/60"
+                            : "bg-rose-100 text-rose-950 border border-rose-300/60"
+                    }`}
+                  >
+                    {b.status === "In Progress" && (
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-600 animate-pulse" />
+                    )}
+                    {b.status === "Confirmed" && (
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
+                    )}
+                    {b.status}
+                  </span>
+                  {isGuest && (
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-extrabold uppercase text-slate-500">
+                      Sample Preview
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                  <span>Total Paid: <strong className="text-emerald-900 text-sm font-black">{b.totalPaid}</strong></span>
+                  <span className="text-slate-300">•</span>
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    {b.paymentMethod}
+                  </span>
+                </div>
+              </div>
+
+              {/* Service Details & Assigned Technician */}
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <img
+                    src={b.image}
+                    alt={b.serviceName}
+                    className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl object-cover shadow-2xs shrink-0 border border-slate-100"
+                  />
+                  <div className="space-y-1 min-w-0">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800">
+                      {b.category}
+                    </span>
+                    <h3 className="text-base font-bold text-slate-900 truncate">
+                      {b.serviceName}
+                    </h3>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                      <span className="flex items-center gap-1 font-semibold text-emerald-900 bg-emerald-50 px-2.5 py-0.5 rounded-lg border border-emerald-100">
+                        <Calendar className="h-3.5 w-3.5 text-emerald-700" />
+                        {b.scheduledDate}
+                      </span>
+                      <span className="flex items-center gap-1 text-slate-600 bg-slate-50 px-2.5 py-0.5 rounded-lg border border-slate-100">
+                        <Clock className="h-3.5 w-3.5 text-slate-500" />
+                        {b.scheduledTime}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 truncate max-w-md flex items-center gap-1 pt-0.5">
+                      <MapPin className="h-3 w-3 text-emerald-700 shrink-0" />
+                      <span className="truncate">{b.address}</span>
+                    </p>
+                  </div>
+                </div>
+
+                {/* Technician Card */}
+                {b.technician && (
+                  <div className="flex items-center gap-3 rounded-2xl bg-emerald-50/70 border border-emerald-100 p-3 self-start lg:self-auto min-w-[220px]">
+                    <img
+                      src={b.technician.avatar}
+                      alt={b.technician.name}
+                      className="h-10 w-10 rounded-full object-cover border-2 border-white shadow-2xs shrink-0"
+                    />
+                    <div className="text-xs min-w-0">
+                      <p className="font-bold text-slate-900 truncate">
+                        {b.technician.name}
+                      </p>
+                      <p className="text-[11px] text-slate-500 flex items-center gap-1">
+                        <span className="font-extrabold text-amber-600">
+                          ★ {b.technician.rating}
+                        </span>
+                        <span>·</span>
+                        <span className="text-emerald-800 font-semibold">Assigned Pro</span>
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Cancellation Reason if cancelled */}
+              {b.status === "Cancelled" && b.cancellationReason && (
+                <div className="rounded-2xl bg-rose-50 border border-rose-100 p-3 text-xs text-rose-800">
+                  <strong>Reason for cancellation:</strong> {b.cancellationReason}
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBookingForDetails(b)}
+                    className="rounded-xl bg-slate-950 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800 transition-colors shadow-2xs cursor-pointer flex items-center gap-1.5"
+                  >
+                    <span>View Details / Receipt</span>
+                  </button>
+
+                  {(b.status === "Confirmed" || b.status === "In Progress") && (
+                    <button
+                      type="button"
+                      onClick={() => setRescheduleBookingTarget(b)}
+                      className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                    >
+                      Reschedule Slot
+                    </button>
+                  )}
+
+                  {(b.status === "Confirmed" || b.status === "In Progress") && (
+                    <button
+                      type="button"
+                      onClick={() => setCancelBookingTarget(b)}
+                      className="rounded-xl border border-rose-200 bg-rose-50/60 px-3.5 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 transition-colors cursor-pointer"
+                    >
+                      Cancel Booking
+                    </button>
+                  )}
+
+                  {(b.status === "Completed" || b.status === "Cancelled") && (
+                    <button
+                      type="button"
+                      onClick={() => onNavigateToService?.(b.slug)}
+                      className="rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-900 hover:bg-emerald-100 transition-colors cursor-pointer"
+                    >
+                      Book Again
+                    </button>
+                  )}
+                </div>
+
+                {b.technician && (
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                    <a
+                      href={`tel:${b.technician.phone ? b.technician.phone.replace(/[^\d+]/g, "") : ""}`}
+                      onClick={(e) => handleCallTechnician(e, b.technician)}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors"
+                    >
+                      <Phone className="h-3.5 w-3.5 text-emerald-700" />
+                      <span>Call Pro</span>
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-[#f6f7f3] text-slate-950 pb-28 sm:pb-32 md:pb-20 pt-36 sm:pt-40 md:pt-28 lg:pt-32">
       {/* Toast Notification */}
@@ -998,9 +1396,19 @@ export default function ProfilePage({
             />
             <span>Back to Argent Your Home</span>
           </button>
+          <div className="flex items-center gap-2 text-xs font-bold text-emerald-800">
+            <ShieldCheck className="h-4 w-4 text-emerald-600" />
+            <span>Argent 100% Service Guarantee</span>
+          </div>
         </div>
 
-        {/* Profile Master Header Card */}
+        {standaloneBookings ? (
+          <div className="mx-auto max-w-5xl space-y-6">
+            {renderBookingsSection()}
+          </div>
+        ) : (
+          <>
+            {/* Profile Master Header Card */}
         <div className="relative overflow-hidden rounded-3xl border border-white/80 bg-white/80 p-5 sm:p-7 shadow-sm backdrop-blur-md">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
             <div className="flex items-center gap-4 sm:gap-5">
@@ -1468,214 +1876,7 @@ export default function ProfilePage({
             {/* ===============================================================
                 SECTION 2: MY BOOKINGS
             =============================================================== */}
-            {activeTab === "bookings" && (
-              <div className="space-y-6 animate-rise-in">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                      My Bookings
-                    </h2>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Review, reschedule, track, or cancel your doorstep service
-                      appointments
-                    </p>
-                  </div>
-
-                  {/* 4 Status Tabs: Upcoming, Active, Completed, Cancelled */}
-                  <div className="flex items-center gap-1 rounded-2xl bg-slate-200/70 p-1 text-xs font-bold text-slate-700 self-start sm:self-auto overflow-x-auto">
-                    {[
-                      { id: "upcoming", label: "Upcoming" },
-                      { id: "active", label: "Active / In Progress" },
-                      { id: "completed", label: "Completed" },
-                      { id: "cancelled", label: "Cancelled" },
-                      { id: "all", label: "All" },
-                    ].map((tab) => (
-                      <button
-                        key={tab.id}
-                        type="button"
-                        onClick={() => setBookingFilter(tab.id)}
-                        className={`rounded-xl px-3 py-1.5 transition-colors cursor-pointer whitespace-nowrap ${
-                          bookingFilter === tab.id
-                            ? "bg-white text-slate-950 shadow-xs"
-                            : "hover:text-slate-950"
-                        }`}
-                      >
-                        {tab.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Bookings List */}
-                <div className="space-y-4">
-                  {filteredBookings.length === 0 ? (
-                    <div className="rounded-3xl border border-white/80 bg-white/80 p-12 text-center space-y-3">
-                      <Clock className="h-10 w-10 text-slate-300 mx-auto" />
-                      <h4 className="text-base font-bold text-slate-800">
-                        No {bookingFilter} bookings found
-                      </h4>
-                      <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                        You have no appointments currently under this filter.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={onHome}
-                        className="rounded-2xl bg-slate-950 px-5 py-2.5 text-xs font-bold text-white hover:bg-emerald-800 transition-colors shadow-sm cursor-pointer"
-                      >
-                        Book a Service Now
-                      </button>
-                    </div>
-                  ) : (
-                    filteredBookings.map((b) => (
-                      <div
-                        key={b.id}
-                        className="rounded-3xl border border-white/80 bg-white/90 p-5 sm:p-6 shadow-xs backdrop-blur-md space-y-4 hover:shadow-md transition-shadow"
-                      >
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-                          <div className="flex items-center gap-3">
-                            <span className="rounded-xl bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-800">
-                              #{b.id}
-                            </span>
-                            <span
-                              className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${
-                                b.status === "In Progress"
-                                  ? "bg-amber-100 text-amber-900"
-                                  : b.status === "Confirmed"
-                                    ? "bg-emerald-100 text-emerald-900"
-                                    : b.status === "Completed"
-                                      ? "bg-teal-100 text-teal-900"
-                                      : "bg-rose-100 text-rose-900"
-                              }`}
-                            >
-                              {b.status}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
-                            <span>Paid {b.totalPaid}</span>
-                            <span className="text-slate-300">•</span>
-                            <span className="text-[11px] text-slate-500 font-normal">
-                              {b.paymentMethod}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Service Item details */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                          <div className="flex items-center gap-4">
-                            <img
-                              src={b.image}
-                              alt={b.serviceName}
-                              className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl object-cover shadow-2xs shrink-0"
-                            />
-                            <div className="space-y-1">
-                              <h3 className="text-base font-bold text-slate-900">
-                                {b.serviceName}
-                              </h3>
-                              <p className="text-xs text-slate-500">
-                                Category: {b.category}
-                              </p>
-                              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
-                                <span className="flex items-center gap-1 font-semibold text-emerald-900">
-                                  <Calendar className="h-3.5 w-3.5 text-emerald-700" />
-                                  {b.scheduledDate}
-                                </span>
-                                <span>·</span>
-                                <span className="flex items-center gap-1 text-slate-600">
-                                  <Clock className="h-3.5 w-3.5 text-slate-400" />
-                                  {b.scheduledTime}
-                                </span>
-                              </div>
-                              <p className="text-[11px] text-slate-400 truncate max-w-sm">
-                                {b.address}
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Technician preview if assigned */}
-                          {b.technician && (
-                            <div className="flex items-center gap-3 rounded-2xl bg-emerald-50/60 border border-emerald-100 p-3 self-start sm:self-auto">
-                              <img
-                                src={b.technician.avatar}
-                                alt={b.technician.name}
-                                className="h-10 w-10 rounded-full object-cover border-2 border-white shadow-xs shrink-0"
-                              />
-                              <div className="text-xs">
-                                <p className="font-bold text-slate-900">
-                                  {b.technician.name}
-                                </p>
-                                <p className="text-[11px] text-slate-500 flex items-center gap-1">
-                                  <span className="font-extrabold text-amber-600">
-                                    ★ {b.technician.rating}
-                                  </span>
-                                  <span>· Assigned Pro</span>
-                                </p>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Cancellation note if cancelled */}
-                        {b.status === "Cancelled" && b.cancellationReason && (
-                          <div className="rounded-2xl bg-rose-50 border border-rose-100 p-3 text-xs text-rose-800">
-                            <strong>Reason for cancellation:</strong>{" "}
-                            {b.cancellationReason}
-                          </div>
-                        )}
-
-                        {/* Action Buttons */}
-                        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
-                          {/* View Details: opens Receipt & Tracking modal */}
-                          <button
-                            type="button"
-                            onClick={() => setSelectedBookingForDetails(b)}
-                            className="rounded-xl bg-slate-950 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800 transition-colors shadow-2xs cursor-pointer"
-                          >
-                            View Details / Receipt
-                          </button>
-
-                          {/* Reschedule Button (for active or confirmed) */}
-                          {(b.status === "Confirmed" ||
-                            b.status === "In Progress") && (
-                            <button
-                              type="button"
-                              onClick={() => setRescheduleBookingTarget(b)}
-                              className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                            >
-                              Reschedule
-                            </button>
-                          )}
-
-                          {/* Cancel Button (for active or confirmed) */}
-                          {(b.status === "Confirmed" ||
-                            b.status === "In Progress") && (
-                            <button
-                              type="button"
-                              onClick={() => setCancelBookingTarget(b)}
-                              className="rounded-xl border border-rose-200 bg-white px-3.5 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer"
-                            >
-                              Cancel Booking
-                            </button>
-                          )}
-
-                          {/* Book Again (for completed or cancelled) */}
-                          {(b.status === "Completed" ||
-                            b.status === "Cancelled") && (
-                            <button
-                              type="button"
-                              onClick={() => onNavigateToService?.(b.slug)}
-                              className="rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-900 hover:bg-emerald-100 transition-colors cursor-pointer"
-                            >
-                              Book Again
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
+            {activeTab === "bookings" && renderBookingsSection()}
 
             {/* ===============================================================
                 SECTION 3: ADDRESSES
@@ -2555,6 +2756,8 @@ export default function ProfilePage({
             )}
           </main>
         </div>
+          </>
+        )}
       </div>
 
       {/* ===================================================================
