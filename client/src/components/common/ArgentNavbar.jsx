@@ -200,9 +200,13 @@ function LocationPicker({ value, onChange, onClose }) {
       (error) => {
         setIsDetecting(false);
         if (error.code === error.PERMISSION_DENIED) {
-          setStatus("Location permission denied. Please search or add your address below.");
+          setStatus(
+            "Location permission denied. Please search or add your address below.",
+          );
         } else {
-          setStatus("Could not get GPS location. Please search or add your address below.");
+          setStatus(
+            "Could not get GPS location. Please search or add your address below.",
+          );
         }
       },
       { timeout: 10000, enableHighAccuracy: true },
@@ -346,7 +350,9 @@ function LocationPicker({ value, onChange, onClose }) {
                 className={`h-4 w-4 text-emerald-700 shrink-0 ${isDetecting ? "animate-spin" : ""}`}
               />
               <span>
-                {isDetecting ? "Detecting GPS Location..." : "Use Current Location"}
+                {isDetecting
+                  ? "Detecting GPS Location..."
+                  : "Use Current Location"}
               </span>
             </button>
             {status && (
