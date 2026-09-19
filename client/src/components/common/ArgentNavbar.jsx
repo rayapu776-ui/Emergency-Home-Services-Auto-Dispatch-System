@@ -563,10 +563,7 @@ export default function ArgentNavbar({
               {/* RIGHT SIDE ACTIONS */}
               <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
                 {/* Location button: Displayed for BOTH Logged-In and Logged-Out */}
-                <div
-                  className="relative"
-                  onClick={(e) => e.stopPropagation()}
-                >
+                <div className="relative" onClick={(e) => e.stopPropagation()}>
                   <button
                     type="button"
                     onClick={() => {
@@ -672,108 +669,115 @@ export default function ArgentNavbar({
         </div>
 
         {/* ==================== MOBILE (under md) ==================== */}
-        {/* Sequence:
-            1. MAIN HEADER (Logo ONLY when logged out, Logo + Cart/Notification when logged in)
-            2. LOCATION (Above Search Bar)
-            3. SEARCH BAR
+        {/* Sequence: EXACTLY TWO SEPARATE ROWS
+            1. TOP ROW:
+               - Logged Out: [ Argent Your ]                     [ 📍 Location ]
+               - Logged In:  [ Argent Your ] [ 📍 Location ] [ 🛒 Cart ] [ 🔔 Notification ]
+            2. SECOND ROW:
+               [ 🔍 Search for services, e.g. Home Cleaning, AC Repair... ]
         */}
         <div className="block md:hidden px-3 pt-2.5">
-          <div className="rounded-2xl border border-white/80 bg-white/95 shadow-[0_8px_30px_rgba(27,45,39,0.08)] backdrop-blur-xl p-3 space-y-2.5">
-            {/* ROW 1: MAIN HEADER */}
-            <div className="flex items-center justify-between gap-2">
+          <div className="rounded-2xl border border-white/80 bg-white/95 shadow-[0_8px_30px_rgba(27,45,39,0.08)] backdrop-blur-xl p-2.5 sm:p-3 space-y-2">
+            {/* ROW 1: TOP ROW (Logo + Location, plus Cart & Bell when logged in) */}
+            <div className="flex items-center justify-between gap-1.5 sm:gap-2">
               {/* Left: Argent Your Logo */}
               <button
                 type="button"
                 onClick={onLogoClick}
-                className="flex items-center gap-2 cursor-pointer"
+                className="flex shrink-0 items-center gap-1.5 sm:gap-2 cursor-pointer"
                 title="Argent Your"
               >
                 <img
                   src="/argent-logo.png"
                   alt="Argent Your"
-                  className="h-8 w-8 rounded-xl object-contain shadow-xs"
+                  className="h-8 w-8 rounded-xl object-contain shadow-xs shrink-0"
                 />
-                <span className="text-base font-black tracking-tight text-slate-900">
+                <span className="text-sm sm:text-base font-black tracking-tight text-slate-900 whitespace-nowrap">
                   Argent Your
                 </span>
               </button>
 
-              {/* Right: Cart, Notification ONLY when isAuthenticated (NO Profile icon on mobile top header) */}
-              {isAuthenticated && (
-                <div className="flex items-center gap-1 text-slate-700">
-                  {/* 🛒 Cart */}
+              {/* Right: Location selector (and Cart + Notification if logged in) */}
+              <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
+                {/* 📍 Location Selector (always in TOP ROW for both logged out and logged in) */}
+                <div
+                  className="relative shrink-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <button
                     type="button"
-                    onClick={onCartClick}
-                    className="relative p-2 rounded-xl text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                    aria-label="Cart"
+                    onClick={() => {
+                      setLocationOpen(!locationOpen);
+                      setNotificationsOpen(false);
+                    }}
+                    className="flex items-center gap-1 rounded-xl px-2 py-1.5 text-xs font-semibold text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer bg-slate-50/90 border border-slate-200/70"
+                    title="Select service location"
                   >
-                    <ShoppingBag className="h-5 w-5" />
-                    {cartCount > 0 && (
-                      <span className="absolute top-0.5 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-700 px-1 text-[10px] font-black text-white">
-                        {cartCount}
-                      </span>
-                    )}
+                    <MapPin className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
+                    <span className="max-w-[60px] min-[360px]:max-w-[95px] sm:max-w-[130px] truncate font-bold text-slate-900">
+                      {location || "Delhi NCR"}
+                    </span>
+                    <ChevronDown className="h-3 w-3 text-slate-400 shrink-0" />
                   </button>
-
-                  {/* 🔔 Notification */}
-                  <div className="relative" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setNotificationsOpen(!notificationsOpen);
+                  {locationOpen && (
+                    <LocationPicker
+                      value={location}
+                      onChange={(newLoc, coords) => {
+                        onLocationChange?.(newLoc, coords);
                         setLocationOpen(false);
                       }}
-                      className="relative p-2 rounded-xl text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                      aria-label="Notifications"
+                      onClose={() => setLocationOpen(false)}
+                    />
+                  )}
+                </div>
+
+                {/* Logged-in only icons: Cart & Notification (NO Profile in top row) */}
+                {isAuthenticated && (
+                  <>
+                    {/* 🛒 Cart */}
+                    <button
+                      type="button"
+                      onClick={onCartClick}
+                      className="relative p-1.5 rounded-xl text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
+                      aria-label="Cart"
                     >
-                      <Bell className="h-5 w-5" />
-                      <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-emerald-600 ring-1 ring-white" />
+                      <ShoppingBag className="h-5 w-5" />
+                      {cartCount > 0 && (
+                        <span className="absolute top-0 right-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-700 px-1 text-[10px] font-black text-white">
+                          {cartCount}
+                        </span>
+                      )}
                     </button>
-                    {notificationsOpen && (
-                      <NotificationDropdown
-                        onClose={() => setNotificationsOpen(false)}
-                      />
-                    )}
-                  </div>
-                </div>
-              )}
+
+                    {/* 🔔 Notification */}
+                    <div
+                      className="relative shrink-0"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNotificationsOpen(!notificationsOpen);
+                          setLocationOpen(false);
+                        }}
+                        className="relative p-1.5 rounded-xl text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                        aria-label="Notifications"
+                      >
+                        <Bell className="h-5 w-5" />
+                        <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-emerald-600 ring-1 ring-white" />
+                      </button>
+                      {notificationsOpen && (
+                        <NotificationDropdown
+                          onClose={() => setNotificationsOpen(false)}
+                        />
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
 
-            {/* ROW 2: LOCATION (MUST appear ABOVE the Search Bar) */}
-            <div
-              className="relative border-t border-slate-100/90 pt-2"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  setLocationOpen(!locationOpen);
-                  setNotificationsOpen(false);
-                }}
-                className="flex items-center justify-between text-xs font-semibold text-slate-800 hover:text-emerald-800 transition-colors w-full cursor-pointer"
-              >
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <MapPin className="h-4 w-4 text-emerald-700 shrink-0" />
-                  <span className="truncate font-bold text-slate-900">
-                    {location || "Noida, Uttar Pradesh"}
-                  </span>
-                </div>
-                <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0 ml-1" />
-              </button>
-              {locationOpen && (
-                <LocationPicker
-                  value={location}
-                  onChange={(newLoc, coords) => {
-                    onLocationChange?.(newLoc, coords);
-                    setLocationOpen(false);
-                  }}
-                  onClose={() => setLocationOpen(false)}
-                />
-              )}
-            </div>
-
-            {/* ROW 3: SEARCH BAR */}
+            {/* ROW 2: SEARCH BAR (Occupies available width in its own separate row) */}
             <div ref={mobileSearchWrapRef} className="relative w-full">
               <div className="relative w-full">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />

@@ -970,7 +970,7 @@ export default function ProfilePage({
   };
 
   return (
-    <div className="min-h-screen bg-[#f6f7f3] text-slate-950 pb-24 md:pb-20 pt-48 sm:pt-52 md:pt-28 lg:pt-32">
+    <div className="min-h-screen bg-[#f6f7f3] text-slate-950 pb-24 md:pb-20 pt-36 sm:pt-40 md:pt-28 lg:pt-32">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-xs font-bold text-white shadow-2xl border border-slate-800 animate-rise-in max-w-sm">
