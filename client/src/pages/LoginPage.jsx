@@ -759,7 +759,8 @@ function DedicatedPage({
 }
 
 export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
-  const { user } = useAuth();
+  const { user, isAuthenticated: authIsAuthenticated } = useAuth();
+  const isAuthenticated = Boolean(authIsAuthenticated || user);
   const [authOpen, setAuthOpen] = useState(false);
   const [route, setRoute] = useState(() => window.location.pathname || "/");
   const [location, setLocation] = useState(() => {
@@ -965,7 +966,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
     route.startsWith("/bookings/");
 
   if (isCustomerDashboardRoute) {
-    if (!isAuthenticated && !isBookingsRoute) {
+    if (!isAuthenticated) {
       return (
         <div className="min-h-screen bg-[#f6f7f3] text-slate-950 selection:bg-emerald-200">
           <ArgentNavbar
@@ -981,6 +982,39 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
             currentRoute={route}
             onNavigate={navigate}
           />
+          <main className="mx-auto max-w-md px-5 py-24 sm:py-32 text-center space-y-6 pt-36 sm:pt-40 md:pt-28">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-sm">
+              <CircleUserRound className="h-8 w-8" />
+            </div>
+            <div className="space-y-2">
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                Sign In Required
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                Please sign in to your Argent Your account to access your{" "}
+                {isBookingsRoute
+                  ? "bookings and appointments"
+                  : "profile and account details"}
+                .
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+              <button
+                type="button"
+                onClick={() => setAuthOpen(true)}
+                className="rounded-2xl bg-slate-950 px-6 py-3 text-xs sm:text-sm font-bold text-white hover:bg-emerald-800 transition-colors shadow-sm cursor-pointer"
+              >
+                Sign In / Register
+              </button>
+              <button
+                type="button"
+                onClick={goHome}
+                className="rounded-2xl border border-slate-200 bg-white px-6 py-3 text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                Back to Home
+              </button>
+            </div>
+          </main>
           <AuthPanel
             onClose={() => goHome()}
             onNavigate={navigate}
@@ -997,7 +1031,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
       );
     }
 
-    const initialTab = profileTabRoutes[route] || "bookings";
+    const initialTab = profileTabRoutes[route] || "overview";
     const isStandaloneBookings = isBookingsRoute;
 
     return (
@@ -1005,9 +1039,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
         <ArgentNavbar
           onLogoClick={goHome}
           onAuthOpen={() => setAuthOpen(true)}
-          onProfileClick={() =>
-            isAuthenticated ? navigate("/profile") : setAuthOpen(true)
-          }
+          onProfileClick={() => navigate("/profile")}
           onCartClick={() => setCartOpen(true)}
           cartCount={cartItems.length}
           location={location}
@@ -1030,7 +1062,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
           onNavigateAdmin={onNavigateAdmin}
           onNavigateTechnician={onNavigateTechnician}
           standaloneBookings={isStandaloneBookings}
-          isGuest={!isAuthenticated}
+          isGuest={false}
           onAuthOpen={() => setAuthOpen(true)}
         />
         <Footer
