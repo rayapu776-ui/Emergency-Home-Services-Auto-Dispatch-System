@@ -314,8 +314,8 @@ export default function ServiceDetailPage({
             <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 rounded-xl bg-slate-100/80 px-3.5 py-2.5">
               <MapPin className="h-4 w-4 text-emerald-700 shrink-0" />
               <span>
-                Available at <strong>Sector 62, Noida & Delhi NCR</strong> ·
-                Pro ready in ~30 mins
+                Available at <strong>Sector 62, Noida & Delhi NCR</strong> · Pro
+                ready in ~30 mins
               </span>
             </div>
 

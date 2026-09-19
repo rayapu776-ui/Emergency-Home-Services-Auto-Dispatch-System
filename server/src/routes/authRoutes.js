@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
 import { query } from "../db/database.js";
 import { generateToken, authenticateToken } from "../middleware/auth.js";
+import otpService from "../services/otpService.js";
 
 const router = express.Router();
 
@@ -34,11 +35,9 @@ router.post("/register", async (req, res) => {
     }
 
     if (!["customer", "technician"].includes(role)) {
-      return res
-        .status(403)
-        .json({
-          error: "Only customer or technician accounts can self-register",
-        });
+      return res.status(403).json({
+        error: "Only customer or technician accounts can self-register",
+      });
     }
 
     const passwordHash = bcrypt.hashSync(password, 10);
@@ -107,26 +106,72 @@ router.post("/register", async (req, res) => {
   }
 });
 
-// Login
-router.post("/login", async (req, res) => {
+// Step 1: Verify Credentials (Email or Phone + Password) and Issue OTP
+router.post("/login-step1", async (req, res) => {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ error: "Email and password are required" });
+    const { identifier, email, phone, password } = req.body;
+    const inputIdentifier = (identifier || email || phone || "").trim();
+
+    if (!inputIdentifier || !password) {
+      return res
+        .status(400)
+        .json({ error: "Email or phone number and password are required" });
     }
 
-    const user = await query.get("SELECT * FROM users WHERE email = ?", [
-      email,
-    ]);
+    const user = await otpService.findUserByIdentifier(inputIdentifier);
     if (!user) {
-      return res.status(401).json({ error: "Invalid email or password" });
+      return res.status(401).json({ error: "Invalid email/phone or password" });
     }
 
     const isMatch = bcrypt.compareSync(password, user.password_hash);
     if (!isMatch) {
-      return res.status(401).json({ error: "Invalid email or password" });
+      return res.status(401).json({ error: "Invalid email/phone or password" });
     }
 
+    const sessionInfo = await otpService.createOtpSession(
+      user,
+      inputIdentifier,
+    );
+
+    if (!sessionInfo.success) {
+      return res.status(503).json({
+        error: sessionInfo.error || "Unable to send authentication code. Please try again.",
+        details: sessionInfo.reason,
+      });
+    }
+
+    return res.json({
+      status: "OTP_REQUIRED",
+      ...sessionInfo,
+      message: "Verification code sent successfully",
+    });
+  } catch (err) {
+    console.error("Login step 1 error:", err);
+    res.status(500).json({ error: "Failed to process login request" });
+  }
+});
+
+// Step 2: Verify 6-digit OTP and Issue JWT Auth Token
+router.post("/verify-otp", async (req, res) => {
+  try {
+    const { tempSessionToken, otp } = req.body;
+    if (!tempSessionToken || !otp) {
+      return res
+        .status(400)
+        .json({
+          error: "Session token and 6-digit verification code are required",
+        });
+    }
+
+    const result = await otpService.verifyOtp(tempSessionToken, otp);
+    if (!result.success) {
+      return res.status(400).json({
+        error: result.error,
+        remainingAttempts: result.remainingAttempts,
+      });
+    }
+
+    const user = result.user;
     let technicianData = null;
     if (user.role === "technician") {
       technicianData = await query.get(
@@ -141,7 +186,8 @@ router.post("/login", async (req, res) => {
       role: user.role,
       name: user.name,
     });
-    res.json({
+
+    return res.json({
       token,
       user: {
         id: user.id,
@@ -154,6 +200,123 @@ router.post("/login", async (req, res) => {
         longitude: user.longitude,
         technician: technicianData,
       },
+    });
+  } catch (err) {
+    console.error("OTP verification error:", err);
+    res.status(500).json({ error: "Failed to verify code" });
+  }
+});
+
+// Resend OTP code with rate limit enforcement
+router.post("/resend-otp", async (req, res) => {
+  try {
+    const { tempSessionToken } = req.body;
+    if (!tempSessionToken) {
+      return res.status(400).json({ error: "Session token is required" });
+    }
+
+    const result = await otpService.resendOtp(tempSessionToken);
+    if (!result.success) {
+      const statusCode = result.cooldownRemaining ? 400 : 503;
+      return res.status(statusCode).json({
+        error: result.error || "Unable to send authentication code. Please try again.",
+        cooldownRemaining: result.cooldownRemaining,
+        details: result.reason,
+      });
+    }
+
+    return res.json({
+      ...result,
+      message: "A fresh verification code has been dispatched",
+    });
+  } catch (err) {
+    console.error("OTP resend error:", err);
+    res.status(500).json({ error: "Failed to resend verification code" });
+  }
+});
+
+// Traditional or fallback login endpoint
+router.post("/login", async (req, res) => {
+  try {
+    const { identifier, email, phone, password, otp, tempSessionToken } =
+      req.body;
+
+    // If OTP is provided, verify Step 2
+    if (otp && tempSessionToken) {
+      const result = await otpService.verifyOtp(tempSessionToken, otp);
+      if (!result.success) {
+        return res.status(400).json({
+          error: result.error,
+          remainingAttempts: result.remainingAttempts,
+        });
+      }
+
+      const user = result.user;
+      let technicianData = null;
+      if (user.role === "technician") {
+        technicianData = await query.get(
+          "SELECT * FROM technicians WHERE user_id = ?",
+          [user.id],
+        );
+      }
+
+      const token = generateToken({
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        name: user.name,
+      });
+
+      return res.json({
+        token,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          phone: user.phone,
+          address: user.address,
+          latitude: user.latitude,
+          longitude: user.longitude,
+          technician: technicianData,
+        },
+      });
+    }
+
+    // Step 1 check
+    const inputIdentifier = (identifier || email || phone || "").trim();
+    if (!inputIdentifier || !password) {
+      return res
+        .status(400)
+        .json({ error: "Email or phone number and password are required" });
+    }
+
+    const user = await otpService.findUserByIdentifier(inputIdentifier);
+    if (!user) {
+      return res.status(401).json({ error: "Invalid email/phone or password" });
+    }
+
+    const isMatch = bcrypt.compareSync(password, user.password_hash);
+    if (!isMatch) {
+      return res.status(401).json({ error: "Invalid email/phone or password" });
+    }
+
+    const sessionInfo = await otpService.createOtpSession(
+      user,
+      inputIdentifier,
+    );
+
+    if (!sessionInfo.success) {
+      return res.status(503).json({
+        error: sessionInfo.error || "Unable to send authentication code. Please try again.",
+        details: sessionInfo.reason,
+      });
+    }
+
+    return res.json({
+      status: "OTP_REQUIRED",
+      ...sessionInfo,
+      message: "Verification code sent successfully",
     });
   } catch (err) {
     console.error("Login error:", err);

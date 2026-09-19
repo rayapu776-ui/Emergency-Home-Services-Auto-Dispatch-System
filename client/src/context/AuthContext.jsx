@@ -32,14 +32,36 @@ export function AuthProvider({ children }) {
     }
   }, [token]);
 
-  const login = async (email, password) => {
-    const res = await api.post("/auth/login", { email, password });
+  const loginStep1 = async (identifier, password) => {
+    const res = await api.post("/auth/login-step1", { identifier, password });
+    return res.data;
+  };
+
+  const verifyOtp = async (tempSessionToken, otp) => {
+    const res = await api.post("/auth/verify-otp", { tempSessionToken, otp });
     const { token: newToken, user: newUser } = res.data;
     setToken(newToken);
     setUser(newUser);
     localStorage.setItem("emergency_token", newToken);
     localStorage.setItem("emergency_user", JSON.stringify(newUser));
     return newUser;
+  };
+
+  const resendOtp = async (tempSessionToken) => {
+    const res = await api.post("/auth/resend-otp", { tempSessionToken });
+    return res.data;
+  };
+
+  const login = async (
+    identifier,
+    password,
+    otp = null,
+    tempSessionToken = null,
+  ) => {
+    if (otp && tempSessionToken) {
+      return await verifyOtp(tempSessionToken, otp);
+    }
+    return await loginStep1(identifier, password);
   };
 
   const demoLogin = async (role = "customer", category = "Plumbing") => {
@@ -82,6 +104,9 @@ export function AuthProvider({ children }) {
         isAuthenticated: !!token,
         loading,
         login,
+        loginStep1,
+        verifyOtp,
+        resendOtp,
         demoLogin,
         register,
         logout,

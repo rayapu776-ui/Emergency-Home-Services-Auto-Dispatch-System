@@ -102,7 +102,8 @@ export default function ProfilePage({
 
   // Modals state
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
-  const [selectedBookingForDetails, setSelectedBookingForDetails] = useState(null);
+  const [selectedBookingForDetails, setSelectedBookingForDetails] =
+    useState(null);
   const [rescheduleBookingTarget, setRescheduleBookingTarget] = useState(null);
   const [cancelBookingTarget, setCancelBookingTarget] = useState(null);
   const [isAddAddressOpen, setIsAddAddressOpen] = useState(false);
@@ -526,11 +527,7 @@ export default function ProfilePage({
           const addr = data.address || {};
 
           const road =
-            addr.road ||
-            addr.street ||
-            addr.neighbourhood ||
-            addr.suburb ||
-            "";
+            addr.road || addr.street || addr.neighbourhood || addr.suburb || "";
           const houseNumber = addr.house_number || "";
           const line1 = houseNumber
             ? `${houseNumber}, ${road}`
@@ -540,8 +537,7 @@ export default function ProfilePage({
             addr.neighbourhood ||
             addr.city_district ||
             "Sector 62";
-          const city =
-            addr.city || addr.town || addr.county || "Noida";
+          const city = addr.city || addr.town || addr.county || "Noida";
           const state = addr.state || "Uttar Pradesh";
           const postalCode = addr.postcode || "201304";
 
@@ -630,9 +626,7 @@ export default function ProfilePage({
 
   // Set Default Address
   const handleSetDefaultAddress = (id) => {
-    setAddresses((prev) =>
-      prev.map((a) => ({ ...a, isDefault: a.id === id })),
-    );
+    setAddresses((prev) => prev.map((a) => ({ ...a, isDefault: a.id === id })));
     showToast("Default service address updated.");
   };
 
@@ -790,16 +784,28 @@ export default function ProfilePage({
         "Thank you for contacting Argent Your. Our support team is looking into this and a representative will follow up shortly.";
       const lower = userText.toLowerCase();
 
-      if (lower.includes("technician") || lower.includes("arriving") || lower.includes("reach")) {
+      if (
+        lower.includes("technician") ||
+        lower.includes("arriving") ||
+        lower.includes("reach")
+      ) {
         reply =
           "Your assigned technician is tracked via live GPS and is on schedule. You can also tap the 'Call' or 'SMS' button directly on your booking card.";
       } else if (lower.includes("cancel") || lower.includes("refund")) {
         reply =
           "You can cancel any booking up to 2 hours before the slot with zero fee from 'My Bookings'. Refunds are credited back within 2-4 business hours.";
-      } else if (lower.includes("invoice") || lower.includes("receipt") || lower.includes("bill")) {
+      } else if (
+        lower.includes("invoice") ||
+        lower.includes("receipt") ||
+        lower.includes("bill")
+      ) {
         reply =
           "Your official GST tax invoice is generated upon service completion. You can view and download it anytime from the Booking Receipt.";
-      } else if (lower.includes("discount") || lower.includes("coupon") || lower.includes("offer")) {
+      } else if (
+        lower.includes("discount") ||
+        lower.includes("coupon") ||
+        lower.includes("offer")
+      ) {
         reply =
           "You have an exclusive 20% discount coupon 'ARGENT20' active! Apply it during checkout to save instantly.";
       }
@@ -833,7 +839,9 @@ export default function ProfilePage({
     setIsRaiseTicketOpen(false);
     setTicketSubject("");
     setTicketDesc("");
-    showToast(`Support Ticket #${newTicket.id} registered! We'll reply in 2 hours.`);
+    showToast(
+      `Support Ticket #${newTicket.id} registered! We'll reply in 2 hours.`,
+    );
   };
 
   // Copy Coupon Code Handler
@@ -891,7 +899,8 @@ export default function ProfilePage({
   const upcomingCount = bookings.filter(
     (b) => b.status === "In Progress" || b.status === "Confirmed",
   ).length;
-  const completedCount = bookings.filter((b) => b.status === "Completed").length + 8;
+  const completedCount =
+    bookings.filter((b) => b.status === "Completed").length + 8;
   const savedCount = savedServicesList.length;
   const unreadNotificationsCount = notifications.filter((n) => !n.read).length;
 
@@ -915,7 +924,8 @@ export default function ProfilePage({
       id: "notifications",
       label: "Notifications",
       icon: Bell,
-      badge: unreadNotificationsCount > 0 ? `${unreadNotificationsCount}` : null,
+      badge:
+        unreadNotificationsCount > 0 ? `${unreadNotificationsCount}` : null,
     },
     { id: "offers", label: "Offers & Rewards", icon: Tag, highlight: true },
     { id: "support", label: "Help & Support", icon: HelpCircle },
@@ -1280,8 +1290,9 @@ export default function ProfilePage({
                         Flat 20% OFF on All Doorstep Services
                       </h3>
                       <p className="text-xs text-slate-300">
-                        Use code <strong className="text-white">ARGENT20</strong>{" "}
-                        for immediate discount at checkout. Valid until 30 Sep.
+                        Use code{" "}
+                        <strong className="text-white">ARGENT20</strong> for
+                        immediate discount at checkout. Valid until 30 Sep.
                       </p>
                     </div>
 
@@ -1315,7 +1326,9 @@ export default function ProfilePage({
                 </div>
 
                 {/* Next Upcoming Appointment Highlight */}
-                {bookings.find((b) => b.status === "In Progress" || b.status === "Confirmed") && (
+                {bookings.find(
+                  (b) => b.status === "In Progress" || b.status === "Confirmed",
+                ) && (
                   <div className="rounded-3xl border border-white/80 bg-white/90 p-5 sm:p-6 shadow-xs backdrop-blur-md space-y-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -1335,7 +1348,9 @@ export default function ProfilePage({
 
                     {(() => {
                       const nextBooking = bookings.find(
-                        (b) => b.status === "In Progress" || b.status === "Confirmed",
+                        (b) =>
+                          b.status === "In Progress" ||
+                          b.status === "Confirmed",
                       );
                       if (!nextBooking) return null;
                       return (
@@ -1366,14 +1381,18 @@ export default function ProfilePage({
                           <div className="flex flex-wrap items-center gap-2">
                             <button
                               type="button"
-                              onClick={() => setSelectedBookingForDetails(nextBooking)}
+                              onClick={() =>
+                                setSelectedBookingForDetails(nextBooking)
+                              }
                               className="rounded-xl bg-slate-950 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800 transition-colors shadow-2xs cursor-pointer"
                             >
                               Track & Details
                             </button>
                             <button
                               type="button"
-                              onClick={() => setRescheduleBookingTarget(nextBooking)}
+                              onClick={() =>
+                                setRescheduleBookingTarget(nextBooking)
+                              }
                               className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
                             >
                               Reschedule
@@ -1446,7 +1465,8 @@ export default function ProfilePage({
                       My Bookings
                     </h2>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Review, reschedule, track, or cancel your doorstep service appointments
+                      Review, reschedule, track, or cancel your doorstep service
+                      appointments
                     </p>
                   </div>
 
@@ -1604,7 +1624,8 @@ export default function ProfilePage({
                           </button>
 
                           {/* Reschedule Button (for active or confirmed) */}
-                          {(b.status === "Confirmed" || b.status === "In Progress") && (
+                          {(b.status === "Confirmed" ||
+                            b.status === "In Progress") && (
                             <button
                               type="button"
                               onClick={() => setRescheduleBookingTarget(b)}
@@ -1615,7 +1636,8 @@ export default function ProfilePage({
                           )}
 
                           {/* Cancel Button (for active or confirmed) */}
-                          {(b.status === "Confirmed" || b.status === "In Progress") && (
+                          {(b.status === "Confirmed" ||
+                            b.status === "In Progress") && (
                             <button
                               type="button"
                               onClick={() => setCancelBookingTarget(b)}
@@ -1626,7 +1648,8 @@ export default function ProfilePage({
                           )}
 
                           {/* Book Again (for completed or cancelled) */}
-                          {(b.status === "Completed" || b.status === "Cancelled") && (
+                          {(b.status === "Completed" ||
+                            b.status === "Cancelled") && (
                             <button
                               type="button"
                               onClick={() => onNavigateToService?.(b.slug)}
@@ -1654,7 +1677,8 @@ export default function ProfilePage({
                       Manage Addresses
                     </h2>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Doorstep service locations for appointments and equipment delivery
+                      Doorstep service locations for appointments and equipment
+                      delivery
                     </p>
                   </div>
 
@@ -1757,7 +1781,8 @@ export default function ProfilePage({
                       Payment Methods
                     </h2>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Secure payment options with bank-grade encryption & masked card data
+                      Secure payment options with bank-grade encryption & masked
+                      card data
                     </p>
                   </div>
 
@@ -1814,7 +1839,9 @@ export default function ProfilePage({
                         </p>
                         <div className="flex items-center justify-between text-slate-500 pt-2">
                           <span>{pm.cardholder}</span>
-                          {pm.expiry !== "N/A" && <span>Expires {pm.expiry}</span>}
+                          {pm.expiry !== "N/A" && (
+                            <span>Expires {pm.expiry}</span>
+                          )}
                         </div>
                       </div>
 
@@ -1841,7 +1868,9 @@ export default function ProfilePage({
                       PCI-DSS Compliant 256-Bit SSL Protection
                     </p>
                     <p className="text-slate-500 mt-0.5">
-                      Your full card numbers are never stored on Argent Your servers. We use RBI & PCI-DSS tokenization to secure all transactions.
+                      Your full card numbers are never stored on Argent Your
+                      servers. We use RBI & PCI-DSS tokenization to secure all
+                      transactions.
                     </p>
                   </div>
                 </div>
@@ -1874,7 +1903,8 @@ export default function ProfilePage({
                       No saved services yet
                     </h4>
                     <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                      Bookmark your favorite doorstep maintenance and grooming services to access them quickly here.
+                      Bookmark your favorite doorstep maintenance and grooming
+                      services to access them quickly here.
                     </p>
                     <button
                       type="button"
@@ -1962,7 +1992,8 @@ export default function ProfilePage({
                       )}
                     </div>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Real-time updates regarding service bookings, technician dispatch & offers
+                      Real-time updates regarding service bookings, technician
+                      dispatch & offers
                     </p>
                   </div>
 
@@ -1996,7 +2027,8 @@ export default function ProfilePage({
                         No notifications right now
                       </h4>
                       <p className="text-xs text-slate-500">
-                        We'll alert you here when your technician is assigned or when new offers drop!
+                        We'll alert you here when your technician is assigned or
+                        when new offers drop!
                       </p>
                     </div>
                   ) : (
@@ -2065,7 +2097,8 @@ export default function ProfilePage({
                     Offers & Reward Coupons
                   </h2>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Exclusive promo discount vouchers available for your doorstep services
+                    Exclusive promo discount vouchers available for your
+                    doorstep services
                   </p>
                 </div>
 
@@ -2174,7 +2207,8 @@ export default function ProfilePage({
                     Help & Support
                   </h2>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Frequently asked questions, live chat assistant & ticket tracking
+                    Frequently asked questions, live chat assistant & ticket
+                    tracking
                   </p>
                 </div>
 
@@ -2336,7 +2370,9 @@ export default function ProfilePage({
                   <div className="space-y-3 divide-y divide-slate-100 text-xs">
                     <div className="flex items-center justify-between pt-2">
                       <div>
-                        <p className="font-bold text-slate-900">SMS Notifications</p>
+                        <p className="font-bold text-slate-900">
+                          SMS Notifications
+                        </p>
                         <p className="text-slate-500 text-[11px]">
                           Receive appointment confirmations and OTPs via SMS
                         </p>
@@ -2360,7 +2396,8 @@ export default function ProfilePage({
                           WhatsApp Order Alerts
                         </p>
                         <p className="text-slate-500 text-[11px]">
-                          Get live technician tracking links and receipts on WhatsApp
+                          Get live technician tracking links and receipts on
+                          WhatsApp
                         </p>
                       </div>
                       <input
@@ -2382,7 +2419,8 @@ export default function ProfilePage({
                           Promotional Emails & Discounts
                         </p>
                         <p className="text-slate-500 text-[11px]">
-                          Occasional updates on seasonal discounts and member rewards
+                          Occasional updates on seasonal discounts and member
+                          rewards
                         </p>
                       </div>
                       <input
@@ -2488,7 +2526,8 @@ export default function ProfilePage({
                     <div>
                       <p className="font-bold text-slate-900">Delete Account</p>
                       <p className="text-slate-500">
-                        Permanently delete your profile, saved addresses, and booking history.
+                        Permanently delete your profile, saved addresses, and
+                        booking history.
                       </p>
                     </div>
 
@@ -2532,7 +2571,10 @@ export default function ProfilePage({
               </button>
             </div>
 
-            <form onSubmit={handleSaveProfile} className="mt-4 space-y-4 text-xs">
+            <form
+              onSubmit={handleSaveProfile}
+              className="mt-4 space-y-4 text-xs"
+            >
               <div>
                 <label className="font-bold text-slate-700 block mb-1">
                   Full Name
@@ -2728,7 +2770,8 @@ export default function ProfilePage({
                           </span>
                           <span>·</span>
                           <span>
-                            {selectedBookingForDetails.technician.experience} exp
+                            {selectedBookingForDetails.technician.experience}{" "}
+                            exp
                           </span>
                         </p>
                       </div>
@@ -2845,7 +2888,8 @@ export default function ProfilePage({
                   Reschedule Appointment
                 </span>
                 <h3 className="text-base font-black text-slate-900">
-                  #{rescheduleBookingTarget.id} · {rescheduleBookingTarget.serviceName}
+                  #{rescheduleBookingTarget.id} ·{" "}
+                  {rescheduleBookingTarget.serviceName}
                 </h3>
               </div>
               <button
@@ -2998,7 +3042,8 @@ export default function ProfilePage({
               </div>
 
               <div className="rounded-2xl bg-rose-50 border border-rose-100 p-3 text-[11px] text-rose-800">
-                Any prepaid amount will be refunded immediately to your original payment method.
+                Any prepaid amount will be refunded immediately to your original
+                payment method.
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
@@ -3047,7 +3092,10 @@ export default function ProfilePage({
               </button>
             </div>
 
-            <form onSubmit={handleAddAddress} className="mt-4 space-y-4 text-xs">
+            <form
+              onSubmit={handleAddAddress}
+              className="mt-4 space-y-4 text-xs"
+            >
               {/* Real GPS Geolocation Trigger */}
               <div className="flex items-center justify-between p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200">
                 <div className="flex items-center gap-2 text-xs">
@@ -3065,7 +3113,9 @@ export default function ProfilePage({
                   <RefreshCw
                     className={`h-3.5 w-3.5 ${isLocating ? "animate-spin" : ""}`}
                   />
-                  <span>{isLocating ? "Locating..." : "Use Current Location"}</span>
+                  <span>
+                    {isLocating ? "Locating..." : "Use Current Location"}
+                  </span>
                 </button>
               </div>
 
@@ -3074,7 +3124,9 @@ export default function ProfilePage({
                   <button
                     key={t}
                     type="button"
-                    onClick={() => setNewAddressForm({ ...newAddressForm, type: t })}
+                    onClick={() =>
+                      setNewAddressForm({ ...newAddressForm, type: t })
+                    }
                     className={`rounded-2xl py-2 font-bold border transition-all cursor-pointer text-center ${
                       newAddressForm.type === t
                         ? "bg-slate-950 text-white border-slate-950"
@@ -3133,7 +3185,10 @@ export default function ProfilePage({
                   placeholder="e.g. Flat 402, Green Glen Heights"
                   value={newAddressForm.line1}
                   onChange={(e) =>
-                    setNewAddressForm({ ...newAddressForm, line1: e.target.value })
+                    setNewAddressForm({
+                      ...newAddressForm,
+                      line1: e.target.value,
+                    })
                   }
                   className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-semibold text-slate-900 focus:border-emerald-600 outline-none"
                 />
@@ -3148,7 +3203,10 @@ export default function ProfilePage({
                   placeholder="e.g. Sector 62, Near Metro Station"
                   value={newAddressForm.line2}
                   onChange={(e) =>
-                    setNewAddressForm({ ...newAddressForm, line2: e.target.value })
+                    setNewAddressForm({
+                      ...newAddressForm,
+                      line2: e.target.value,
+                    })
                   }
                   className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-semibold text-slate-900 focus:border-emerald-600 outline-none"
                 />
@@ -3164,7 +3222,10 @@ export default function ProfilePage({
                     required
                     value={newAddressForm.city}
                     onChange={(e) =>
-                      setNewAddressForm({ ...newAddressForm, city: e.target.value })
+                      setNewAddressForm({
+                        ...newAddressForm,
+                        city: e.target.value,
+                      })
                     }
                     className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-semibold text-slate-900 focus:border-emerald-600 outline-none"
                   />
@@ -3178,7 +3239,10 @@ export default function ProfilePage({
                     required
                     value={newAddressForm.state}
                     onChange={(e) =>
-                      setNewAddressForm({ ...newAddressForm, state: e.target.value })
+                      setNewAddressForm({
+                        ...newAddressForm,
+                        state: e.target.value,
+                      })
                     }
                     className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-semibold text-slate-900 focus:border-emerald-600 outline-none"
                   />
@@ -3262,7 +3326,10 @@ export default function ProfilePage({
               </button>
             </div>
 
-            <form onSubmit={handleUpdateAddress} className="mt-4 space-y-4 text-xs">
+            <form
+              onSubmit={handleUpdateAddress}
+              className="mt-4 space-y-4 text-xs"
+            >
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">
@@ -3456,7 +3523,10 @@ export default function ProfilePage({
               ))}
             </div>
 
-            <form onSubmit={handleAddPayment} className="mt-4 space-y-4 text-xs">
+            <form
+              onSubmit={handleAddPayment}
+              className="mt-4 space-y-4 text-xs"
+            >
               {paymentTab === "card" && (
                 <>
                   <div>
@@ -3470,9 +3540,14 @@ export default function ProfilePage({
                       maxLength={19}
                       value={newPaymentForm.cardNumber}
                       onChange={(e) => {
-                        const val = e.target.value.replace(/\D/g, "").slice(0, 16);
+                        const val = e.target.value
+                          .replace(/\D/g, "")
+                          .slice(0, 16);
                         const formatted = val.replace(/(.{4})/g, "$1 ").trim();
-                        setNewPaymentForm({ ...newPaymentForm, cardNumber: formatted });
+                        setNewPaymentForm({
+                          ...newPaymentForm,
+                          cardNumber: formatted,
+                        });
                       }}
                       className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-mono font-semibold text-slate-900 focus:border-emerald-600 outline-none"
                     />
@@ -3551,7 +3626,10 @@ export default function ProfilePage({
                       placeholder="e.g. yourname@okhdfcbank"
                       value={newPaymentForm.upiId}
                       onChange={(e) =>
-                        setNewPaymentForm({ ...newPaymentForm, upiId: e.target.value })
+                        setNewPaymentForm({
+                          ...newPaymentForm,
+                          upiId: e.target.value,
+                        })
                       }
                       className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-semibold text-slate-900 focus:border-emerald-600 outline-none"
                     />
@@ -3564,8 +3642,12 @@ export default function ProfilePage({
                         key={h}
                         type="button"
                         onClick={() => {
-                          const base = newPaymentForm.upiId.split("@")[0] || "rahul";
-                          setNewPaymentForm({ ...newPaymentForm, upiId: `${base}${h}` });
+                          const base =
+                            newPaymentForm.upiId.split("@")[0] || "rahul";
+                          setNewPaymentForm({
+                            ...newPaymentForm,
+                            upiId: `${base}${h}`,
+                          });
                         }}
                         className="rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-700 hover:bg-slate-200 cursor-pointer"
                       >
@@ -3593,9 +3675,13 @@ export default function ProfilePage({
                   >
                     <option value="HDFC Bank">HDFC Bank</option>
                     <option value="ICICI Bank">ICICI Bank</option>
-                    <option value="State Bank of India">State Bank of India</option>
+                    <option value="State Bank of India">
+                      State Bank of India
+                    </option>
                     <option value="Axis Bank">Axis Bank</option>
-                    <option value="Kotak Mahindra Bank">Kotak Mahindra Bank</option>
+                    <option value="Kotak Mahindra Bank">
+                      Kotak Mahindra Bank
+                    </option>
                   </select>
                 </div>
               )}
@@ -3657,7 +3743,9 @@ export default function ProfilePage({
                   <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-400 border border-slate-950" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-sm">Argent Support Assistant</h4>
+                  <h4 className="font-bold text-sm">
+                    Argent Support Assistant
+                  </h4>
                   <p className="text-[10px] text-emerald-300">
                     Online · Average response &lt; 1 min
                   </p>
@@ -3754,7 +3842,10 @@ export default function ProfilePage({
               </button>
             </div>
 
-            <form onSubmit={handleRaiseTicket} className="mt-4 space-y-4 text-xs">
+            <form
+              onSubmit={handleRaiseTicket}
+              className="mt-4 space-y-4 text-xs"
+            >
               <div>
                 <label className="font-bold text-slate-700 block mb-1">
                   Issue Category
@@ -3764,10 +3855,18 @@ export default function ProfilePage({
                   onChange={(e) => setTicketCategory(e.target.value)}
                   className="w-full rounded-2xl border border-slate-200 bg-white p-3 font-semibold text-slate-900 outline-none focus:border-emerald-600 cursor-pointer"
                 >
-                  <option value="Service Quality">Service Quality & Revisit</option>
-                  <option value="Billing & Payment">Billing & Refund Status</option>
-                  <option value="Technician Delay">Technician Delay / No Show</option>
-                  <option value="Reschedule Help">Rescheduling Assistance</option>
+                  <option value="Service Quality">
+                    Service Quality & Revisit
+                  </option>
+                  <option value="Billing & Payment">
+                    Billing & Refund Status
+                  </option>
+                  <option value="Technician Delay">
+                    Technician Delay / No Show
+                  </option>
+                  <option value="Reschedule Help">
+                    Rescheduling Assistance
+                  </option>
                   <option value="Other Inquiry">Other General Inquiry</option>
                 </select>
               </div>
@@ -3865,7 +3964,11 @@ export default function ProfilePage({
                   }}
                   className="overflow-hidden rounded-2xl border-2 border-transparent hover:border-emerald-600 aspect-square transition-all cursor-pointer"
                 >
-                  <img src={av} alt="Avatar" className="h-full w-full object-cover" />
+                  <img
+                    src={av}
+                    alt="Avatar"
+                    className="h-full w-full object-cover"
+                  />
                 </button>
               ))}
             </div>
@@ -3899,7 +4002,9 @@ export default function ProfilePage({
             </div>
 
             <p className="text-slate-600 leading-relaxed">
-              Are you sure you want to permanently delete your Argent Your account? This action cannot be undone. All saved addresses, payment methods, and booking warranties will be lost.
+              Are you sure you want to permanently delete your Argent Your
+              account? This action cannot be undone. All saved addresses,
+              payment methods, and booking warranties will be lost.
             </p>
 
             <div className="flex justify-end gap-2 pt-2">
@@ -3952,7 +4057,8 @@ export default function ProfilePage({
             </div>
 
             <p className="text-slate-600 leading-relaxed">
-              You will need to sign back in with your credentials to book doorstep services and track appointments.
+              You will need to sign back in with your credentials to book
+              doorstep services and track appointments.
             </p>
 
             <div className="flex justify-end gap-2 pt-2">

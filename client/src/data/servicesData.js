@@ -49,7 +49,12 @@ export const allServicesCatalog = [
     provider: "Certified Argent Stylists",
     duration: "40 - 50 mins",
     availability: "Available today · Next slot in 45 mins",
-    tags: ["Doorstep Barber", "Single-Use Cape", "Sterilized Tools", "30-Day Guarantee"],
+    tags: [
+      "Doorstep Barber",
+      "Single-Use Cape",
+      "Sterilized Tools",
+      "30-Day Guarantee",
+    ],
     description:
       "Expert haircut tailored to your face shape and personal style. Includes styling consultation, precise cut, neck shave, and post-cut hair wash & blow dry delivered in the comfort of your home.",
     whatsIncluded: [
@@ -150,7 +155,11 @@ export const allServicesCatalog = [
     provider: "Senior Argent Stylists",
     duration: "75 mins",
     availability: "Available today · Slots open",
-    tags: ["Best Value Combo", "Hair + Beard + Facial", "Complimentary Head Massage"],
+    tags: [
+      "Best Value Combo",
+      "Hair + Beard + Facial",
+      "Complimentary Head Massage",
+    ],
     description:
       "Complete head-to-beard transformation: haircut of choice, precision beard styling or clean shave, exfoliating charcoal face scrub, and relaxing 10-minute head massage.",
     whatsIncluded: [
@@ -810,7 +819,11 @@ export const allServicesCatalog = [
     provider: "Verified Argent Cleaning Team",
     duration: "2 - 3 hours",
     availability: "Available today · Same-day slots open",
-    tags: ["Mechanized Scrubbing", "Eco-Friendly Chemicals", "Complete Sanitization"],
+    tags: [
+      "Mechanized Scrubbing",
+      "Eco-Friendly Chemicals",
+      "Complete Sanitization",
+    ],
     description:
       "Room-by-room meticulous cleaning covering ceiling fan blades, switchboards, floor buffing, window tracks, kitchen counters, and bathroom disinfection.",
     whatsIncluded: [
@@ -858,7 +871,11 @@ export const allServicesCatalog = [
     provider: "Licensed City Electricians",
     duration: "30 - 60 mins",
     availability: "Immediate emergency dispatch in 20 mins",
-    tags: ["Emergency Dispatch", "ISI Certified Parts", "30-Day Safety Warranty"],
+    tags: [
+      "Emergency Dispatch",
+      "ISI Certified Parts",
+      "30-Day Safety Warranty",
+    ],
     description:
       "Fast, safe diagnostics and repair for short circuits, tripping MCBs, switchboard burning, ceiling fan wobble, chandelier hanging, and appliance power cabling.",
     whatsIncluded: [
@@ -1027,7 +1044,11 @@ export const allServicesCatalog = [
     provider: "Master Painters",
     duration: "Consultation & site visit",
     availability: "Available today",
-    tags: ["Laser Dampness Audit", "Dust-Free Mechanized Sanding", "Low-VOC Paint"],
+    tags: [
+      "Laser Dampness Audit",
+      "Dust-Free Mechanized Sanding",
+      "Low-VOC Paint",
+    ],
     description:
       "Professional wall inspection, moisture laser measurement, digital color shade consultation, and dust-free mechanized wall painting with complete furniture masking.",
     whatsIncluded: [
@@ -1151,7 +1172,11 @@ export const allServicesCatalog = [
     provider: "Licensed Plumbers",
     duration: "30 mins",
     availability: "Immediate emergency dispatch in 20 mins",
-    tags: ["Teflon Seal Protection", "Health Faucet Repair", "Diverter Fitting"],
+    tags: [
+      "Teflon Seal Protection",
+      "Health Faucet Repair",
+      "Diverter Fitting",
+    ],
     description:
       "Installation and repair of bathroom diverters, showerheads, angle valves, health faucets (jet sprays), sink traps, and bottle traps.",
     whatsIncluded: [
@@ -1178,7 +1203,11 @@ export const allServicesCatalog = [
  * Returns a guaranteed 4-item photo gallery for any service
  */
 export function getServiceGallery(service) {
-  if (service?.gallery && Array.isArray(service.gallery) && service.gallery.length >= 4) {
+  if (
+    service?.gallery &&
+    Array.isArray(service.gallery) &&
+    service.gallery.length >= 4
+  ) {
     return service.gallery.slice(0, 4);
   }
   const baseImg = service?.image || serviceImages.home;

@@ -16,8 +16,10 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
-    "sqlite3": "^5.1.7",
+    "nodemailer": "^10.0.10",
     "socket.io": "^4.8.1",
+    "sqlite3": "^5.1.7",
+    "twilio": "^6.1.1",
     "uuid": "^11.1.0"
   }
 }

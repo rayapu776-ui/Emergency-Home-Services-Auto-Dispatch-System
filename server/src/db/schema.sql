@@ -57,7 +57,19 @@ CREATE TABLE IF NOT EXISTS status_logs (
   old_status TEXT,
   new_status TEXT NOT NULL,
   timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-  note TEXT,
   FOREIGN KEY (request_id) REFERENCES service_requests(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS otp_sessions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  otp_hash TEXT NOT NULL,
+  channel TEXT NOT NULL,
+  destination TEXT NOT NULL,
+  attempts INTEGER DEFAULT 0,
+  cooldown_until INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 

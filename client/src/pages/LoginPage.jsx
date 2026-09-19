@@ -176,129 +176,6 @@ const categoryServices = {
   carpenter: [rails.repairs[5]],
 };
 
-function LegacyAuthPanel({ onClose }) {
-  const { login, register, demoLogin } = useAuth();
-  const [registering, setRegistering] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const submit = async (event) => {
-    event.preventDefault();
-    setLoading(true);
-    setError("");
-    try {
-      if (registering) await register({ ...form, role: "customer" });
-      else await login(form.email, form.password);
-      onClose();
-    } catch (err) {
-      setError(
-        err.response?.data?.error || "Please check your details and try again.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-  const guest = async () => {
-    setLoading(true);
-    try {
-      await demoLogin("customer");
-      onClose();
-    } catch {
-      setError("Guest access is unavailable right now.");
-    } finally {
-      setLoading(false);
-    }
-  };
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm"
-      onMouseDown={(event) => event.target === event.currentTarget && onClose()}
-    >
-      <div className="relative w-full max-w-md rounded-[28px] bg-white p-7 shadow-2xl animate-rise-in">
-        <button
-          onClick={onClose}
-          className="absolute right-5 top-5 rounded-full p-2 text-slate-500 hover:bg-slate-100"
-          aria-label="Close"
-        >
-          <X className="h-4 w-4" />
-        </button>
-        <p className="eyebrow">Argent Your</p>
-        <h2 className="display-font mt-3 text-3xl">
-          {registering ? "Create your account" : "Welcome back"}
-        </h2>
-        <p className="mt-2 text-sm text-slate-500">
-          Book trusted care for your home and yourself.
-        </p>
-        {error && (
-          <p className="mt-4 rounded-xl bg-red-50 p-3 text-xs font-semibold text-red-700">
-            {error}
-          </p>
-        )}
-        <form onSubmit={submit} className="mt-6 space-y-3">
-          {registering && (
-            <input
-              required
-              placeholder="Full name"
-              value={form.name}
-              onChange={(event) =>
-                setForm({ ...form, name: event.target.value })
-              }
-              className="auth-input"
-            />
-          )}
-          <input
-            required
-            type="email"
-            placeholder="Email address"
-            value={form.email}
-            onChange={(event) =>
-              setForm({ ...form, email: event.target.value })
-            }
-            className="auth-input"
-          />
-          <input
-            required
-            type="password"
-            placeholder="Password"
-            value={form.password}
-            onChange={(event) =>
-              setForm({ ...form, password: event.target.value })
-            }
-            className="auth-input"
-          />
-          <button
-            disabled={loading}
-            className="w-full rounded-xl bg-slate-950 py-3.5 text-sm font-bold text-white transition-colors hover:bg-emerald-800 disabled:opacity-50"
-          >
-            {loading
-              ? "Opening..."
-              : registering
-                ? "Create account"
-                : "Continue"}
-          </button>
-        </form>
-        <button
-          onClick={guest}
-          className="mt-3 w-full rounded-xl border border-slate-200 py-3 text-sm font-bold text-slate-700 hover:border-slate-400"
-        >
-          Explore as a guest
-        </button>
-        <button
-          onClick={() => {
-            setRegistering(!registering);
-            setError("");
-          }}
-          className="mt-5 w-full text-xs font-semibold text-slate-500 hover:text-emerald-700"
-        >
-          {registering
-            ? "Already have an account? Sign in"
-            : "New to Argent Your? Create an account"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 function AuthPanel({ onClose, onNavigate, onSuccess, onCancel }) {
   return (
     <AuthModal
@@ -575,7 +452,8 @@ function AllServicesCatalogPage({
               All Argent Your Services
             </h1>
             <p className="mt-2 text-xs sm:text-sm text-slate-600 max-w-xl">
-              Certified doorstep experts for home repair, appliance service, deep cleaning, and personal grooming.
+              Certified doorstep experts for home repair, appliance service,
+              deep cleaning, and personal grooming.
             </p>
           </div>
 
@@ -706,7 +584,9 @@ function AllServicesCatalogPage({
           })}
         </div>
       </main>
-      <Footer onNavigate={(path) => (path === "/" ? onHome() : onNavigate(path))} />
+      <Footer
+        onNavigate={(path) => (path === "/" ? onHome() : onNavigate(path))}
+      />
     </div>
   );
 }
@@ -732,13 +612,13 @@ function DedicatedPage({
   const isCategory = route.startsWith("/category/") || Boolean(category);
   const service = allServicesCatalog.find((item) => item.slug === slug) ||
     allServices.find((item) => item.slug === slug) || {
-    name: slug.replace(/-/g, " "),
-    image: images.home,
-    rating: "4.9",
-    reviews: "2.8k",
-    price: "From $29",
-    provider: "Argent Your professionals",
-  };
+      name: slug.replace(/-/g, " "),
+      image: images.home,
+      rating: "4.9",
+      reviews: "2.8k",
+      price: "From $29",
+      provider: "Argent Your professionals",
+    };
   const items = isCategory
     ? categoryServices[slug] || allServicesCatalog.slice(0, 5)
     : [service];
