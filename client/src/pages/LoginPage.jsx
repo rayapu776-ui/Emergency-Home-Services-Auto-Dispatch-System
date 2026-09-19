@@ -440,7 +440,7 @@ function AllServicesCatalogPage({
         currentRoute="/services"
         onNavigate={onNavigate}
       />
-      <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-24 md:pb-16 pt-36 sm:pt-40 md:pt-28 lg:pt-32 space-y-8">
+      <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-28 sm:pb-32 md:pb-16 pt-36 sm:pt-40 md:pt-28 lg:pt-32 space-y-8">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
@@ -646,7 +646,7 @@ function DedicatedPage({
         currentRoute={route}
         onNavigate={onNavigate}
       />
-      <main className="mx-auto max-w-7xl px-5 pb-24 md:pb-16 pt-36 sm:pt-40 md:pt-28 lg:pt-32 lg:px-8">
+      <main className="mx-auto max-w-7xl px-5 pb-28 sm:pb-32 md:pb-16 pt-36 sm:pt-40 md:pt-28 lg:pt-32 lg:px-8">
         <button
           onClick={onHome}
           className="mb-8 flex items-center gap-2 text-sm font-bold text-emerald-800 hover:text-emerald-950"
@@ -906,13 +906,155 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
     }
   };
 
+  const profileTabRoutes = {
+    "/profile": "overview",
+    "/bookings": "bookings",
+    "/my-bookings": "bookings",
+    "/addresses": "addresses",
+    "/payments": "payments",
+    "/payment-methods": "payments",
+    "/saved": "saved",
+    "/saved-services": "saved",
+    "/notifications": "notifications",
+    "/offers-and-rewards": "offers",
+    "/support": "support",
+    "/help": "support",
+    "/settings": "settings",
+  };
+
+  const isCustomerDashboardRoute = Boolean(
+    profileTabRoutes[route] || route.startsWith("/bookings/"),
+  );
+
+  const handleProfileTabChange = (tabId) => {
+    const tabToPath = {
+      overview: "/profile",
+      bookings: "/bookings",
+      addresses: "/addresses",
+      payments: "/payment-methods",
+      saved: "/saved-services",
+      notifications: "/notifications",
+      offers: "/offers",
+      support: "/support",
+      settings: "/settings",
+    };
+    const targetPath = tabToPath[tabId] || "/profile";
+    if (route !== targetPath) {
+      window.history.pushState({}, "", targetPath);
+      setRoute(targetPath);
+    }
+  };
+
+  if (isCustomerDashboardRoute) {
+    if (!isAuthenticated) {
+      return (
+        <div className="min-h-screen bg-[#f6f7f3] text-slate-950 selection:bg-emerald-200">
+          <ArgentNavbar
+            onLogoClick={goHome}
+            onAuthOpen={() => setAuthOpen(true)}
+            onProfileClick={() => setAuthOpen(true)}
+            onCartClick={() => setCartOpen(true)}
+            cartCount={cartItems.length}
+            location={location}
+            onLocationChange={setLocation}
+            services={allServicesCatalog}
+            onSelectService={(item) => navigate(`/services/${item.slug}`)}
+            currentRoute={route}
+            onNavigate={navigate}
+          />
+          <AuthPanel
+            onClose={() => goHome()}
+            onNavigate={navigate}
+            onSuccess={(loggedUser) => {
+              handleAuthSuccess(loggedUser);
+              navigate(route);
+            }}
+            onCancel={() => goHome()}
+          />
+          <Footer
+            onNavigate={(path) => (path === "/" ? goHome() : navigate(path))}
+          />
+        </div>
+      );
+    }
+
+    const initialTab = profileTabRoutes[route] || "bookings";
+
+    return (
+      <div className="min-h-screen bg-[#f6f7f3] text-slate-950 selection:bg-emerald-200">
+        <ArgentNavbar
+          onLogoClick={goHome}
+          onAuthOpen={() => setAuthOpen(true)}
+          onProfileClick={() => navigate("/profile")}
+          onCartClick={() => setCartOpen(true)}
+          cartCount={cartItems.length}
+          location={location}
+          onLocationChange={setLocation}
+          services={allServicesCatalog}
+          onSelectService={(item) => navigate(`/services/${item.slug}`)}
+          currentRoute={route}
+          onNavigate={navigate}
+        />
+        <ProfilePage
+          initialTab={initialTab}
+          onTabChange={handleProfileTabChange}
+          onHome={goHome}
+          onNavigateToService={(slug) => navigate(`/services/${slug}`)}
+          onBookService={(service, coupon) => {
+            setCheckoutService(service);
+            if (coupon) setAppliedCoupon(coupon);
+            navigate("/checkout");
+          }}
+          onNavigateAdmin={onNavigateAdmin}
+          onNavigateTechnician={onNavigateTechnician}
+        />
+        <Footer
+          onNavigate={(path) => (path === "/" ? goHome() : navigate(path))}
+        />
+        <CartDrawer
+          isOpen={cartOpen}
+          onClose={() => setCartOpen(false)}
+          items={cartItems}
+          onUpdateQuantity={(key, qty) => {
+            setCartItems((prev) =>
+              prev.map((it) =>
+                it.slug === key || it.name === key
+                  ? { ...it, quantity: qty }
+                  : it,
+              ),
+            );
+          }}
+          onRemoveItem={(key) => {
+            setCartItems((prev) =>
+              prev.filter((it) => it.slug !== key && it.name !== key),
+            );
+          }}
+          onCheckout={() => {
+            if (cartItems.length > 0) {
+              setCartOpen(false);
+              handleProtectedBooking(cartItems[0]);
+            }
+          }}
+        />
+        {authOpen && (
+          <AuthPanel
+            onClose={() => setAuthOpen(false)}
+            onNavigate={navigate}
+            onSuccess={handleAuthSuccess}
+            onCancel={handleAuthCancel}
+          />
+        )}
+      </div>
+    );
+  }
+
   const isInfoRoute =
+    !isCustomerDashboardRoute &&
     route !== "/" &&
     route !== "/services" &&
     route !== "/offers" &&
     !route.startsWith("/services/") &&
     !route.startsWith("/category/") &&
-    route !== "/profile" &&
     route !== "/checkout";
 
   if (isInfoRoute)
@@ -1155,7 +1297,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
           currentRoute={route}
           onNavigate={navigate}
         />
-        <div className="pt-36 sm:pt-40 md:pt-28 lg:pt-32 pb-20 md:pb-10">
+        <div className="pt-36 sm:pt-40 md:pt-28 lg:pt-32 pb-28 sm:pb-32 md:pb-10">
           <OffersPage
             onHome={goHome}
             onNavigate={navigate}
@@ -1241,7 +1383,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
           currentRoute={route}
           onNavigate={navigate}
         />
-        <div className="pt-36 sm:pt-40 md:pt-28 lg:pt-32 pb-20 md:pb-10">
+        <div className="pt-36 sm:pt-40 md:pt-28 lg:pt-32 pb-28 sm:pb-32 md:pb-10">
           <CategoryViewPage
             categorySlug={catSlug}
             onHome={goHome}
@@ -1263,105 +1405,6 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
             }}
           />
         </div>
-        <Footer
-          onNavigate={(path) => (path === "/" ? goHome() : navigate(path))}
-        />
-        <CartDrawer
-          isOpen={cartOpen}
-          onClose={() => setCartOpen(false)}
-          items={cartItems}
-          onUpdateQuantity={(key, qty) => {
-            setCartItems((prev) =>
-              prev.map((it) =>
-                it.slug === key || it.name === key
-                  ? { ...it, quantity: qty }
-                  : it,
-              ),
-            );
-          }}
-          onRemoveItem={(key) => {
-            setCartItems((prev) =>
-              prev.filter((it) => it.slug !== key && it.name !== key),
-            );
-          }}
-          onCheckout={() => {
-            if (cartItems.length > 0) {
-              setCartOpen(false);
-              handleProtectedBooking(cartItems[0]);
-            }
-          }}
-        />
-        {authOpen && (
-          <AuthPanel
-            onClose={() => setAuthOpen(false)}
-            onNavigate={navigate}
-            onSuccess={handleAuthSuccess}
-            onCancel={handleAuthCancel}
-          />
-        )}
-      </div>
-    );
-  }
-
-  if (route === "/profile" || route === "/bookings") {
-    if (!isAuthenticated) {
-      return (
-        <div className="min-h-screen bg-[#f6f7f3] text-slate-950 selection:bg-emerald-200">
-          <ArgentNavbar
-            onLogoClick={goHome}
-            onAuthOpen={() => setAuthOpen(true)}
-            onProfileClick={() => setAuthOpen(true)}
-            onCartClick={() => setCartOpen(true)}
-            cartCount={cartItems.length}
-            location={location}
-            onLocationChange={setLocation}
-            services={allServicesCatalog}
-            onSelectService={(item) => navigate(`/services/${item.slug}`)}
-            currentRoute="/"
-            onNavigate={navigate}
-          />
-          <AuthPanel
-            onClose={() => goHome()}
-            onNavigate={navigate}
-            onSuccess={(loggedUser) => {
-              handleAuthSuccess(loggedUser);
-              navigate(route);
-            }}
-            onCancel={() => goHome()}
-          />
-        </div>
-      );
-    }
-
-    const initialTab = route === "/bookings" ? "bookings" : "overview";
-
-    return (
-      <div className="min-h-screen bg-[#f6f7f3] text-slate-950 selection:bg-emerald-200">
-        <ArgentNavbar
-          onLogoClick={goHome}
-          onAuthOpen={() => setAuthOpen(true)}
-          onProfileClick={() => navigate("/profile")}
-          onCartClick={() => setCartOpen(true)}
-          cartCount={cartItems.length}
-          location={location}
-          onLocationChange={setLocation}
-          services={allServicesCatalog}
-          onSelectService={(item) => navigate(`/services/${item.slug}`)}
-          currentRoute={route}
-          onNavigate={navigate}
-        />
-        <ProfilePage
-          initialTab={initialTab}
-          onHome={goHome}
-          onNavigateToService={(slug) => navigate(`/services/${slug}`)}
-          onBookService={(service, coupon) => {
-            setCheckoutService(service);
-            if (coupon) setAppliedCoupon(coupon);
-            navigate("/checkout");
-          }}
-          onNavigateAdmin={onNavigateAdmin}
-          onNavigateTechnician={onNavigateTechnician}
-        />
         <Footer
           onNavigate={(path) => (path === "/" ? goHome() : navigate(path))}
         />

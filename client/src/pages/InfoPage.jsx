@@ -17,6 +17,8 @@ import {
 import Footer from "../components/common/Footer";
 import { useAuth } from "../context/AuthContext";
 import AuthModal from "../components/common/AuthModal";
+import ArgentNavbar from "../components/common/ArgentNavbar";
+import { allServicesCatalog } from "../data/servicesData";
 
 const slug = (value) =>
   value
@@ -743,21 +745,25 @@ function ProfessionalsPage({ path, onNavigate }) {
 
 function PageShell({ title, subtitle, children, onNavigate, onAuthOpen }) {
   const [search, setSearch] = useState("");
-  const [location, setLocation] = useState("");
+  const [location, setLocation] = useState("Delhi NCR");
   const [authOpen, setAuthOpen] = useState(false);
   const openAuth = onAuthOpen || (() => setAuthOpen(true));
   return (
     <div className="min-h-screen bg-[#f6f7f3] text-slate-950">
-      <PublicNav
-        onHome={() => onNavigate("/")}
-        search={search}
-        setSearch={setSearch}
-        location={location}
-        setLocation={setLocation}
-        onNavigate={onNavigate}
+      <ArgentNavbar
+        onLogoClick={() => onNavigate("/")}
         onAuthOpen={openAuth}
+        onProfileClick={() => onNavigate("/profile")}
+        onCartClick={() => onNavigate("/services")}
+        cartCount={0}
+        location={location}
+        onLocationChange={setLocation}
+        services={allServicesCatalog}
+        onSelectService={(item) => onNavigate(`/services/${item.slug}`)}
+        currentRoute={window.location.pathname}
+        onNavigate={onNavigate}
       />
-      <main className="mx-auto max-w-6xl px-5 pb-20 pt-36 lg:px-8">
+      <main className="mx-auto max-w-6xl px-5 pb-28 sm:pb-32 md:pb-20 pt-36 sm:pt-40 md:pt-28 lg:pt-32 lg:px-8">
         <button
           onClick={() => onNavigate("/")}
           className="mb-7 flex items-center gap-2 text-sm font-bold text-emerald-800"

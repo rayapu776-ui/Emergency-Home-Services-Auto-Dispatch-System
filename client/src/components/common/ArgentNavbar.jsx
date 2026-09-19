@@ -889,7 +889,9 @@ export default function ArgentNavbar({
                                   className="flex w-full items-center justify-between p-2 rounded-lg bg-slate-50 hover:bg-emerald-50 text-xs font-semibold text-slate-800 transition-colors cursor-pointer"
                                 >
                                   <span>{rec.name}</span>
-                                  <span className="text-emerald-700 font-bold">{rec.price}</span>
+                                  <span className="text-emerald-700 font-bold">
+                                    {rec.price}
+                                  </span>
                                 </button>
                               ))}
                             </div>
@@ -907,139 +909,158 @@ export default function ArgentNavbar({
 
       {/* =========================================================================
           MOBILE BOTTOM NAVIGATION (Fixed at bottom, md:hidden)
-          The ONLY additional navigation allowed on mobile:
-          Home | Bookings | Services | Offers | Profile
+          Home | Bookings | Services | Offers | Profile / Account
          ========================================================================= */}
-      <nav
-        className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white/95 border-t border-slate-200/90 shadow-[0_-4px_25px_rgba(0,0,0,0.08)] backdrop-blur-xl select-none"
-        aria-label="Mobile Bottom Navigation"
-      >
-        <div className="grid grid-cols-5 h-15 items-center px-1 max-w-md mx-auto">
-          {/* 1. Home */}
-          <button
-            type="button"
-            onClick={() => {
-              if (currentRoute === "/") return;
-              if (onNavigate) onNavigate("/");
-              else onLogoClick?.();
-            }}
-            className={`flex flex-col items-center justify-center py-1.5 transition-colors cursor-pointer ${
-              currentRoute === "/"
-                ? "text-emerald-700 font-bold"
-                : "text-slate-500 hover:text-slate-800"
-            }`}
-          >
-            <Home
-              className={`h-5 w-5 ${currentRoute === "/" ? "stroke-[2.5]" : "stroke-2"}`}
-            />
-            <span className="text-[10px] mt-0.5 tracking-tight font-medium">
-              Home
-            </span>
-          </button>
+      {(() => {
+        const isHomeActive = currentRoute === "/";
+        const isBookingsActive =
+          currentRoute === "/bookings" ||
+          currentRoute === "/my-bookings" ||
+          Boolean(currentRoute?.startsWith("/bookings/"));
+        const isServicesActive =
+          currentRoute === "/services" ||
+          Boolean(currentRoute?.startsWith("/services/")) ||
+          Boolean(currentRoute?.startsWith("/category/"));
+        const isOffersActive =
+          currentRoute === "/offers" ||
+          Boolean(currentRoute?.startsWith("/offers/"));
+        const isProfileActive =
+          currentRoute === "/profile" ||
+          currentRoute === "/addresses" ||
+          currentRoute === "/payments" ||
+          currentRoute === "/payment-methods" ||
+          currentRoute === "/saved" ||
+          currentRoute === "/saved-services" ||
+          currentRoute === "/notifications" ||
+          currentRoute === "/settings" ||
+          currentRoute === "/support" ||
+          currentRoute === "/help";
 
-          {/* 2. Bookings */}
-          <button
-            type="button"
-            onClick={() => {
-              if (isAuthenticated) {
-                if (currentRoute === "/bookings") return;
-                if (onNavigate) onNavigate("/bookings");
-                else onProfileClick?.();
-              } else {
-                onAuthOpen?.();
-              }
-            }}
-            className={`flex flex-col items-center justify-center py-1.5 transition-colors cursor-pointer ${
-              currentRoute === "/bookings"
-                ? "text-emerald-700 font-bold"
-                : "text-slate-500 hover:text-slate-800"
-            }`}
+        return (
+          <nav
+            className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white/95 border-t border-slate-200/90 shadow-[0_-4px_25px_rgba(0,0,0,0.08)] backdrop-blur-xl select-none pb-[env(safe-area-inset-bottom)]"
+            aria-label="Mobile Bottom Navigation"
           >
-            <CalendarCheck
-              className={`h-5 w-5 ${currentRoute === "/bookings" ? "stroke-[2.5]" : "stroke-2"}`}
-            />
-            <span className="text-[10px] mt-0.5 tracking-tight font-medium">
-              Bookings
-            </span>
-          </button>
+            <div className="grid grid-cols-5 h-15 items-center px-1 max-w-md mx-auto">
+              {/* 1. Home */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (isHomeActive) return;
+                  if (onNavigate) onNavigate("/");
+                  else onLogoClick?.();
+                }}
+                className={`flex flex-col items-center justify-center py-1.5 transition-colors cursor-pointer ${
+                  isHomeActive
+                    ? "text-emerald-700 font-bold"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <Home
+                  className={`h-5 w-5 ${isHomeActive ? "stroke-[2.5]" : "stroke-2"}`}
+                />
+                <span className="text-[10px] mt-0.5 tracking-tight font-medium">
+                  Home
+                </span>
+              </button>
 
-          {/* 3. Services */}
-          <button
-            type="button"
-            onClick={() => {
-              if (currentRoute === "/services") return;
-              if (onNavigate) onNavigate("/services");
-            }}
-            className={`flex flex-col items-center justify-center py-1.5 transition-colors cursor-pointer ${
-              currentRoute === "/services" ||
-              currentRoute?.startsWith("/category/") ||
-              currentRoute?.startsWith("/services/")
-                ? "text-emerald-700 font-bold"
-                : "text-slate-500 hover:text-slate-800"
-            }`}
-          >
-            <LayoutGrid
-              className={`h-5 w-5 ${
-                currentRoute === "/services" ||
-                currentRoute?.startsWith("/category/") ||
-                currentRoute?.startsWith("/services/")
-                  ? "stroke-[2.5]"
-                  : "stroke-2"
-              }`}
-            />
-            <span className="text-[10px] mt-0.5 tracking-tight font-medium">
-              Services
-            </span>
-          </button>
+              {/* 2. Bookings */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (isAuthenticated) {
+                    if (isBookingsActive) return;
+                    if (onNavigate) onNavigate("/bookings");
+                    else onProfileClick?.();
+                  } else {
+                    onAuthOpen?.();
+                  }
+                }}
+                className={`flex flex-col items-center justify-center py-1.5 transition-colors cursor-pointer ${
+                  isBookingsActive
+                    ? "text-emerald-700 font-bold"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <CalendarCheck
+                  className={`h-5 w-5 ${isBookingsActive ? "stroke-[2.5]" : "stroke-2"}`}
+                />
+                <span className="text-[10px] mt-0.5 tracking-tight font-medium">
+                  Bookings
+                </span>
+              </button>
 
-          {/* 4. Offers */}
-          <button
-            type="button"
-            onClick={() => {
-              if (currentRoute === "/offers") return;
-              if (onNavigate) onNavigate("/offers");
-            }}
-            className={`flex flex-col items-center justify-center py-1.5 transition-colors cursor-pointer ${
-              currentRoute === "/offers"
-                ? "text-emerald-700 font-bold"
-                : "text-slate-500 hover:text-slate-800"
-            }`}
-          >
-            <Tag
-              className={`h-5 w-5 ${currentRoute === "/offers" ? "stroke-[2.5]" : "stroke-2"}`}
-            />
-            <span className="text-[10px] mt-0.5 tracking-tight font-medium">
-              Offers
-            </span>
-          </button>
+              {/* 3. Services */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (currentRoute === "/services") return;
+                  if (onNavigate) onNavigate("/services");
+                }}
+                className={`flex flex-col items-center justify-center py-1.5 transition-colors cursor-pointer ${
+                  isServicesActive
+                    ? "text-emerald-700 font-bold"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <LayoutGrid
+                  className={`h-5 w-5 ${isServicesActive ? "stroke-[2.5]" : "stroke-2"}`}
+                />
+                <span className="text-[10px] mt-0.5 tracking-tight font-medium">
+                  Services
+                </span>
+              </button>
 
-          {/* 5. Profile or Account */}
-          <button
-            type="button"
-            onClick={() => {
-              if (isAuthenticated) {
-                if (currentRoute === "/profile") return;
-                if (onNavigate) onNavigate("/profile");
-                else onProfileClick?.();
-              } else {
-                onAuthOpen?.();
-              }
-            }}
-            className={`flex flex-col items-center justify-center py-1.5 transition-colors cursor-pointer ${
-              currentRoute === "/profile"
-                ? "text-emerald-700 font-bold"
-                : "text-slate-500 hover:text-slate-800"
-            }`}
-          >
-            <CircleUserRound
-              className={`h-5 w-5 ${currentRoute === "/profile" ? "stroke-[2.5]" : "stroke-2"}`}
-            />
-            <span className="text-[10px] mt-0.5 tracking-tight font-medium">
-              {isAuthenticated ? "Profile" : "Account"}
-            </span>
-          </button>
-        </div>
-      </nav>
+              {/* 4. Offers */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (isOffersActive) return;
+                  if (onNavigate) onNavigate("/offers");
+                }}
+                className={`flex flex-col items-center justify-center py-1.5 transition-colors cursor-pointer ${
+                  isOffersActive
+                    ? "text-emerald-700 font-bold"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <Tag
+                  className={`h-5 w-5 ${isOffersActive ? "stroke-[2.5]" : "stroke-2"}`}
+                />
+                <span className="text-[10px] mt-0.5 tracking-tight font-medium">
+                  Offers
+                </span>
+              </button>
+
+              {/* 5. Profile or Account */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (isAuthenticated) {
+                    if (currentRoute === "/profile") return;
+                    if (onNavigate) onNavigate("/profile");
+                    else onProfileClick?.();
+                  } else {
+                    onAuthOpen?.();
+                  }
+                }}
+                className={`flex flex-col items-center justify-center py-1.5 transition-colors cursor-pointer ${
+                  isProfileActive
+                    ? "text-emerald-700 font-bold"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <CircleUserRound
+                  className={`h-5 w-5 ${isProfileActive ? "stroke-[2.5]" : "stroke-2"}`}
+                />
+                <span className="text-[10px] mt-0.5 tracking-tight font-medium">
+                  {isAuthenticated ? "Profile" : "Account"}
+                </span>
+              </button>
+            </div>
+          </nav>
+        );
+      })()}
     </>
   );
 }
