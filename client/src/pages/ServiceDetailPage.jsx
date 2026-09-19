@@ -151,7 +151,7 @@ export default function ServiceDetailPage({
     service?.faqs && service.faqs.length > 0 ? service.faqs : defaultFaqs;
 
   return (
-    <div className="min-h-screen bg-[#f6f7f3] text-slate-950 pb-20 pt-28 sm:pt-32">
+    <div className="min-h-screen bg-[#f6f7f3] text-slate-950 pb-24 md:pb-20 pt-48 sm:pt-52 md:pt-28 lg:pt-32">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-10">
         {/* Back Button */}
         <div>

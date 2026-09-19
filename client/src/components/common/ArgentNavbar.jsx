@@ -561,126 +561,119 @@ export default function ArgentNavbar({
               </div>
 
               {/* RIGHT SIDE ACTIONS */}
-              {!isAuthenticated ? (
-                /* BEFORE LOGIN: [ Cart ] [ Sign in / Log in ] */
-                <div className="flex shrink-0 items-center gap-2">
+              <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                {/* Location button: Displayed for BOTH Logged-In and Logged-Out */}
+                <div
+                  className="relative"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <button
                     type="button"
-                    onClick={onCartClick}
-                    className="relative rounded-xl p-2.5 text-slate-700 hover:bg-white/80 hover:text-slate-900 transition-colors"
-                    aria-label="Cart"
-                    title="View cart"
+                    onClick={() => {
+                      setLocationOpen(!locationOpen);
+                      setNotificationsOpen(false);
+                    }}
+                    className="flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-100/80 transition-colors cursor-pointer"
+                    title="Choose service location"
                   >
-                    <ShoppingBag className="h-5 w-5" />
-                    {cartCount > 0 && (
-                      <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-700 px-1 text-[10px] font-black text-white shadow-xs">
-                        {cartCount}
-                      </span>
-                    )}
+                    <MapPin className="h-4 w-4 text-emerald-700 shrink-0" />
+                    <span className="max-w-[120px] truncate">{location}</span>
+                    <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                   </button>
+                  {locationOpen && (
+                    <LocationPicker
+                      value={location}
+                      onChange={(newLoc, coords) => {
+                        onLocationChange?.(newLoc, coords);
+                        setLocationOpen(false);
+                      }}
+                      onClose={() => setLocationOpen(false)}
+                    />
+                  )}
+                </div>
 
+                {!isAuthenticated ? (
+                  /* BEFORE LOGIN: [ Sign in / Log in ] ONLY (No Cart, No Notification, No Profile) */
                   <button
                     type="button"
                     onClick={onAuthOpen}
-                    className="flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-xs sm:text-sm font-bold text-white shadow-sm transition-all hover:bg-emerald-800 hover:shadow"
+                    className="flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-xs sm:text-sm font-bold text-white shadow-sm transition-all hover:bg-emerald-800 hover:shadow cursor-pointer"
                   >
                     <CircleUserRound className="h-4 w-4" />
                     <span className="whitespace-nowrap">Sign in / Log in</span>
                   </button>
-                </div>
-              ) : (
-                /* AFTER LOGIN: [ Location ] [ Cart ] [ Notification ] [ Profile ] */
-                <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-                  {/* Location button */}
-                  <div
-                    className="relative"
-                    onClick={(e) => e.stopPropagation()}
-                  >
+                ) : (
+                  /* AFTER LOGIN: [ Cart ] [ Notification ] [ Profile ] */
+                  <>
+                    {/* Cart button */}
                     <button
                       type="button"
-                      onClick={() => {
-                        setLocationOpen(!locationOpen);
-                        setNotificationsOpen(false);
-                      }}
-                      className="flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-semibold text-slate-800 hover:bg-white/80 transition-colors cursor-pointer"
-                      title="Choose service location"
+                      onClick={onCartClick}
+                      className="relative rounded-xl p-2.5 text-slate-700 hover:bg-slate-100/80 hover:text-slate-900 transition-colors cursor-pointer"
+                      aria-label="Cart"
+                      title="View cart"
                     >
-                      <MapPin className="h-4 w-4 text-emerald-700 shrink-0" />
-                      <span className="max-w-[120px] truncate">{location}</span>
-                      <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                      <ShoppingBag className="h-5 w-5" />
+                      {cartCount > 0 && (
+                        <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-700 px-1 text-[10px] font-black text-white shadow-xs">
+                          {cartCount}
+                        </span>
+                      )}
                     </button>
-                    {locationOpen && (
-                      <LocationPicker
-                        value={location}
-                        onChange={(newLoc, coords) => {
-                          onLocationChange?.(newLoc, coords);
+
+                    {/* Notification button */}
+                    <div
+                      className="relative"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNotificationsOpen(!notificationsOpen);
                           setLocationOpen(false);
                         }}
-                        onClose={() => setLocationOpen(false)}
-                      />
-                    )}
-                  </div>
+                        className="relative rounded-xl p-2.5 text-slate-700 hover:bg-slate-100/80 hover:text-slate-900 transition-colors cursor-pointer"
+                        aria-label="Notifications"
+                        title="Notifications"
+                      >
+                        <Bell className="h-5 w-5" />
+                        <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-emerald-600 ring-2 ring-white" />
+                      </button>
+                      {notificationsOpen && (
+                        <NotificationDropdown
+                          onClose={() => setNotificationsOpen(false)}
+                        />
+                      )}
+                    </div>
 
-                  {/* Cart button */}
-                  <button
-                    type="button"
-                    onClick={onCartClick}
-                    className="relative rounded-xl p-2.5 text-slate-700 hover:bg-white/80 hover:text-slate-900 transition-colors cursor-pointer"
-                    aria-label="Cart"
-                    title="View cart"
-                  >
-                    <ShoppingBag className="h-5 w-5" />
-                    {cartCount > 0 && (
-                      <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-700 px-1 text-[10px] font-black text-white shadow-xs">
-                        {cartCount}
-                      </span>
-                    )}
-                  </button>
-
-                  {/* Notification button */}
-                  <div
-                    className="relative"
-                    onClick={(e) => e.stopPropagation()}
-                  >
+                    {/* Profile button */}
                     <button
                       type="button"
                       onClick={() => {
-                        setNotificationsOpen(!notificationsOpen);
-                        setLocationOpen(false);
+                        if (currentRoute === "/profile") return;
+                        if (onNavigate) onNavigate("/profile");
+                        else onProfileClick?.();
                       }}
-                      className="relative rounded-xl p-2.5 text-slate-700 hover:bg-white/80 hover:text-slate-900 transition-colors cursor-pointer"
-                      aria-label="Notifications"
-                      title="Notifications"
+                      className={`relative rounded-xl p-2.5 transition-colors cursor-pointer ${
+                        currentRoute === "/profile"
+                          ? "bg-emerald-50 text-emerald-700 font-bold ring-1 ring-emerald-500/30"
+                          : "text-slate-700 hover:bg-slate-100/80 hover:text-slate-900"
+                      }`}
+                      aria-label="Profile"
+                      title="My Profile"
                     >
-                      <Bell className="h-5 w-5" />
-                      <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-emerald-600 ring-2 ring-white" />
+                      <CircleUserRound className="h-5 w-5" />
                     </button>
-                    {notificationsOpen && (
-                      <NotificationDropdown
-                        onClose={() => setNotificationsOpen(false)}
-                      />
-                    )}
-                  </div>
-
-                  {/* Profile button */}
-                  <button
-                    type="button"
-                    onClick={onProfileClick}
-                    className="relative rounded-xl p-2.5 text-slate-700 hover:bg-white/80 hover:text-slate-900 transition-colors cursor-pointer"
-                    aria-label="Profile"
-                    title="My Profile"
-                  >
-                    <CircleUserRound className="h-5 w-5" />
-                  </button>
-                </div>
-              )}
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
         {/* ==================== MOBILE (under md) ==================== */}
         {/* Sequence:
-            1. MAIN HEADER (Logo + Cart, Notification, Profile/Login)
+            1. MAIN HEADER (Logo ONLY when logged out, Logo + Cart/Notification when logged in)
             2. LOCATION (Above Search Bar)
             3. SEARCH BAR
         */}
@@ -705,50 +698,46 @@ export default function ArgentNavbar({
                 </span>
               </button>
 
-              {/* Right: Cart, Notification ONLY (Profile icon removed from mobile top header) */}
-              <div className="flex items-center gap-1 text-slate-700">
-                {/* 🛒 Cart */}
-                <button
-                  type="button"
-                  onClick={onCartClick}
-                  className="relative p-2 rounded-xl text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                  aria-label="Cart"
-                >
-                  <ShoppingBag className="h-5 w-5" />
-                  {cartCount > 0 && (
-                    <span className="absolute top-0.5 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-700 px-1 text-[10px] font-black text-white">
-                      {cartCount}
-                    </span>
-                  )}
-                </button>
-
-                {/* 🔔 Notification */}
-                <div className="relative" onClick={(e) => e.stopPropagation()}>
+              {/* Right: Cart, Notification ONLY when isAuthenticated (NO Profile icon on mobile top header) */}
+              {isAuthenticated && (
+                <div className="flex items-center gap-1 text-slate-700">
+                  {/* 🛒 Cart */}
                   <button
                     type="button"
-                    onClick={() => {
-                      if (isAuthenticated) {
-                        setNotificationsOpen(!notificationsOpen);
-                        setLocationOpen(false);
-                      } else {
-                        onAuthOpen?.();
-                      }
-                    }}
+                    onClick={onCartClick}
                     className="relative p-2 rounded-xl text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                    aria-label="Notifications"
+                    aria-label="Cart"
                   >
-                    <Bell className="h-5 w-5" />
-                    {isAuthenticated && (
-                      <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-emerald-600 ring-1 ring-white" />
+                    <ShoppingBag className="h-5 w-5" />
+                    {cartCount > 0 && (
+                      <span className="absolute top-0.5 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-700 px-1 text-[10px] font-black text-white">
+                        {cartCount}
+                      </span>
                     )}
                   </button>
-                  {notificationsOpen && (
-                    <NotificationDropdown
-                      onClose={() => setNotificationsOpen(false)}
-                    />
-                  )}
+
+                  {/* 🔔 Notification */}
+                  <div className="relative" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNotificationsOpen(!notificationsOpen);
+                        setLocationOpen(false);
+                      }}
+                      className="relative p-2 rounded-xl text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                      aria-label="Notifications"
+                    >
+                      <Bell className="h-5 w-5" />
+                      <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-emerald-600 ring-1 ring-white" />
+                    </button>
+                    {notificationsOpen && (
+                      <NotificationDropdown
+                        onClose={() => setNotificationsOpen(false)}
+                      />
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* ROW 2: LOCATION (MUST appear ABOVE the Search Bar) */}
@@ -887,6 +876,7 @@ export default function ArgentNavbar({
           <button
             type="button"
             onClick={() => {
+              if (currentRoute === "/") return;
               if (onNavigate) onNavigate("/");
               else onLogoClick?.();
             }}
@@ -909,20 +899,21 @@ export default function ArgentNavbar({
             type="button"
             onClick={() => {
               if (isAuthenticated) {
-                if (onNavigate) onNavigate("/profile");
+                if (currentRoute === "/bookings") return;
+                if (onNavigate) onNavigate("/bookings");
                 else onProfileClick?.();
               } else {
                 onAuthOpen?.();
               }
             }}
             className={`flex flex-col items-center justify-center py-1.5 transition-colors cursor-pointer ${
-              currentRoute === "/profile"
+              currentRoute === "/bookings"
                 ? "text-emerald-700 font-bold"
                 : "text-slate-500 hover:text-slate-800"
             }`}
           >
             <CalendarCheck
-              className={`h-5 w-5 ${currentRoute === "/profile" ? "stroke-[2.5]" : "stroke-2"}`}
+              className={`h-5 w-5 ${currentRoute === "/bookings" ? "stroke-[2.5]" : "stroke-2"}`}
             />
             <span className="text-[10px] mt-0.5 tracking-tight font-medium">
               Bookings
@@ -933,17 +924,25 @@ export default function ArgentNavbar({
           <button
             type="button"
             onClick={() => {
+              if (currentRoute === "/services") return;
               if (onNavigate) onNavigate("/services");
             }}
             className={`flex flex-col items-center justify-center py-1.5 transition-colors cursor-pointer ${
               currentRoute === "/services" ||
-              currentRoute?.startsWith("/category/")
+              currentRoute?.startsWith("/category/") ||
+              currentRoute?.startsWith("/services/")
                 ? "text-emerald-700 font-bold"
                 : "text-slate-500 hover:text-slate-800"
             }`}
           >
             <LayoutGrid
-              className={`h-5 w-5 ${currentRoute === "/services" || currentRoute?.startsWith("/category/") ? "stroke-[2.5]" : "stroke-2"}`}
+              className={`h-5 w-5 ${
+                currentRoute === "/services" ||
+                currentRoute?.startsWith("/category/") ||
+                currentRoute?.startsWith("/services/")
+                  ? "stroke-[2.5]"
+                  : "stroke-2"
+              }`}
             />
             <span className="text-[10px] mt-0.5 tracking-tight font-medium">
               Services
@@ -954,6 +953,7 @@ export default function ArgentNavbar({
           <button
             type="button"
             onClick={() => {
+              if (currentRoute === "/offers") return;
               if (onNavigate) onNavigate("/offers");
             }}
             className={`flex flex-col items-center justify-center py-1.5 transition-colors cursor-pointer ${
@@ -970,11 +970,12 @@ export default function ArgentNavbar({
             </span>
           </button>
 
-          {/* 5. Profile */}
+          {/* 5. Profile or Account */}
           <button
             type="button"
             onClick={() => {
               if (isAuthenticated) {
+                if (currentRoute === "/profile") return;
                 if (onNavigate) onNavigate("/profile");
                 else onProfileClick?.();
               } else {
@@ -991,7 +992,7 @@ export default function ArgentNavbar({
               className={`h-5 w-5 ${currentRoute === "/profile" ? "stroke-[2.5]" : "stroke-2"}`}
             />
             <span className="text-[10px] mt-0.5 tracking-tight font-medium">
-              Profile
+              {isAuthenticated ? "Profile" : "Account"}
             </span>
           </button>
         </div>

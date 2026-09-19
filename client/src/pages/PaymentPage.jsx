@@ -240,7 +240,7 @@ export default function PaymentPage({
   // --- ORDER CONFIRMATION SCREEN ---
   if (isConfirmed && confirmedOrder) {
     return (
-      <div className="min-h-screen bg-[#f6f7f3] text-slate-950 pb-20 pt-28 sm:pt-32">
+      <div className="min-h-screen bg-[#f6f7f3] text-slate-950 pb-24 md:pb-20 pt-48 sm:pt-52 md:pt-28 lg:pt-32">
         <div className="mx-auto max-w-2xl px-4 sm:px-6">
           <div className="overflow-hidden rounded-3xl border border-white/80 bg-white shadow-xl backdrop-blur-md animate-rise-in">
             {/* Success Header */}
@@ -363,7 +363,7 @@ export default function PaymentPage({
 
   // --- MAIN CHECKOUT / PAYMENT FORM ---
   return (
-    <div className="min-h-screen bg-[#f6f7f3] text-slate-950 pb-20 pt-28 sm:pt-32">
+    <div className="min-h-screen bg-[#f6f7f3] text-slate-950 pb-24 md:pb-20 pt-48 sm:pt-52 md:pt-28 lg:pt-32">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-8">
         {/* Top Back Nav */}
         <div className="flex items-center justify-between">
