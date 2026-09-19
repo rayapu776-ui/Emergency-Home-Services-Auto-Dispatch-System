@@ -36,6 +36,8 @@ import CartDrawer from "../components/common/CartDrawer";
 import ProfilePage from "./ProfilePage";
 import ServiceDetailPage from "./ServiceDetailPage";
 import PaymentPage from "./PaymentPage";
+import CategoryViewPage from "./CategoryViewPage";
+import OffersPage from "./OffersPage";
 import HeroPromoCarousel from "../components/common/HeroPromoCarousel";
 import { allServicesCatalog } from "../data/servicesData";
 
@@ -435,8 +437,10 @@ function AllServicesCatalogPage({
         onLocationChange={onLocationChange}
         services={allServicesCatalog}
         onSelectService={(item) => onNavigate(`/services/${item.slug}`)}
+        currentRoute="/services"
+        onNavigate={onNavigate}
       />
-      <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-20 pt-32 sm:pt-36 space-y-8">
+      <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-20 pt-40 sm:pt-44 space-y-8">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
@@ -639,8 +643,10 @@ function DedicatedPage({
         onLocationChange={setLocation}
         services={allServicesCatalog}
         onSelectService={(item) => onNavigate(`/services/${item.slug}`)}
+        currentRoute={route}
+        onNavigate={onNavigate}
       />
-      <main className="mx-auto max-w-7xl px-5 pb-20 pt-36 lg:px-8">
+      <main className="mx-auto max-w-7xl px-5 pb-20 pt-40 sm:pt-44 lg:px-8">
         <button
           onClick={onHome}
           className="mb-8 flex items-center gap-2 text-sm font-bold text-emerald-800 hover:text-emerald-950"
@@ -901,6 +907,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
   const isInfoRoute =
     route !== "/" &&
     route !== "/services" &&
+    route !== "/offers" &&
     !route.startsWith("/services/") &&
     !route.startsWith("/category/") &&
     route !== "/profile" &&
@@ -928,6 +935,8 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
           onLocationChange={setLocation}
           services={allServicesCatalog}
           onSelectService={(item) => navigate(`/services/${item.slug}`)}
+          currentRoute={route}
+          onNavigate={navigate}
         />
         <PaymentPage
           service={checkoutService || allServicesCatalog[0]}
@@ -1002,6 +1011,8 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
           onLocationChange={setLocation}
           services={allServicesCatalog}
           onSelectService={(item) => navigate(`/services/${item.slug}`)}
+          currentRoute={route}
+          onNavigate={navigate}
         />
         <ServiceDetailPage
           service={service}
@@ -1126,6 +1137,170 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
       </div>
     );
 
+  if (route === "/offers")
+    return (
+      <div className="min-h-screen bg-[#f6f7f3] text-slate-950 selection:bg-emerald-200">
+        <ArgentNavbar
+          onLogoClick={goHome}
+          onAuthOpen={() => setAuthOpen(true)}
+          onProfileClick={() => navigate("/profile")}
+          onCartClick={() => setCartOpen(true)}
+          cartCount={cartItems.length}
+          location={location}
+          onLocationChange={setLocation}
+          services={allServicesCatalog}
+          onSelectService={(item) => navigate(`/services/${item.slug}`)}
+          currentRoute={route}
+          onNavigate={navigate}
+        />
+        <div className="pt-36 sm:pt-40 lg:pt-44">
+          <OffersPage
+            onHome={goHome}
+            onNavigate={navigate}
+            onBookWithCoupon={(service, coupon) => {
+              handleProtectedBooking(service, { couponCode: coupon });
+            }}
+          />
+        </div>
+        <Footer
+          onNavigate={(path) => (path === "/" ? goHome() : navigate(path))}
+        />
+        <CartDrawer
+          isOpen={cartOpen}
+          onClose={() => setCartOpen(false)}
+          items={cartItems}
+          onUpdateQuantity={(key, qty) => {
+            setCartItems((prev) =>
+              prev.map((it) =>
+                it.slug === key || it.name === key
+                  ? { ...it, quantity: qty }
+                  : it,
+              ),
+            );
+          }}
+          onRemoveItem={(key) => {
+            setCartItems((prev) =>
+              prev.filter((it) => it.slug !== key && it.name !== key),
+            );
+          }}
+          onCheckout={() => {
+            if (cartItems.length > 0) {
+              setCartOpen(false);
+              handleProtectedBooking(cartItems[0]);
+            }
+          }}
+        />
+        {authOpen && (
+          <AuthPanel
+            onClose={() => setAuthOpen(false)}
+            onNavigate={navigate}
+            onSuccess={handleAuthSuccess}
+            onCancel={handleAuthCancel}
+          />
+        )}
+      </div>
+    );
+
+  if (route.startsWith("/category/")) {
+    let catSlug = route.replace("/category/", "").split("/")[0];
+    const categorySlugAliases = {
+      "home-cleaning": "cleaning",
+      "ac-appliance-repair": "appliances",
+      "ac-and-appliance-repair": "appliances",
+      "womens-salon-spa": "beauty-wellness",
+      "mens-salon-massage": "beauty-wellness",
+      "womens-salon": "beauty-wellness",
+      "mens-salon": "beauty-wellness",
+      "electrician": "repairs-installation",
+      "plumbing": "repairs-installation",
+      "carpenter": "repairs-installation",
+      "smart-home-products": "repairs-installation",
+      "home-painting": "home-care",
+      "wall-panels": "home-care",
+      "cleaning-pest-control": "moving-pest-control",
+      "pest-control": "moving-pest-control",
+      "packers-movers": "moving-pest-control",
+    };
+    if (categorySlugAliases[catSlug]) {
+      catSlug = categorySlugAliases[catSlug];
+    }
+    return (
+      <div className="min-h-screen bg-[#f6f7f3] text-slate-950 selection:bg-emerald-200">
+        <ArgentNavbar
+          onLogoClick={goHome}
+          onAuthOpen={() => setAuthOpen(true)}
+          onProfileClick={() => navigate("/profile")}
+          onCartClick={() => setCartOpen(true)}
+          cartCount={cartItems.length}
+          location={location}
+          onLocationChange={setLocation}
+          services={allServicesCatalog}
+          onSelectService={(item) => navigate(`/services/${item.slug}`)}
+          currentRoute={route}
+          onNavigate={navigate}
+        />
+        <div className="pt-36 sm:pt-40 lg:pt-44">
+          <CategoryViewPage
+            categorySlug={catSlug}
+            onHome={goHome}
+            onNavigate={navigate}
+            onBookService={(service) => handleProtectedBooking(service)}
+            onAddToCart={(item) => {
+              setCartItems((prev) => {
+                const exists = prev.find((it) => it.slug === item.slug);
+                if (exists) {
+                  return prev.map((it) =>
+                    it.slug === item.slug
+                      ? { ...it, quantity: (it.quantity || 1) + 1 }
+                      : it,
+                  );
+                }
+                return [...prev, { ...item, quantity: 1 }];
+              });
+              setCartOpen(true);
+            }}
+          />
+        </div>
+        <Footer
+          onNavigate={(path) => (path === "/" ? goHome() : navigate(path))}
+        />
+        <CartDrawer
+          isOpen={cartOpen}
+          onClose={() => setCartOpen(false)}
+          items={cartItems}
+          onUpdateQuantity={(key, qty) => {
+            setCartItems((prev) =>
+              prev.map((it) =>
+                it.slug === key || it.name === key
+                  ? { ...it, quantity: qty }
+                  : it,
+              ),
+            );
+          }}
+          onRemoveItem={(key) => {
+            setCartItems((prev) =>
+              prev.filter((it) => it.slug !== key && it.name !== key),
+            );
+          }}
+          onCheckout={() => {
+            if (cartItems.length > 0) {
+              setCartOpen(false);
+              handleProtectedBooking(cartItems[0]);
+            }
+          }}
+        />
+        {authOpen && (
+          <AuthPanel
+            onClose={() => setAuthOpen(false)}
+            onNavigate={navigate}
+            onSuccess={handleAuthSuccess}
+            onCancel={handleAuthCancel}
+          />
+        )}
+      </div>
+    );
+  }
+
   if (route === "/profile")
     return (
       <div className="min-h-screen bg-[#f6f7f3] text-slate-950 selection:bg-emerald-200">
@@ -1139,6 +1314,8 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
           onLocationChange={setLocation}
           services={allServicesCatalog}
           onSelectService={(item) => navigate(`/services/${item.slug}`)}
+          currentRoute={route}
+          onNavigate={navigate}
         />
         <ProfilePage
           onHome={goHome}
@@ -1247,9 +1424,11 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
         onLocationChange={setLocation}
         services={allServicesCatalog}
         onSelectService={(item) => navigate(`/services/${item.slug}`)}
+        currentRoute={route}
+        onNavigate={navigate}
       />
       <main>
-        <section className="px-5 pb-12 pt-36 lg:px-8">
+        <section className="px-5 pb-12 pt-40 sm:pt-44 lg:px-8">
           <div className="mx-auto grid max-w-7xl items-center gap-10 lg:grid-cols-[0.88fr_1.12fr]">
             <div className="animate-rise-in">
               <p className="eyebrow">Trusted care, beautifully delivered</p>

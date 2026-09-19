@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import NotificationDropdown from "./NotificationDropdown";
+import SecondaryCategoryNavbar from "./SecondaryCategoryNavbar";
 import { getRelatedSearchRecommendations } from "../../data/servicesData";
 
 function LocationPicker({ value, onChange, onClose }) {
@@ -261,6 +262,9 @@ export default function ArgentNavbar({
   onLocationChange,
   services = [],
   onSelectService,
+  currentRoute,
+  onNavigate,
+  showCategoryBar = true,
 }) {
   const { user, isAuthenticated } = useAuth();
   const [search, setSearch] = useState("");
@@ -356,9 +360,10 @@ export default function ArgentNavbar({
   };
 
   return (
-    <header className="fixed left-4 right-4 top-4 z-40">
-      <div className="mx-auto max-w-7xl rounded-2xl border border-white/70 bg-white/75 shadow-[0_12px_40px_rgba(27,45,39,0.08)] backdrop-blur-xl">
-        <div className="flex h-[72px] items-center gap-3 px-4 sm:gap-4 lg:gap-6 lg:px-7">
+    <header className="fixed left-0 right-0 top-0 z-40 select-none">
+      <div className="px-3 sm:px-4 pt-2.5 sm:pt-3">
+        <div className="mx-auto max-w-7xl rounded-2xl border border-white/70 bg-white/80 shadow-[0_12px_40px_rgba(27,45,39,0.08)] backdrop-blur-xl">
+          <div className="flex h-[68px] sm:h-[72px] items-center gap-3 px-4 sm:gap-4 lg:gap-6 lg:px-7">
           {/* LEFT: Logo */}
           <button
             type="button"
@@ -689,6 +694,22 @@ export default function ArgentNavbar({
           </div>
         )}
       </div>
-    </header>
-  );
+    </div>
+
+    {/* SECONDARY CATEGORY NAVIGATION BAR */}
+    {showCategoryBar && (
+      <div className="w-full">
+        <SecondaryCategoryNavbar
+          currentRoute={
+            currentRoute ||
+            (typeof window !== "undefined"
+              ? window.location.pathname || "/"
+              : "/")
+          }
+          onNavigate={onNavigate}
+        />
+      </div>
+    )}
+  </header>
+);
 }
