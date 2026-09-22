@@ -30,8 +30,12 @@ import { validateCoupon } from "../data/promotionsData";
 import api from "../services/api";
 
 // --- PAYMENT BRAND BADGES & LOGOS (Vector SVGs) ---
-const VisaLogo = ({ className = "h-4" }) => (
-  <svg viewBox="0 0 48 16" className={className} fill="none">
+const VisaLogo = ({ className = "h-3.5" }) => (
+  <svg
+    viewBox="0 0 48 16"
+    className={`${className} w-auto max-w-full shrink-0 inline-block`}
+    fill="none"
+  >
     <path
       d="M18.87 0.5L12.35 15.5H8.08L4.9 3.82C4.71 3.09 4.54 2.82 3.97 2.5C3.03 1.99 1.43 1.5 0 1.2L0.35 0.5H6.94C7.83 0.5 8.62 1.09 8.82 2.11L10.5 11.05L14.7 0.5H18.87ZM35.48 10.55C35.5 6.53 29.83 6.31 29.87 4.51C29.89 3.97 30.41 3.39 31.57 3.23C32.15 3.15 33.72 3.09 35.51 3.91L36.21 0.69C35.25 0.35 34.02 0.03 32.48 0.03C28.53 0.03 25.75 2.1 25.73 5.06C25.7 7.25 27.71 8.47 29.23 9.2C30.79 9.94 31.31 10.42 31.3 11.1C31.28 12.14 30.04 12.6 28.89 12.62C26.87 12.65 25.7 12.08 24.77 11.65L24.04 15.02C24.96 15.44 26.68 15.8 28.45 15.82C32.65 15.82 35.46 13.78 35.48 10.55ZM46.06 15.5H49.71L46.54 0.5H43.14C42.36 0.5 41.7 0.95 41.41 1.65L35.37 15.5H39.55L40.38 13.2H45.49L46.06 15.5ZM41.52 10.12L43.59 4.49L44.77 10.12H41.52ZM24.63 0.5L21.32 15.5H17.34L20.65 0.5H24.63Z"
       fill="#1A1F71"
@@ -39,34 +43,38 @@ const VisaLogo = ({ className = "h-4" }) => (
   </svg>
 );
 
-const MastercardLogo = ({ className = "h-5" }) => (
-  <svg viewBox="0 0 36 22" className={className} fill="none">
+const MastercardLogo = ({ className = "h-4" }) => (
+  <svg
+    viewBox="0 0 36 22"
+    className={`${className} w-auto max-w-full shrink-0 inline-block`}
+    fill="none"
+  >
     <circle cx="13" cy="11" r="10" fill="#EB001B" />
     <circle cx="23" cy="11" r="10" fill="#F79E1B" fillOpacity="0.88" />
   </svg>
 );
 
-const RuPayLogo = ({ className = "h-4" }) => (
+const RuPayLogo = ({ className = "" }) => (
   <div
-    className={`inline-flex items-center font-black tracking-tighter text-xs px-1.5 py-0.5 rounded bg-slate-900 text-white ${className}`}
+    className={`inline-flex items-center font-black tracking-tighter text-[10px] leading-none px-1.5 py-0.5 rounded bg-slate-900 text-white shrink-0 whitespace-nowrap ${className}`}
   >
     <span className="text-cyan-400">Ru</span>
     <span className="text-emerald-400">Pay</span>
-    <span className="text-[9px] text-amber-400 ml-0.5">❯❯</span>
+    <span className="text-[8px] text-amber-400 ml-0.5">❯❯</span>
   </div>
 );
 
-const AmexLogo = ({ className = "h-4" }) => (
+const AmexLogo = ({ className = "" }) => (
   <div
-    className={`inline-flex items-center justify-center font-black tracking-tight text-[11px] px-1.5 py-0.5 rounded bg-[#006FCF] text-white ${className}`}
+    className={`inline-flex items-center justify-center font-black tracking-tight text-[10px] leading-none px-1.5 py-0.5 rounded bg-[#006FCF] text-white shrink-0 whitespace-nowrap ${className}`}
   >
     AMEX
   </div>
 );
 
-const UpiLogo = ({ className = "h-4" }) => (
+const UpiLogo = ({ className = "" }) => (
   <div
-    className={`inline-flex items-center font-black tracking-tight text-[11px] px-1.5 py-0.5 rounded bg-emerald-950 text-white ${className}`}
+    className={`inline-flex items-center font-black tracking-tight text-[10px] leading-none px-1.5 py-0.5 rounded bg-emerald-950 text-white shrink-0 whitespace-nowrap ${className}`}
   >
     <span className="text-emerald-400">U</span>
     <span className="text-amber-400">P</span>
@@ -815,7 +823,7 @@ export default function PaymentPage({
               </div>
 
               {/* Method Selector Tabs */}
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-2.5">
                 {[
                   {
                     id: "card",
@@ -847,7 +855,7 @@ export default function PaymentPage({
                     sub: "On Service",
                     icon: Banknote,
                   },
-                ].map((tab) => {
+                ].map((tab, idx) => {
                   const Icon = tab.icon;
                   const active = paymentMethod === tab.id;
                   return (
@@ -855,19 +863,23 @@ export default function PaymentPage({
                       key={tab.id}
                       type="button"
                       onClick={() => setPaymentMethod(tab.id)}
-                      className={`flex flex-col items-center justify-center p-3 rounded-2xl border text-center transition-all cursor-pointer ${
+                      className={`flex flex-col items-center justify-center p-2.5 sm:p-3 rounded-2xl border text-center transition-all cursor-pointer min-w-0 ${
+                        idx === 4 ? "col-span-2 sm:col-span-1" : ""
+                      } ${
                         active
                           ? "border-emerald-700 bg-emerald-50/50 text-emerald-950 shadow-sm ring-2 ring-emerald-700/10 font-bold"
                           : "border-slate-200/80 bg-white text-slate-600 hover:bg-slate-50/70 hover:text-slate-900 font-medium"
                       }`}
                     >
                       <Icon
-                        className={`h-5 w-5 mb-1.5 ${
+                        className={`h-5 w-5 mb-1.5 shrink-0 ${
                           active ? "text-emerald-700" : "text-slate-400"
                         }`}
                       />
-                      <span className="text-xs">{tab.label}</span>
-                      <span className="text-[10px] text-slate-400 font-normal">
+                      <span className="text-xs truncate w-full">
+                        {tab.label}
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-normal truncate w-full">
                         {tab.sub}
                       </span>
                     </button>
@@ -880,7 +892,7 @@ export default function PaymentPage({
               {/* METHOD 1: CREDIT / DEBIT CARD */}
               {paymentMethod === "card" && (
                 <div className="space-y-5 border-t border-slate-100 pt-4">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
                       <h3 className="text-sm font-bold text-slate-900">
                         Credit / Debit Card
@@ -889,27 +901,37 @@ export default function PaymentPage({
                         Enter card details or select a saved card
                       </p>
                     </div>
-                    {/* Supported Card Logos */}
-                    <div className="flex items-center gap-1.5">
-                      <VisaLogo className="h-3.5" />
-                      <MastercardLogo className="h-4" />
-                      <RuPayLogo />
-                      <AmexLogo />
+                    {/* Supported Card Logos (Clean, non-overlapping responsive row) */}
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 shrink-0">
+                      <div className="h-7 px-2.5 py-0.5 rounded-lg border border-slate-200/90 bg-white flex items-center justify-center shrink-0 shadow-2xs">
+                        <VisaLogo className="h-3.5" />
+                      </div>
+                      <div className="h-7 px-2.5 py-0.5 rounded-lg border border-slate-200/90 bg-white flex items-center justify-center shrink-0 shadow-2xs">
+                        <MastercardLogo className="h-4" />
+                      </div>
+                      <div className="h-7 px-2 py-0.5 rounded-lg border border-slate-200/90 bg-white flex items-center justify-center shrink-0 shadow-2xs">
+                        <RuPayLogo />
+                      </div>
+                      <div className="h-7 px-2 py-0.5 rounded-lg border border-slate-200/90 bg-white flex items-center justify-center shrink-0 shadow-2xs">
+                        <AmexLogo />
+                      </div>
                     </div>
                   </div>
 
                   {/* Saved Cards Toggle */}
                   {savedCards.length > 0 && (
-                    <div className="space-y-2">
+                    <div className="space-y-2.5">
                       <div className="flex items-center justify-between text-xs font-bold text-slate-700">
                         <span>Saved Cards</span>
-                        <button
-                          type="button"
-                          onClick={() => setUseSavedCard(!useSavedCard)}
-                          className="text-emerald-800 text-[11px] hover:underline"
-                        >
-                          {useSavedCard ? "+ Enter New Card" : "Use Saved Card"}
-                        </button>
+                        {!useSavedCard && (
+                          <button
+                            type="button"
+                            onClick={() => setUseSavedCard(true)}
+                            className="text-emerald-800 text-[11px] font-bold hover:underline cursor-pointer"
+                          >
+                            Use Saved Card
+                          </button>
+                        )}
                       </div>
 
                       {useSavedCard ? (
@@ -924,22 +946,32 @@ export default function PaymentPage({
                                   : "border-slate-200 hover:bg-slate-50"
                               }`}
                             >
-                              <div className="flex items-center gap-3">
-                                <CreditCard className="h-5 w-5 text-emerald-700" />
-                                <div>
-                                  <p className="text-xs font-bold text-slate-900">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <CreditCard className="h-5 w-5 text-emerald-700 shrink-0" />
+                                <div className="min-w-0 truncate">
+                                  <p className="text-xs font-bold text-slate-900 truncate">
                                     {c.brand} {c.number}
                                   </p>
-                                  <p className="text-[10px] text-slate-500">
+                                  <p className="text-[10px] text-slate-500 truncate">
                                     Expires {c.expiry} · {c.name}
                                   </p>
                                 </div>
                               </div>
                               {selectedSavedCardId === c.id && (
-                                <CheckCircle2 className="h-4 w-4 text-emerald-700" />
+                                <CheckCircle2 className="h-4 w-4 text-emerald-700 shrink-0 ml-2" />
                               )}
                             </div>
                           ))}
+
+                          {/* Keep "+ Enter New Card" properly aligned below the payment methods */}
+                          <button
+                            type="button"
+                            onClick={() => setUseSavedCard(false)}
+                            className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-slate-300 py-3 px-4 text-xs font-bold text-emerald-800 hover:bg-emerald-50/50 hover:border-emerald-600 transition-colors cursor-pointer mt-2"
+                          >
+                            <Plus className="h-3.5 w-3.5 shrink-0" />
+                            <span>+ Enter New Card</span>
+                          </button>
                         </div>
                       ) : null}
                     </div>
@@ -947,8 +979,23 @@ export default function PaymentPage({
 
                   {/* New Card Form */}
                   {(!useSavedCard || savedCards.length === 0) && (
-                    <div className="space-y-3.5 text-xs">
-                      <div>
+                    <div className="space-y-3.5 text-xs min-w-0">
+                      {savedCards.length > 0 && (
+                        <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                          <span className="font-bold text-slate-700 text-xs">
+                            New Card Details
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setUseSavedCard(true)}
+                            className="text-emerald-800 text-[11px] font-bold hover:underline cursor-pointer"
+                          >
+                            ← Back to Saved Cards
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="min-w-0">
                         <div className="flex items-center justify-between mb-1">
                           <label className="block font-bold text-slate-700">
                             Card Number
@@ -960,19 +1007,19 @@ export default function PaymentPage({
                           )}
                         </div>
                         <div className="relative">
-                          <CreditCard className="h-4 w-4 text-slate-400 absolute left-3.5 top-3" />
+                          <CreditCard className="h-4 w-4 text-slate-400 absolute left-3.5 top-3 shrink-0" />
                           <input
                             type="text"
                             placeholder="xxxx xxxx xxxx xxxx"
                             value={cardDetails.number}
                             onChange={handleCardNumberChange}
                             maxLength={19}
-                            className="w-full rounded-xl border border-slate-200 py-2.5 pl-10 pr-3 text-slate-900 outline-none focus:border-emerald-700 font-mono"
+                            className="w-full rounded-xl border border-slate-200 py-2.5 pl-10 pr-3 text-slate-900 outline-none focus:border-emerald-700 font-mono text-xs bg-white"
                           />
                         </div>
                       </div>
 
-                      <div>
+                      <div className="min-w-0">
                         <label className="block font-bold text-slate-700 mb-1">
                           Cardholder Name
                         </label>
@@ -986,12 +1033,12 @@ export default function PaymentPage({
                               name: e.target.value,
                             }))
                           }
-                          className="w-full rounded-xl border border-slate-200 py-2.5 px-3.5 text-slate-900 outline-none focus:border-emerald-700"
+                          className="w-full rounded-xl border border-slate-200 py-2.5 px-3.5 text-slate-900 outline-none focus:border-emerald-700 text-xs bg-white"
                         />
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
+                      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 min-w-0">
+                        <div className="min-w-0">
                           <label className="block font-bold text-slate-700 mb-1">
                             Expiry Date
                           </label>
@@ -1001,10 +1048,10 @@ export default function PaymentPage({
                             value={cardDetails.expiry}
                             onChange={handleExpiryChange}
                             maxLength={5}
-                            className="w-full rounded-xl border border-slate-200 py-2.5 px-3.5 text-slate-900 outline-none focus:border-emerald-700 font-mono"
+                            className="w-full rounded-xl border border-slate-200 py-2.5 px-3.5 text-slate-900 outline-none focus:border-emerald-700 font-mono text-xs bg-white"
                           />
                         </div>
-                        <div>
+                        <div className="min-w-0">
                           <label className="block font-bold text-slate-700 mb-1">
                             CVV
                           </label>
@@ -1022,7 +1069,7 @@ export default function PaymentPage({
                               }
                             }}
                             maxLength={4}
-                            className="w-full rounded-xl border border-slate-200 py-2.5 px-3.5 text-slate-900 outline-none focus:border-emerald-700 font-mono"
+                            className="w-full rounded-xl border border-slate-200 py-2.5 px-3.5 text-slate-900 outline-none focus:border-emerald-700 font-mono text-xs bg-white"
                           />
                         </div>
                       </div>
@@ -1037,7 +1084,7 @@ export default function PaymentPage({
                               saveCard: e.target.checked,
                             }))
                           }
-                          className="rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
+                          className="rounded border-slate-300 text-emerald-700 focus:ring-emerald-700 shrink-0"
                         />
                         <span>
                           Save this card securely for faster payments in future
@@ -1060,7 +1107,7 @@ export default function PaymentPage({
               {/* METHOD 2: UPI */}
               {paymentMethod === "upi" && (
                 <div className="space-y-5 border-t border-slate-100 pt-4">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                     <div>
                       <h3 className="text-sm font-bold text-slate-900">
                         Pay via UPI
@@ -1069,7 +1116,11 @@ export default function PaymentPage({
                         Pay with any installed UPI app or enter your UPI ID
                       </p>
                     </div>
-                    <UpiLogo />
+                    <div className="flex items-center gap-1.5 shrink-0 self-start sm:self-center">
+                      <div className="h-7 px-2.5 py-0.5 rounded-lg border border-slate-200/90 bg-white flex items-center justify-center shrink-0 shadow-2xs">
+                        <UpiLogo />
+                      </div>
+                    </div>
                   </div>
 
                   {/* Installed Apps Selector */}
@@ -1499,21 +1550,31 @@ export default function PaymentPage({
                 </div>
 
                 {/* All Supported Payment Brands Bar */}
-                <div className="flex flex-wrap items-center justify-center gap-2 pt-1 border-t border-slate-100">
-                  <VisaLogo className="h-3" />
-                  <MastercardLogo className="h-3.5" />
-                  <RuPayLogo className="text-[10px]" />
-                  <AmexLogo className="text-[9px]" />
-                  <UpiLogo className="text-[10px]" />
-                  <span className="text-[9px] font-bold text-slate-400">
+                <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 pt-2 border-t border-slate-100">
+                  <div className="h-7 px-2 rounded-lg border border-slate-200/90 bg-white flex items-center justify-center shrink-0 shadow-2xs">
+                    <VisaLogo className="h-3.5" />
+                  </div>
+                  <div className="h-7 px-2 rounded-lg border border-slate-200/90 bg-white flex items-center justify-center shrink-0 shadow-2xs">
+                    <MastercardLogo className="h-4" />
+                  </div>
+                  <div className="h-7 px-2 py-0.5 rounded-lg border border-slate-200/90 bg-white flex items-center justify-center shrink-0 shadow-2xs">
+                    <RuPayLogo />
+                  </div>
+                  <div className="h-7 px-2 py-0.5 rounded-lg border border-slate-200/90 bg-white flex items-center justify-center shrink-0 shadow-2xs">
+                    <AmexLogo />
+                  </div>
+                  <div className="h-7 px-2 py-0.5 rounded-lg border border-slate-200/90 bg-white flex items-center justify-center shrink-0 shadow-2xs">
+                    <UpiLogo />
+                  </div>
+                  <div className="h-7 px-2.5 rounded-lg border border-slate-200/90 bg-white flex items-center justify-center shrink-0 shadow-2xs text-[10px] font-bold text-slate-700">
                     GPay
-                  </span>
-                  <span className="text-[9px] font-bold text-slate-400">
+                  </div>
+                  <div className="h-7 px-2.5 rounded-lg border border-slate-200/90 bg-white flex items-center justify-center shrink-0 shadow-2xs text-[10px] font-bold text-slate-700">
                     PhonePe
-                  </span>
-                  <span className="text-[9px] font-bold text-slate-400">
+                  </div>
+                  <div className="h-7 px-2.5 rounded-lg border border-slate-200/90 bg-white flex items-center justify-center shrink-0 shadow-2xs text-[10px] font-bold text-slate-700">
                     Paytm
-                  </span>
+                  </div>
                 </div>
 
                 <p className="text-center text-[10px] text-slate-400 font-medium">
