@@ -1305,6 +1305,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
         <PaymentPage
           service={checkoutService || allServicesCatalog[0]}
           onHome={goBack}
+          onGoHome={goHome}
           onViewBookings={() => navigate("/bookings")}
           onOrderCreated={(orderData) => {
             userStore.addBooking(user?.id, orderData);
