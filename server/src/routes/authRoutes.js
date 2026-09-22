@@ -106,6 +106,160 @@ router.post("/register", async (req, res) => {
   }
 });
 
+// Dedicated Professional / Technician Registration (Individual & Company)
+router.post("/register-technician", async (req, res) => {
+  try {
+    const {
+      account_type = "individual", // 'individual' | 'company'
+      name,
+      company_name,
+      authorized_person,
+      email,
+      phone,
+      location,
+      address,
+      category,
+      skills,
+      experience_years,
+      experience_description,
+      avatar,
+      id_document_type,
+      id_document_url,
+      business_registration_number,
+      service_areas,
+      password,
+      confirmPassword,
+    } = req.body;
+
+    const displayName =
+      account_type === "company"
+        ? (company_name || name || "").trim()
+        : (name || "").trim();
+
+    if (!displayName || !email || !password) {
+      return res.status(400).json({
+        error:
+          account_type === "company"
+            ? "Company Name, Business Email, and Password are required."
+            : "Full Name, Email, and Password are required.",
+      });
+    }
+
+    if (account_type === "company" && !authorized_person?.trim()) {
+      return res.status(400).json({
+        error:
+          "Owner / Authorized Person Name is required for company registration.",
+      });
+    }
+
+    if (password.length < 6) {
+      return res
+        .status(400)
+        .json({ error: "Password must be at least 6 characters long." });
+    }
+
+    if (confirmPassword && password !== confirmPassword) {
+      return res.status(400).json({ error: "Passwords do not match." });
+    }
+
+    const trimmedEmail = email.trim().toLowerCase();
+    const existing = await query.get(
+      "SELECT id FROM users WHERE LOWER(email) = ?",
+      [trimmedEmail],
+    );
+    if (existing) {
+      return res
+        .status(400)
+        .json({ error: "An account with this email already exists." });
+    }
+
+    const passwordHash = bcrypt.hashSync(password, 10);
+    const userId = uuidv4();
+    const techId = uuidv4();
+    const lat = Number((28.6315 + (Math.random() - 0.5) * 0.04).toFixed(6));
+    const lon = Number((77.2167 + (Math.random() - 0.5) * 0.04).toFixed(6));
+    const defaultAvatar =
+      avatar ||
+      (account_type === "company"
+        ? "https://images.unsplash.com/photo-1572021335469-31706a17aaef?auto=format&fit=crop&w=300&q=80"
+        : "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=300&q=80");
+
+    const resolvedAddress = address || location || service_areas || "Delhi NCR";
+
+    // 1. Insert into users with role = 'technician' (strictly NOT 'customer')
+    await query.run(
+      `INSERT INTO users (id, name, email, password_hash, role, phone, address, avatar, latitude, longitude)
+       VALUES (?, ?, ?, ?, 'technician', ?, ?, ?, ?, ?)`,
+      [
+        userId,
+        displayName,
+        trimmedEmail,
+        passwordHash,
+        phone || null,
+        resolvedAddress,
+        defaultAvatar,
+        lat,
+        lon,
+      ],
+    );
+
+    // 2. Insert into technicians with status = 'Pending Verification' and is_online = 0
+    await query.run(
+      `INSERT INTO technicians (
+        id, user_id, category, latitude, longitude, is_online, is_busy, rating, total_jobs,
+        vehicle_type, status, skills, experience_years, experience_description, id_document_type, id_document_url,
+        account_type, company_name, authorized_person, business_registration_number, service_areas
+      ) VALUES (?, ?, ?, ?, ?, 0, 0, 5.0, 0, 'Service Vehicle', 'Pending Verification', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        techId,
+        userId,
+        category || "Plumbing",
+        lat,
+        lon,
+        skills || "",
+        Number(experience_years) || 1,
+        experience_description ||
+          (account_type === "company"
+            ? `Company operations managed by ${authorized_person}`
+            : ""),
+        id_document_type ||
+          (account_type === "company"
+            ? "GST / Business License"
+            : "Government Photo ID"),
+        id_document_url || "",
+        account_type,
+        account_type === "company" ? displayName : null,
+        account_type === "company" ? authorized_person?.trim() : null,
+        business_registration_number || null,
+        service_areas || location || "Delhi NCR",
+      ],
+    );
+
+    res.status(201).json({
+      success: true,
+      message:
+        "Professional application submitted successfully. Your account is now Pending Verification.",
+      application: {
+        id: techId,
+        userId,
+        accountType: account_type,
+        name: displayName,
+        authorizedPerson: authorized_person || null,
+        email: trimmedEmail,
+        category: category || "Plumbing",
+        status: "Pending Verification",
+        location: resolvedAddress,
+        serviceAreas: service_areas || location || "Delhi NCR",
+      },
+    });
+  } catch (err) {
+    console.error("Technician registration error:", err);
+    res
+      .status(500)
+      .json({ error: "Failed to submit technician registration." });
+  }
+});
+
 // Step 1: Verify Credentials (Email or Phone + Password) and Issue OTP
 router.post("/login-step1", async (req, res) => {
   try {

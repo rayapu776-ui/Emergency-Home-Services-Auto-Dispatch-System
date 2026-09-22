@@ -16,6 +16,9 @@ import ProfilePage from "./pages/ProfilePage";
 import InfoPage from "./pages/InfoPage";
 import Footer from "./components/common/Footer";
 
+import TechnicianLoginPage from "./pages/TechnicianLoginPage";
+import technicianStore from "./services/technicianStore";
+
 const infoRoutePrefixes = [
   "/about",
   "/our-story",
@@ -44,9 +47,54 @@ const infoRoutePrefixes = [
 
 function MainApp() {
   const { user, isAuthenticated, loading } = useAuth();
-  const [activePage, setActivePage] = useState("argent-home");
+
+  const getInitialPage = () => {
+    const path = window.location.pathname;
+    if (path === "/technician/dashboard") {
+      return technicianStore.isLoggedIn()
+        ? "technician-dashboard"
+        : "technician-login";
+    }
+    if (path === "/technician/login" || path === "/technician") {
+      return technicianStore.isLoggedIn()
+        ? "technician-dashboard"
+        : "technician-login";
+    }
+    return "argent-home";
+  };
+
+  const [activePage, setActivePage] = useState(getInitialPage);
   const [activeTrackingId, setActiveTrackingId] = useState(null);
   const [selectedCity, setSelectedCity] = useState("Delhi NCR");
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname;
+      if (path === "/technician/dashboard") {
+        setActivePage(
+          technicianStore.isLoggedIn()
+            ? "technician-dashboard"
+            : "technician-login",
+        );
+      } else if (path === "/technician/login" || path === "/technician") {
+        setActivePage(
+          technicianStore.isLoggedIn()
+            ? "technician-dashboard"
+            : "technician-login",
+        );
+      } else if (
+        path === "/" ||
+        path === "/services" ||
+        path === "/checkout" ||
+        path === "/bookings" ||
+        path === "/profile"
+      ) {
+        setActivePage("argent-home");
+      }
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   if (loading) {
     return (
@@ -64,12 +112,54 @@ function MainApp() {
     );
   }
 
-  // Argent Your website is the primary experience before and after login
+  // 1. Dedicated Technician Portal Pages
+  if (activePage === "technician-login") {
+    return (
+      <TechnicianLoginPage
+        onLoginSuccess={() => {
+          window.history.pushState({}, "", "/technician/dashboard");
+          setActivePage("technician-dashboard");
+        }}
+        onBackToHome={() => {
+          window.history.pushState({}, "", "/");
+          setActivePage("argent-home");
+        }}
+      />
+    );
+  }
+
+  if (activePage === "technician-dashboard") {
+    return (
+      <TechnicianDashboardPage
+        onLogout={() => {
+          technicianStore.logout();
+          window.history.pushState({}, "", "/technician/login");
+          setActivePage("technician-login");
+        }}
+        onBackToHome={() => {
+          window.history.pushState({}, "", "/");
+          setActivePage("argent-home");
+        }}
+      />
+    );
+  }
+
+  // 2. Argent Your customer website (Home, Services, Bookings, Profile, Checkout)
   if (activePage === "argent-home" || !isAuthenticated) {
     return (
       <LoginPage
         onNavigateAdmin={() => setActivePage("admin-dashboard")}
-        onNavigateTechnician={() => setActivePage("technician-dashboard")}
+        onNavigateTechnician={(path) => {
+          const isDash =
+            path === "/technician/dashboard" || technicianStore.isLoggedIn();
+          const target = isDash ? "technician-dashboard" : "technician-login";
+          window.history.pushState(
+            {},
+            "",
+            isDash ? "/technician/dashboard" : "/technician/login",
+          );
+          setActivePage(target);
+        }}
       />
     );
   }
@@ -85,6 +175,21 @@ function MainApp() {
       <InfoPage
         path={window.location.pathname}
         onHome={() => window.location.assign("/")}
+        onNavigate={(path) => {
+          if (path.startsWith("/technician")) {
+            const isDash =
+              path === "/technician/dashboard" || technicianStore.isLoggedIn();
+            const target = isDash ? "technician-dashboard" : "technician-login";
+            window.history.pushState(
+              {},
+              "",
+              isDash ? "/technician/dashboard" : "/technician/login",
+            );
+            setActivePage(target);
+            return;
+          }
+          window.location.assign(path);
+        }}
       />
     );
   }

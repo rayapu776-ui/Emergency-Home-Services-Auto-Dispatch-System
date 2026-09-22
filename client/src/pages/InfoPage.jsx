@@ -18,6 +18,7 @@ import { useAuth } from "../context/AuthContext";
 import AuthModal from "../components/common/AuthModal";
 import ArgentNavbar from "../components/common/ArgentNavbar";
 import { allServicesCatalog } from "../data/servicesData";
+import ProfessionalRegisterForm from "../components/common/ProfessionalRegisterForm";
 
 const slug = (value) =>
   value
@@ -683,14 +684,23 @@ function CareersPage({ onNavigate }) {
 
 function ProfessionalsPage({ path, onNavigate }) {
   const isForm = path.endsWith("/register");
+
+  useEffect(() => {
+    if (path.endsWith("/login")) {
+      if (onNavigate) {
+        onNavigate("/technician/login");
+      } else {
+        window.location.assign("/technician/login");
+      }
+    }
+  }, [path, onNavigate]);
+
   return (
     <PageShell
       title={
         isForm
           ? "Register as a Professional"
-          : path.endsWith("/login")
-            ? "Professional Login"
-            : "Grow your business with Argent Your"
+          : "Grow your business with Argent Your"
       }
       subtitle={
         isForm
@@ -700,9 +710,7 @@ function ProfessionalsPage({ path, onNavigate }) {
       onNavigate={onNavigate}
     >
       {isForm ? (
-        <FormCard type="professional" />
-      ) : path.endsWith("/login") ? (
-        <FormCard />
+        <ProfessionalRegisterForm onNavigate={onNavigate} />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {[
@@ -724,20 +732,22 @@ function ProfessionalsPage({ path, onNavigate }) {
           ))}
         </div>
       )}
-      <div className="mt-8 flex flex-wrap gap-3">
-        <button
-          onClick={() => onNavigate("/professionals/register")}
-          className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-bold text-white"
-        >
-          Register as a Professional
-        </button>
-        <button
-          onClick={() => onNavigate("/professionals/login")}
-          className="rounded-xl border border-slate-300 px-5 py-3 text-sm font-bold"
-        >
-          Professional Login
-        </button>
-      </div>
+      {!isForm && (
+        <div className="mt-8 flex flex-wrap gap-3">
+          <button
+            onClick={() => onNavigate("/professionals/register")}
+            className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-800 transition-colors cursor-pointer"
+          >
+            Register as a Professional
+          </button>
+          <button
+            onClick={() => onNavigate("/technician/login")}
+            className="rounded-xl border border-slate-300 px-5 py-3 text-sm font-bold hover:bg-slate-50 transition-colors cursor-pointer"
+          >
+            Professional Login
+          </button>
+        </div>
+      )}
     </PageShell>
   );
 }
@@ -776,17 +786,21 @@ function PageShell({ title, subtitle, children, onNavigate, onAuthOpen }) {
         currentRoute={window.location.pathname}
         onNavigate={onNavigate}
       />
-      <main className="mx-auto max-w-6xl px-5 pb-28 sm:pb-32 md:pb-20 pt-4 sm:pt-6 md:pt-28 lg:pt-32 lg:px-8">
-        <div className="rounded-[28px] bg-[#e2eee5] p-8 sm:p-14">
-          <p className="eyebrow">Argent Your / Information</p>
-          <h1 className="display-font mt-4 max-w-4xl text-5xl leading-tight sm:text-6xl">
+      <main className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pb-32 sm:pb-36 md:pb-24 pt-3 sm:pt-6 md:pt-28 lg:pt-32 w-full max-w-full overflow-x-hidden box-border">
+        <div className="rounded-2xl sm:rounded-[28px] bg-[#e2eee5] p-5 sm:p-8 md:p-14 w-full box-border">
+          <p className="eyebrow text-[10px] sm:text-xs tracking-wider sm:tracking-widest text-emerald-800 block text-left">
+            Argent Your / Information
+          </p>
+          <h1 className="display-font mt-2.5 sm:mt-4 text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-normal leading-snug sm:leading-tight tracking-tight text-slate-900 break-normal [word-break:keep-all] hyphens-none max-w-4xl">
             {title}
           </h1>
-          <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
+          <p className="mt-2.5 sm:mt-5 max-w-2xl text-xs sm:text-base md:text-lg leading-relaxed text-slate-600">
             {subtitle}
           </p>
         </div>
-        <div className="mt-10">{children}</div>
+        <div className="mt-6 sm:mt-10 w-full max-w-full min-w-0 box-border">
+          {children}
+        </div>
       </main>
       <Footer onNavigate={onNavigate} />
       {authOpen && (

@@ -8,6 +8,7 @@ import {
   Phone,
   Send,
 } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
 
 const footerSections = [
   {
@@ -60,6 +61,7 @@ const footerSections = [
       ["Partner With Us", "/professionals"],
       ["Professional Registration", "/professionals/register"],
       ["Partner Benefits", "/professionals"],
+      ["Technician Portal", "/technician/login"],
     ],
   },
 ];
@@ -73,8 +75,17 @@ const socials = [
 ];
 
 export default function Footer({ onNavigate }) {
+  const { user, isAuthenticated } = useAuth();
   // Mobile accordion open states: allow multiple sections open simultaneously
   const [openSections, setOpenSections] = useState({});
+
+  // Hide FOR PROFESSIONALS footer section when a customer is logged in
+  const isCustomerLoggedIn = Boolean(
+    isAuthenticated && user && user.role === "customer",
+  );
+  const visibleSections = footerSections.filter(
+    (sec) => !(isCustomerLoggedIn && sec.id === "professionals"),
+  );
 
   const toggleSection = (id) => {
     setOpenSections((prev) => ({
@@ -123,9 +134,13 @@ export default function Footer({ onNavigate }) {
 
         <div className="footer-divider my-6 sm:my-8 border-t border-slate-200" />
 
-        {/* Desktop Multi-Column (5 columns) */}
-        <div className="hidden md:grid md:grid-cols-5 gap-8">
-          {footerSections.map((section) => (
+        {/* Desktop Multi-Column */}
+        <div
+          className={`hidden md:grid gap-8 ${
+            isCustomerLoggedIn ? "md:grid-cols-4" : "md:grid-cols-5"
+          }`}
+        >
+          {visibleSections.map((section) => (
             <div key={section.id} className="space-y-3">
               <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
                 {section.title}
@@ -149,7 +164,7 @@ export default function Footer({ onNavigate }) {
 
         {/* Mobile Accordions (Clean collapsible sections on < md) */}
         <div className="md:hidden divide-y divide-slate-100 border-y border-slate-100">
-          {footerSections.map((section) => {
+          {visibleSections.map((section) => {
             const isOpen = Boolean(openSections[section.id]);
             return (
               <div key={section.id} className="py-1">

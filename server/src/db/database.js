@@ -77,7 +77,42 @@ export async function initDb() {
     }
   }
 
-  // Create user_cart and user_notifications tables if not present
+  try {
+    await query.run(`ALTER TABLE status_logs ADD COLUMN note TEXT`);
+  } catch {
+    // Column already exists
+  }
+
+  const techColumnsToAdd = [
+    { col: "status", type: "TEXT DEFAULT 'Approved'" },
+    { col: "skills", type: "TEXT" },
+    { col: "experience_years", type: "INTEGER DEFAULT 1" },
+    { col: "experience_description", type: "TEXT" },
+    { col: "id_document_type", type: "TEXT" },
+    { col: "id_document_url", type: "TEXT" },
+    { col: "verification_notes", type: "TEXT" },
+    { col: "account_type", type: "TEXT DEFAULT 'individual'" },
+    { col: "company_name", type: "TEXT" },
+    { col: "authorized_person", type: "TEXT" },
+    { col: "business_registration_number", type: "TEXT" },
+    { col: "service_areas", type: "TEXT DEFAULT 'Delhi NCR'" },
+    { col: "bank_holder_name", type: "TEXT" },
+    { col: "bank_name", type: "TEXT" },
+    { col: "bank_account_number", type: "TEXT" },
+    { col: "bank_ifsc", type: "TEXT" },
+    { col: "bank_verification_status", type: "TEXT DEFAULT 'Not Connected'" },
+    { col: "payout_status", type: "TEXT DEFAULT 'Active'" },
+  ];
+
+  for (const { col, type } of techColumnsToAdd) {
+    try {
+      await query.run(`ALTER TABLE technicians ADD COLUMN ${col} ${type}`);
+    } catch {
+      // Column already exists
+    }
+  }
+
+  // Create user_cart, user_notifications and technician_payouts tables if not present
   try {
     await query.exec(`
       CREATE TABLE IF NOT EXISTS user_cart (
@@ -102,9 +137,21 @@ export async function initDb() {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       );
+
+      CREATE TABLE IF NOT EXISTS technician_payouts (
+        id TEXT PRIMARY KEY,
+        technician_id TEXT NOT NULL,
+        amount REAL NOT NULL,
+        currency TEXT DEFAULT 'INR',
+        status TEXT DEFAULT 'Completed',
+        bank_account_tail TEXT,
+        reference_id TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (technician_id) REFERENCES technicians(id) ON DELETE CASCADE
+      );
     `);
   } catch (err) {
-    console.error("Error creating user tables:", err);
+    console.error("Error creating tables:", err);
   }
 
   console.log("Database tables verified / initialized successfully.");

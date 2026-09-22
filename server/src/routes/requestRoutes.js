@@ -123,6 +123,19 @@ export default function createRequestRouter(io) {
                 `${tech.name} (${tech.phone || "+91 98101 11223"}) has been assigned to your booking #${requestId}.`,
               ],
             );
+
+            if (tech.user_id) {
+              await query.run(
+                `INSERT INTO user_notifications (id, user_id, title, description, type, unread)
+                 VALUES (?, ?, ?, ?, 'dispatch', 1)`,
+                [
+                  uuidv4(),
+                  tech.user_id,
+                  `New Job Dispatched: #${requestId}`,
+                  `You have a new booking for ${service_name || "Doorstep Service"} at ${address || "Customer Address"}.`,
+                ],
+              );
+            }
           }
         } catch (notifErr) {
           console.warn("Notification insert error:", notifErr);
@@ -371,6 +384,36 @@ export default function createRequestRouter(io) {
             [avgRow.avg_rating, reqRecord.technician_id],
           );
         }
+
+        // Notify technician user
+        try {
+          const techUser = await query.get(
+            `SELECT user_id FROM technicians WHERE id = ?`,
+            [reqRecord.technician_id],
+          );
+          if (techUser?.user_id) {
+            await query.run(
+              `INSERT INTO user_notifications (id, user_id, title, description, type, unread)
+               VALUES (?, ?, ?, ?, 'rating', 1)`,
+              [
+                uuidv4(),
+                techUser.user_id,
+                `New Customer Rating: ★ ${numRating}`,
+                feedback
+                  ? `Customer feedback for #${req.params.id}: "${feedback}"`
+                  : `Customer left a ★ ${numRating} rating for #${req.params.id}.`,
+              ],
+            );
+          }
+        } catch (notifErr) {
+          console.warn("Rating notification error:", notifErr);
+        }
+
+        io.emit("request_updated", {
+          id: req.params.id,
+          rating: numRating,
+          technicianId: reqRecord.technician_id,
+        });
       }
 
       res.json({

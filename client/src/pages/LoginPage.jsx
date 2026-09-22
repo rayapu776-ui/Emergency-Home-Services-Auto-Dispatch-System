@@ -947,6 +947,18 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
   };
 
   const navigate = (path) => {
+    if (path.startsWith("/technician")) {
+      if (onNavigateTechnician) {
+        onNavigateTechnician(path);
+        return;
+      }
+    }
+    if (path === "/admin" || path === "/admin/dashboard") {
+      if (onNavigateAdmin) {
+        onNavigateAdmin();
+        return;
+      }
+    }
     if (route === path) return;
     setRouteHistory((prev) => [...prev, path]);
     window.history.pushState({ path }, "", path);
@@ -983,6 +995,12 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
   useEffect(() => {
     const syncRoute = () => {
       const current = window.location.pathname || "/";
+      if (current.startsWith("/technician")) {
+        if (onNavigateTechnician) {
+          onNavigateTechnician(current);
+          return;
+        }
+      }
       setRoute(current);
       setRouteHistory((prev) => {
         if (prev[prev.length - 1] === current) return prev;
@@ -995,7 +1013,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
     };
     window.addEventListener("popstate", syncRoute);
     return () => window.removeEventListener("popstate", syncRoute);
-  }, []);
+  }, [onNavigateTechnician]);
 
   // Restore pending booking after login/signup
   useEffect(() => {
@@ -1282,6 +1300,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
       <InfoPage
         path={route}
         onHome={goBack}
+        onNavigate={navigate}
         onAuthOpen={() => setAuthOpen(true)}
       />
     );

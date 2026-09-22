@@ -1,6 +1,8 @@
 import {
   Apple,
   ArrowLeft,
+  ArrowRight,
+  Briefcase,
   Check,
   Eye,
   EyeOff,
@@ -11,10 +13,13 @@ import {
   RefreshCw,
   ShieldCheck,
   Smartphone,
+  User,
+  Wrench,
   X,
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
+import technicianStore from "../../services/technicianStore";
 
 const isEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 const isPhone = (value) => /^[+\d][\d\s()-]{7,}$/.test(value);
@@ -68,15 +73,28 @@ export default function AuthModal({
   onCancel,
 }) {
   const { loginStep1, verifyOtp, resendOtp, register, demoLogin } = useAuth();
+  const [accountType, setAccountType] = useState("customer"); // "customer" | "professional"
   const [screen, setScreen] = useState("login"); // "login" | "signup" | "otp"
   const [loginValue, setLoginValue] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
 
-  // OTP state
+  // OTP state (Customer)
   const [otpSession, setOtpSession] = useState(null);
   const [otpDigits, setOtpDigits] = useState(["", "", "", "", "", ""]);
   const [cooldown, setCooldown] = useState(0);
   const otpInputRefs = useRef([]);
+
+  // Professional Login State
+  const [profIdentifier, setProfIdentifier] = useState("");
+  const [profPassword, setProfPassword] = useState("");
+  const [profShowPassword, setProfShowPassword] = useState(false);
+  const [profLoading, setProfLoading] = useState(false);
+  const [profError, setProfError] = useState("");
+  const [profStatus, setProfStatus] = useState("");
+  const [profShowForgot, setProfShowForgot] = useState(false);
+  const [profOtpSession, setProfOtpSession] = useState(null);
+  const [profOtpDigits, setProfOtpDigits] = useState(["", "", "", "", "", ""]);
+  const profOtpInputRefs = useRef([]);
 
   const [signup, setSignup] = useState({
     name: "",
@@ -364,7 +382,197 @@ export default function AuthModal({
     }
   };
 
+  // Professional Login Handlers
+  const submitProfLogin = async (e) => {
+    if (e) e.preventDefault();
+    setProfError("");
+    setProfStatus("");
+
+    const trimmed = profIdentifier.trim();
+    if (!trimmed) {
+      return setProfError("Enter your registered mobile number or email.");
+    }
+    if (!profPassword) {
+      return setProfError("Enter your partner account password.");
+    }
+
+    setProfLoading(true);
+    setProfStatus("Verifying credentials...");
+    try {
+      const res = await technicianStore.loginWithPassword(
+        trimmed,
+        profPassword,
+      );
+      if (res.status === "OTP_REQUIRED" || res.tempSessionToken) {
+        setProfOtpSession({
+          tempSessionToken: res.tempSessionToken,
+          channel: res.channel,
+          maskedDestination: res.maskedDestination || trimmed,
+          devCode: res.devCode,
+        });
+        if (res.devCode) {
+          setProfOtpDigits(res.devCode.split(""));
+        } else {
+          setProfOtpDigits(["", "", "", "", "", ""]);
+        }
+        setProfStatus("");
+      } else if (res.token && res.user) {
+        if (res.user.role !== "technician" && res.user.role !== "admin") {
+          technicianStore.logout();
+          setProfStatus("");
+          setProfError(
+            "This account is registered as a customer. Please switch to the Customer tab or register as a professional.",
+          );
+          setProfLoading(false);
+          return;
+        }
+        technicianStore.saveSession(res.token, res.user);
+        setProfStatus("Signed in successfully! Redirecting...");
+        setTimeout(() => {
+          onClose();
+          if (onNavigate) {
+            onNavigate("/technician/dashboard");
+          } else {
+            window.location.assign("/technician/dashboard");
+          }
+        }, 300);
+      }
+    } catch (err) {
+      console.error("Professional login error:", err);
+      setProfStatus("");
+      setProfError(
+        err.response?.data?.error ||
+          "Invalid credentials. Please verify your email/phone and password.",
+      );
+    } finally {
+      setProfLoading(false);
+    }
+  };
+
+  const handleProfDigitChange = (index, value) => {
+    const cleaned = value.replace(/\D/g, "");
+    if (!cleaned) {
+      const newDigits = [...profOtpDigits];
+      newDigits[index] = "";
+      setProfOtpDigits(newDigits);
+      return;
+    }
+    const lastDigit = cleaned.slice(-1);
+    const newDigits = [...profOtpDigits];
+    newDigits[index] = lastDigit;
+    setProfOtpDigits(newDigits);
+    if (index < 5) {
+      profOtpInputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleProfDigitKeyDown = (index, e) => {
+    if (e.key === "Backspace") {
+      if (!profOtpDigits[index] && index > 0) {
+        const newDigits = [...profOtpDigits];
+        newDigits[index - 1] = "";
+        setProfOtpDigits(newDigits);
+        profOtpInputRefs.current[index - 1]?.focus();
+      }
+    } else if (e.key === "ArrowLeft" && index > 0) {
+      e.preventDefault();
+      profOtpInputRefs.current[index - 1]?.focus();
+    } else if (e.key === "ArrowRight" && index < 5) {
+      e.preventDefault();
+      profOtpInputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleProfOtpPaste = (e) => {
+    e.preventDefault();
+    const pasted = e.clipboardData
+      .getData("text")
+      .replace(/\D/g, "")
+      .slice(0, 6);
+    if (!pasted) return;
+    const newDigits = [...profOtpDigits];
+    for (let i = 0; i < 6; i++) {
+      newDigits[i] = pasted[i] || "";
+    }
+    setProfOtpDigits(newDigits);
+    const targetFocus = Math.min(pasted.length, 5);
+    profOtpInputRefs.current[targetFocus]?.focus();
+  };
+
+  const submitProfOtp = async (e) => {
+    if (e) e.preventDefault();
+    setProfError("");
+    setProfStatus("");
+    const code = profOtpDigits.join("");
+    if (code.length < 6) {
+      return setProfError(
+        "Please enter the complete 6-digit verification code.",
+      );
+    }
+
+    setProfLoading(true);
+    setProfStatus("Verifying code...");
+    try {
+      const res = await technicianStore.verifyOtp(
+        profOtpSession.tempSessionToken,
+        code,
+      );
+      if (res.user) {
+        if (res.user.role !== "technician" && res.user.role !== "admin") {
+          technicianStore.logout();
+          setProfStatus("");
+          setProfError(
+            "This account is registered as a customer. Please use Customer login.",
+          );
+          setProfLoading(false);
+          return;
+        }
+        setProfStatus("Verified! Redirecting to Dashboard...");
+        setTimeout(() => {
+          onClose();
+          if (onNavigate) {
+            onNavigate("/technician/dashboard");
+          } else {
+            window.location.assign("/technician/dashboard");
+          }
+        }, 300);
+      }
+    } catch (err) {
+      console.error("Prof OTP verify error:", err);
+      setProfStatus("");
+      setProfError(err.response?.data?.error || "Invalid authentication code.");
+    } finally {
+      setProfLoading(false);
+    }
+  };
+
+  const handleProfDemo = async (category = "Plumbing") => {
+    setProfError("");
+    setProfStatus(`Connecting as ${category} Specialist...`);
+    setProfLoading(true);
+    try {
+      const res = await technicianStore.demoLogin(category);
+      if (res.user) {
+        setProfStatus("Signed in! Redirecting to Dashboard...");
+        setTimeout(() => {
+          onClose();
+          if (onNavigate) {
+            onNavigate("/technician/dashboard");
+          } else {
+            window.location.assign("/technician/dashboard");
+          }
+        }, 300);
+      }
+    } catch (err) {
+      setProfStatus("");
+      setProfError("Demo professional login failed. Please try again.");
+    } finally {
+      setProfLoading(false);
+    }
+  };
+
   const detectedType = detectIdentifierType(loginValue.trim());
+  const profDetectedType = detectIdentifierType(profIdentifier.trim());
 
   return (
     <div
@@ -397,8 +605,314 @@ export default function AuthModal({
         />
         <p className="eyebrow mt-4">Argent Your</p>
 
-        {isOtp ? (
-          /* STEP 2: TWO-STEP OTP VERIFICATION SCREEN */
+        {/* Account Type Selector: Customer vs Professional */}
+        {!isOtp && !profOtpSession && (
+          <div className="mt-4 mb-3 grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-2xl w-full border border-slate-200 box-border">
+            <button
+              type="button"
+              onClick={() => {
+                setAccountType("customer");
+                resetMessage();
+              }}
+              className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                accountType === "customer"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-900"
+              }`}
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>Customer</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setAccountType("professional");
+                resetMessage();
+              }}
+              className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                accountType === "professional"
+                  ? "bg-slate-950 text-white shadow-sm"
+                  : "text-slate-500 hover:text-slate-900"
+              }`}
+            >
+              <Wrench className="w-3.5 h-3.5" />
+              <span>Professional</span>
+            </button>
+          </div>
+        )}
+
+        {accountType === "professional" ? (
+          profOtpSession ? (
+            /* PROFESSIONAL OTP VERIFICATION */
+            <div className="mt-2 text-left w-full animate-fade-in">
+              <button
+                type="button"
+                onClick={() => {
+                  setProfOtpSession(null);
+                  setProfError("");
+                  setProfStatus("");
+                }}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-800 hover:text-emerald-950 mb-3 cursor-pointer"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                <span>Change Mobile / Email</span>
+              </button>
+
+              <div className="flex items-center gap-2 mb-1">
+                <div className="h-9 w-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                  <ShieldCheck className="h-5 w-5" />
+                </div>
+                <h2 className="display-font text-2xl font-bold text-slate-950">
+                  Partner Verification Code
+                </h2>
+              </div>
+
+              <div className="mt-3 rounded-2xl bg-slate-50 border border-slate-200/80 p-3.5 space-y-1">
+                <p className="text-xs font-bold text-slate-500">
+                  Security code sent to:
+                </p>
+                <p className="text-sm font-black text-slate-900 font-mono">
+                  {profOtpSession?.maskedDestination || profIdentifier}
+                </p>
+              </div>
+
+              <form onSubmit={submitProfOtp} className="auth-form mt-4">
+                <label className="auth-field">
+                  <span className="text-xs font-bold text-slate-700">
+                    Enter 6-Digit Code
+                  </span>
+                  <div
+                    className="grid grid-cols-6 gap-2 mt-2"
+                    onPaste={handleProfOtpPaste}
+                  >
+                    {profOtpDigits.map((digit, index) => (
+                      <input
+                        key={index}
+                        ref={(el) => (profOtpInputRefs.current[index] = el)}
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={1}
+                        value={digit}
+                        onChange={(e) =>
+                          handleProfDigitChange(index, e.target.value)
+                        }
+                        onKeyDown={(e) => handleProfDigitKeyDown(index, e)}
+                        className="w-full aspect-square text-center text-lg sm:text-xl font-black rounded-xl border border-slate-300 bg-white focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 outline-none"
+                      />
+                    ))}
+                  </div>
+                </label>
+
+                {profError && (
+                  <p className="auth-error" role="alert">
+                    {profError}
+                  </p>
+                )}
+                {profStatus && (
+                  <p className="auth-status">
+                    <Check /> {profStatus}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={profLoading}
+                  className="auth-primary mt-2"
+                >
+                  {profLoading ? (
+                    <LoaderCircle className="animate-spin" />
+                  ) : (
+                    "Verify & Access Dashboard"
+                  )}
+                </button>
+              </form>
+            </div>
+          ) : (
+            /* PROFESSIONAL LOGIN FORM */
+            <div className="mt-1 text-left w-full animate-fade-in">
+              <div className="mb-4">
+                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-800 block mb-0.5">
+                  SERVICE PARTNER & TECHNICIAN
+                </span>
+                <h2 className="display-font text-2xl font-bold text-slate-950">
+                  Professional Login
+                </h2>
+                <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                  Sign in to access your dispatch dashboard, active jobs, and
+                  customer requests.
+                </p>
+              </div>
+
+              {/* Forgot Password Helper Banner */}
+              {profShowForgot && (
+                <div className="mb-4 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs space-y-1.5 text-emerald-950 animate-fade-in">
+                  <div className="flex items-center justify-between font-bold text-emerald-900">
+                    <span>Password Assistance</span>
+                    <button
+                      type="button"
+                      onClick={() => setProfShowForgot(false)}
+                      className="text-slate-400 hover:text-slate-700"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <p className="text-slate-600 text-[11px] leading-relaxed">
+                    For partner security, credential resets are assisted by
+                    dispatch operations. Contact partner desk at{" "}
+                    <strong className="text-slate-900">+91 98101 11223</strong>{" "}
+                    or verify via your registered emergency contact.
+                  </p>
+                </div>
+              )}
+
+              <form onSubmit={submitProfLogin} className="auth-form space-y-3">
+                {/* Identifier Input */}
+                <label className="auth-field">
+                  <div className="flex items-center justify-between mb-1">
+                    <span>Mobile Number or Email</span>
+                    {profDetectedType === "phone" && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                        <Phone className="h-3 w-3" /> Phone
+                      </span>
+                    )}
+                    {profDetectedType === "email" && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                        <Mail className="h-3 w-3" /> Email
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <input
+                      className="auth-input pr-10"
+                      value={profIdentifier}
+                      onChange={(e) => setProfIdentifier(e.target.value)}
+                      placeholder="e.g. +91 98101 11223 or partner@email.com"
+                      autoComplete="username"
+                      required
+                    />
+                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                      {profDetectedType === "email" ? (
+                        <Mail className="h-4 w-4 text-emerald-600" />
+                      ) : profDetectedType === "phone" ? (
+                        <Phone className="h-4 w-4 text-emerald-600" />
+                      ) : (
+                        <KeyRound className="h-4 w-4 text-slate-400" />
+                      )}
+                    </div>
+                  </div>
+                </label>
+
+                {/* Password Input */}
+                <label className="auth-field">
+                  <span>Account Password</span>
+                  <div className="auth-password-wrap">
+                    <input
+                      className="auth-input"
+                      value={profPassword}
+                      onChange={(e) => setProfPassword(e.target.value)}
+                      placeholder="Enter partner password"
+                      type={profShowPassword ? "text" : "password"}
+                      autoComplete="current-password"
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="auth-password-toggle"
+                      onClick={() => setProfShowPassword(!profShowPassword)}
+                      aria-label={
+                        profShowPassword ? "Hide password" : "Show password"
+                      }
+                    >
+                      {profShowPassword ? <EyeOff /> : <Eye />}
+                    </button>
+                  </div>
+                </label>
+
+                <div className="flex items-center justify-between text-xs pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setProfShowForgot(!profShowForgot)}
+                    className="text-emerald-800 hover:text-emerald-950 font-bold hover:underline"
+                  >
+                    Forgot Password?
+                  </button>
+                </div>
+
+                {profError && (
+                  <p className="auth-error" role="alert">
+                    {profError}
+                  </p>
+                )}
+                {profStatus && (
+                  <p className="auth-status">
+                    <Check /> {profStatus}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={profLoading}
+                  className="w-full py-3.5 px-6 rounded-2xl bg-slate-950 hover:bg-emerald-800 text-white font-bold text-xs sm:text-sm transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer mt-1"
+                >
+                  {profLoading ? (
+                    <LoaderCircle className="animate-spin" />
+                  ) : (
+                    <>
+                      <span>Sign In to Dashboard</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+              </form>
+
+              {/* Quick Partner Demo Logins for Testing */}
+              <div className="mt-4 pt-3 border-t border-slate-100 space-y-2">
+                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider text-center">
+                  Instant Evaluator Demo Sign-In
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleProfDemo("Plumbing")}
+                    className="py-2 px-3 rounded-xl border border-slate-200 hover:border-emerald-600 hover:bg-emerald-50 text-[11px] font-bold text-slate-700 text-center transition-colors cursor-pointer"
+                  >
+                    Demo Plumber
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleProfDemo("AC & Appliance Repair")}
+                    className="py-2 px-3 rounded-xl border border-slate-200 hover:border-emerald-600 hover:bg-emerald-50 text-[11px] font-bold text-slate-700 text-center transition-colors cursor-pointer"
+                  >
+                    Demo AC Tech
+                  </button>
+                </div>
+              </div>
+
+              {/* Create Professional Account Link */}
+              <div className="mt-5 pt-3 border-t border-slate-100 text-center">
+                <p className="text-xs text-slate-500">
+                  Want to provide services with Argent Your?
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    if (onNavigate) {
+                      onNavigate("/professionals/register");
+                    } else {
+                      window.location.assign("/professionals/register");
+                    }
+                  }}
+                  className="mt-1 text-xs font-black text-emerald-800 hover:text-emerald-950 underline cursor-pointer"
+                >
+                  Create Professional Account / Register as a Professional
+                </button>
+              </div>
+            </div>
+          )
+        ) : isOtp ? (
+          /* STEP 2: TWO-STEP OTP VERIFICATION SCREEN (Customer) */
           <div className="mt-2 text-left w-full">
             <button
               type="button"
