@@ -703,9 +703,22 @@ function ProfessionalsPage({ path, onNavigate }) {
           : "Grow your business with Argent Your"
       }
       subtitle={
-        isForm
-          ? "Bring your skills to customers looking for trusted care."
-          : "More customers, flexible scheduling, and support that helps your business grow."
+        isForm ? (
+          <span className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <span>
+              Bring your skills to customers looking for trusted care.
+            </span>
+            <button
+              onClick={() => onNavigate("/technician/login")}
+              className="inline-flex items-center gap-1 text-xs font-bold text-emerald-900 bg-white/80 hover:bg-white border border-emerald-300/80 px-3 py-1.5 rounded-xl w-fit transition-colors cursor-pointer shadow-2xs shrink-0"
+            >
+              <span>Already registered? Professional Login</span>
+              <ArrowRight className="w-3.5 h-3.5 text-emerald-700" />
+            </button>
+          </span>
+        ) : (
+          "More customers, flexible scheduling, and support that helps your business grow."
+        )
       }
       onNavigate={onNavigate}
     >

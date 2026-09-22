@@ -83,6 +83,20 @@ export async function initDb() {
     // Column already exists
   }
 
+  // OTP security upgrades for databases created before the OTP flow existed.
+  const otpColumnsToAdd = [
+    { col: "resend_count", type: "INTEGER NOT NULL DEFAULT 0" },
+    { col: "verified_at", type: "INTEGER" },
+  ];
+
+  for (const { col, type } of otpColumnsToAdd) {
+    try {
+      await query.run(`ALTER TABLE otp_sessions ADD COLUMN ${col} ${type}`);
+    } catch {
+      // Column already exists, or this installation has not created the table yet.
+    }
+  }
+
   const techColumnsToAdd = [
     { col: "status", type: "TEXT DEFAULT 'Approved'" },
     { col: "skills", type: "TEXT" },

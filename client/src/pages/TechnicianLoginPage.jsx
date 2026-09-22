@@ -26,70 +26,146 @@ export default function TechnicianLoginPage({ onLoginSuccess, onBackToHome }) {
 
   // OTP Step State
   const [otpStep, setOtpStep] = useState(false);
-  const [otpValue, setOtpValue] = useState("");
+  const [otpDigits, setOtpDigits] = useState(["", "", "", "", "", ""]);
+  const otpInputRefs = React.useRef([]);
   const [tempSessionToken, setTempSessionToken] = useState("");
   const [otpChannel, setOtpChannel] = useState("email");
   const [otpDestination, setOtpDestination] = useState("");
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [successMessage, setSuccessMessage] = useState("");
 
   // Resend OTP timer effect
   React.useEffect(() => {
     let timer;
     if (resendCooldown > 0) {
-      timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+      timer = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
     }
     return () => clearTimeout(timer);
   }, [resendCooldown]);
 
+  // Auto-focus first digit box when entering OTP step
+  React.useEffect(() => {
+    if (otpStep) {
+      setTimeout(() => otpInputRefs.current[0]?.focus(), 100);
+    }
+  }, [otpStep]);
+
+  const handleDigitChange = (index, value) => {
+    const cleaned = value.replace(/\D/g, "");
+    if (!cleaned) {
+      const newDigits = [...otpDigits];
+      newDigits[index] = "";
+      setOtpDigits(newDigits);
+      return;
+    }
+    if (cleaned.length > 1) {
+      const newDigits = [...otpDigits];
+      const digitsToFill = cleaned.slice(0, 6);
+      for (let i = 0; i < digitsToFill.length && index + i < 6; i++) {
+        newDigits[index + i] = digitsToFill[i];
+      }
+      setOtpDigits(newDigits);
+      const nextFocus = Math.min(index + digitsToFill.length, 5);
+      otpInputRefs.current[nextFocus]?.focus();
+      return;
+    }
+    const lastDigit = cleaned.slice(-1);
+    const newDigits = [...otpDigits];
+    newDigits[index] = lastDigit;
+    setOtpDigits(newDigits);
+    if (index < 5) {
+      otpInputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleDigitKeyDown = (index, e) => {
+    if (e.key === "Backspace") {
+      if (otpDigits[index]) {
+        const newDigits = [...otpDigits];
+        newDigits[index] = "";
+        setOtpDigits(newDigits);
+      } else if (index > 0) {
+        const newDigits = [...otpDigits];
+        newDigits[index - 1] = "";
+        setOtpDigits(newDigits);
+        otpInputRefs.current[index - 1]?.focus();
+      }
+    } else if (e.key === "ArrowLeft" && index > 0) {
+      e.preventDefault();
+      otpInputRefs.current[index - 1]?.focus();
+    } else if (e.key === "ArrowRight" && index < 5) {
+      e.preventDefault();
+      otpInputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (e) => {
+    e.preventDefault();
+    const pasted = e.clipboardData
+      .getData("text")
+      .replace(/\D/g, "")
+      .slice(0, 6);
+    if (!pasted) return;
+    const newDigits = [...otpDigits];
+    for (let i = 0; i < 6; i++) {
+      newDigits[i] = pasted[i] || "";
+    }
+    setOtpDigits(newDigits);
+    const targetFocus = Math.min(pasted.length, 5);
+    otpInputRefs.current[targetFocus]?.focus();
+  };
+
   const handleResendOtp = async () => {
-    if (resendCooldown > 0) return;
+    if (resendCooldown > 0 || !tempSessionToken || loading) return;
     setLoading(true);
     setErrorMessage("");
+    setSuccessMessage("");
     try {
-      const res = await technicianStore.loginWithPassword(
+      const res = await technicianStore.resendOtp(
+        tempSessionToken,
         identifier.trim(),
-        password,
       );
-      if (res.tempSessionToken) {
-        setTempSessionToken(res.tempSessionToken);
-      }
-      setResendCooldown(30);
+      setResendCooldown(res.cooldownSeconds || 60);
+      setOtpDigits(["", "", "", "", "", ""]);
+      setSuccessMessage(
+        res.message || "A fresh verification code has been sent.",
+      );
+      setTimeout(() => setSuccessMessage(""), 4000);
+      setTimeout(() => otpInputRefs.current[0]?.focus(), 50);
     } catch (err) {
       setErrorMessage(
-        err.response?.data?.error || "Failed to resend verification code",
+        err.response?.data?.error ||
+          "Failed to resend verification code. Please try again.",
       );
     } finally {
       setLoading(false);
     }
   };
 
-  // Step 1: Submit email/phone + password
+  // Step 1: Request a backend-generated code. Password remains optional for legacy accounts.
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage("");
+    setSuccessMessage("");
 
     const trimmedIdentifier = identifier.trim();
     if (!trimmedIdentifier) {
       setErrorMessage("Please enter your registered mobile number or email");
       return;
     }
-    if (!password) {
-      setErrorMessage("Please enter your account password");
-      return;
-    }
-
     setLoading(true);
     try {
-      const res = await technicianStore.loginWithPassword(
-        trimmedIdentifier,
-        password,
-      );
+      const res = await technicianStore.sendOtp(trimmedIdentifier, password);
 
       // If backend responded with OTP_REQUIRED
       if (res.status === "OTP_REQUIRED" || res.tempSessionToken) {
         setTempSessionToken(res.tempSessionToken);
         setOtpChannel(res.channel || "email");
-        setOtpDestination(res.destination || trimmedIdentifier);
+        setOtpDestination(
+          res.maskedDestination || res.destination || trimmedIdentifier,
+        );
+        setOtpDigits(["", "", "", "", "", ""]);
+        setResendCooldown(res.cooldownSeconds || 30);
         setOtpStep(true);
       } else if (res.token && res.user) {
         if (res.user.role !== "technician" && res.user.role !== "admin") {
@@ -118,9 +194,11 @@ export default function TechnicianLoginPage({ onLoginSuccess, onBackToHome }) {
   const handleOtpSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage("");
+    setSuccessMessage("");
 
-    if (!otpValue || otpValue.trim().length < 4) {
-      setErrorMessage("Please enter the verification code sent to you");
+    const code = otpDigits.join("");
+    if (code.length < 6) {
+      setErrorMessage("Please enter the complete 6-digit verification code");
       return;
     }
 
@@ -128,7 +206,8 @@ export default function TechnicianLoginPage({ onLoginSuccess, onBackToHome }) {
     try {
       const res = await technicianStore.verifyOtp(
         tempSessionToken,
-        otpValue.trim(),
+        code,
+        identifier.trim(),
       );
       if (res.user) {
         if (res.user.role !== "technician" && res.user.role !== "admin") {
@@ -139,30 +218,16 @@ export default function TechnicianLoginPage({ onLoginSuccess, onBackToHome }) {
           setLoading(false);
           return;
         }
-        onLoginSuccess(res.user);
+        setSuccessMessage("Verification successful! Accessing dashboard...");
+        setTimeout(() => {
+          onLoginSuccess(res.user);
+        }, 400);
       }
     } catch (err) {
       console.error("OTP verification failed:", err);
       setErrorMessage(
         err.response?.data?.error || "Invalid or expired verification code",
       );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Quick Demo Login for instant testing
-  const handleQuickDemo = async (category = "Plumbing") => {
-    setLoading(true);
-    setErrorMessage("");
-    try {
-      const res = await technicianStore.demoLogin(category);
-      if (res.user) {
-        onLoginSuccess(res.user);
-      }
-    } catch (err) {
-      console.error("Demo login error:", err);
-      setErrorMessage("Demo technician login failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -205,20 +270,38 @@ export default function TechnicianLoginPage({ onLoginSuccess, onBackToHome }) {
           {/* Subtle Glow */}
           <div className="absolute -top-24 -right-24 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
-          {/* Heading */}
+          {/* Centered Argent Your Branding & Heading */}
           <div className="text-center space-y-2 mb-6">
-            <div className="inline-flex p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 mb-1">
-              <Wrench className="h-6 w-6" />
+            <div className="flex flex-col items-center justify-center gap-1.5 mb-2">
+              <img
+                src="/argent-logo.png"
+                alt="Argent Your"
+                className="h-12 w-12 rounded-2xl object-contain shadow-lg shadow-emerald-950/40"
+              />
+              <span className="text-sm font-black tracking-widest text-emerald-400 uppercase">
+                Argent Your
+              </span>
             </div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-300/90 block">
+              SERVICE PARTNER & TECHNICIAN
+            </span>
             <h1 className="text-2xl font-black text-white tracking-tight">
-              {otpStep ? "Verification Required" : "Partner Sign In"}
+              {otpStep ? "Partner Verification Code" : "Professional Login"}
             </h1>
             <p className="text-xs text-slate-400 max-w-xs mx-auto">
               {otpStep
-                ? `Enter the 6-digit code sent to ${otpDestination}`
-                : "Sign in to access your dispatch dashboard, active jobs, and client communications."}
+                ? `Security code sent to: ${otpDestination}`
+                : "Sign in with your registered number or email to access the professional operations dashboard."}
             </p>
           </div>
+
+          {/* Success Banner */}
+          {successMessage && (
+            <div className="mb-5 flex items-start gap-2.5 p-3 rounded-xl bg-emerald-950/60 border border-emerald-800/80 text-emerald-200 text-xs animate-fade-in">
+              <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+              <p className="leading-snug">{successMessage}</p>
+            </div>
+          )}
 
           {/* Error Banner */}
           {errorMessage && (
@@ -263,9 +346,10 @@ export default function TechnicianLoginPage({ onLoginSuccess, onBackToHome }) {
                 <div className="relative">
                   <input
                     type="text"
+                    required
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
-                    placeholder="e.g. +91 98101 11223 or tech.plumber@demo.com"
+                    placeholder="Enter your number or email"
                     className="w-full bg-slate-800/80 border border-slate-700/80 focus:border-emerald-500 rounded-2xl py-3 pl-10 pr-4 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
                   />
                   <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-500" />
@@ -275,7 +359,10 @@ export default function TechnicianLoginPage({ onLoginSuccess, onBackToHome }) {
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                    Password
+                    Password{" "}
+                    <span className="normal-case text-slate-500">
+                      (optional)
+                    </span>
                   </label>
                   <button
                     type="button"
@@ -290,14 +377,14 @@ export default function TechnicianLoginPage({ onLoginSuccess, onBackToHome }) {
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter partner password"
+                    placeholder="Enter your password (optional)"
                     className="w-full bg-slate-800/80 border border-slate-700/80 focus:border-emerald-500 rounded-2xl py-3 pl-10 pr-11 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
                   />
                   <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-500" />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-3.5 text-slate-400 hover:text-white"
+                    className="absolute right-3.5 top-3.5 text-slate-400 hover:text-white cursor-pointer"
                   >
                     {showPassword ? (
                       <EyeOff className="h-4 w-4" />
@@ -316,11 +403,11 @@ export default function TechnicianLoginPage({ onLoginSuccess, onBackToHome }) {
                 {loading ? (
                   <>
                     <RefreshCw className="h-4 w-4 animate-spin" />
-                    <span>Verifying Partner...</span>
+                    <span>Logging in...</span>
                   </>
                 ) : (
                   <>
-                    <span>Sign In to Dashboard</span>
+                    <span>Continue</span>
                     <ArrowRight className="h-4 w-4" />
                   </>
                 )}
@@ -328,12 +415,12 @@ export default function TechnicianLoginPage({ onLoginSuccess, onBackToHome }) {
 
               <div className="pt-2 text-center">
                 <p className="text-xs text-slate-400">
-                  Want to provide services with Argent Your?{" "}
+                  Don't have an account?{" "}
                   <a
                     href="/professionals/register"
                     className="text-emerald-400 font-bold hover:text-emerald-300 hover:underline inline-flex items-center gap-1"
                   >
-                    <span>Register as a Professional</span>
+                    <span>Create Professional Account</span>
                     <ArrowRight className="w-3 h-3" />
                   </a>
                 </p>
@@ -343,33 +430,49 @@ export default function TechnicianLoginPage({ onLoginSuccess, onBackToHome }) {
             /* Step 2 Form (OTP) */
             <form onSubmit={handleOtpSubmit} className="space-y-4">
               <div>
-                <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center justify-between mb-2">
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                    6-Digit Verification Code
+                    Enter 6-Digit Code
                   </label>
                   <button
                     type="button"
                     onClick={() => {
                       setOtpStep(false);
-                      setOtpValue("");
+                      setOtpDigits(["", "", "", "", "", ""]);
                       setErrorMessage("");
+                      setSuccessMessage("");
                     }}
                     className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold cursor-pointer"
                   >
                     Change Email/Phone
                   </button>
                 </div>
-                <input
-                  type="text"
-                  maxLength={6}
-                  value={otpValue}
-                  onChange={(e) =>
-                    setOtpValue(e.target.value.replace(/\D/g, ""))
-                  }
-                  placeholder="• • • • • •"
-                  className="w-full bg-slate-800/80 border border-slate-700/80 focus:border-emerald-500 rounded-2xl py-3 text-center text-xl tracking-widest font-black text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
-                  autoFocus
-                />
+
+                <div className="flex items-center justify-center w-full my-3">
+                  <div
+                    className="flex items-center justify-center gap-1.5 sm:gap-2.5"
+                    onPaste={handleOtpPaste}
+                  >
+                    {otpDigits.map((digit, index) => (
+                      <input
+                        key={index}
+                        ref={(el) => (otpInputRefs.current[index] = el)}
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        pattern="[0-9]*"
+                        maxLength={1}
+                        value={digit}
+                        onChange={(e) =>
+                          handleDigitChange(index, e.target.value)
+                        }
+                        onKeyDown={(e) => handleDigitKeyDown(index, e)}
+                        onFocus={(e) => e.target.select()}
+                        className="w-9 h-11 sm:w-11 sm:h-12 text-center font-mono text-lg sm:text-xl font-bold rounded-xl border border-slate-700 bg-slate-800/90 text-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-all caret-emerald-400 p-0 shrink-0 shadow-inner"
+                      />
+                    ))}
+                  </div>
+                </div>
               </div>
 
               <div className="flex items-center justify-between text-xs px-1 text-slate-400">
@@ -381,7 +484,7 @@ export default function TechnicianLoginPage({ onLoginSuccess, onBackToHome }) {
                   className={`font-bold transition-colors cursor-pointer ${
                     resendCooldown > 0
                       ? "text-slate-500 cursor-not-allowed"
-                      : "text-emerald-400 hover:text-emerald-300"
+                      : "text-emerald-400 hover:text-emerald-300 underline"
                   }`}
                 >
                   {resendCooldown > 0
@@ -395,7 +498,9 @@ export default function TechnicianLoginPage({ onLoginSuccess, onBackToHome }) {
                   type="button"
                   onClick={() => {
                     setOtpStep(false);
+                    setOtpDigits(["", "", "", "", "", ""]);
                     setErrorMessage("");
+                    setSuccessMessage("");
                   }}
                   className="flex-1 rounded-2xl border border-slate-700 py-3 text-xs font-bold text-slate-300 hover:bg-slate-800 transition-colors cursor-pointer"
                 >
@@ -403,46 +508,21 @@ export default function TechnicianLoginPage({ onLoginSuccess, onBackToHome }) {
                 </button>
                 <button
                   type="submit"
-                  disabled={loading}
-                  className="flex-[2] bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 text-white font-bold py-3 rounded-2xl text-xs transition-all shadow-md shadow-emerald-600/25 flex items-center justify-center gap-1.5 cursor-pointer"
+                  disabled={loading || otpDigits.join("").length < 6}
+                  className="flex-[2] bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 text-white font-bold py-3 rounded-2xl text-xs transition-all shadow-md shadow-emerald-600/25 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? "Verifying..." : "Confirm & Enter"}
+                  {loading ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Verifying...</span>
+                    </>
+                  ) : (
+                    "Verify & Access Dashboard"
+                  )}
                 </button>
               </div>
             </form>
           )}
-
-          {/* Quick Demo Credentials Footer */}
-          <div className="mt-8 pt-5 border-t border-slate-800 text-center space-y-3">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-              Instant Demo Sign-In
-            </p>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => handleQuickDemo("Plumbing")}
-                disabled={loading}
-                className="p-2.5 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700 text-slate-200 text-left transition-colors cursor-pointer"
-              >
-                <p className="font-bold text-emerald-400">Rajesh Kumar</p>
-                <p className="text-[10px] text-slate-400">
-                  Plumbing Specialist
-                </p>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickDemo("Electrical")}
-                disabled={loading}
-                className="p-2.5 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700 text-slate-200 text-left transition-colors cursor-pointer"
-              >
-                <p className="font-bold text-amber-400">Vikram Singh</p>
-                <p className="text-[10px] text-slate-400">Master Electrician</p>
-              </button>
-            </div>
-            <p className="text-[10px] text-slate-500">
-              Demo passwords: <code className="text-slate-300">tech123</code>
-            </p>
-          </div>
         </div>
       </main>
 

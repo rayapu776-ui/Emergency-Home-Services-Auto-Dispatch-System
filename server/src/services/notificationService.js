@@ -47,7 +47,7 @@ function buildOtpEmailTemplate(code, userName = "Valued Customer") {
               </div>
 
               <p style="margin: 0 0 8px; font-size: 13px; line-height: 20px; color: #64748b;">
-                ⏱ <strong>Expires in 10 minutes.</strong>
+                ⏱ <strong>Expires in 5 minutes.</strong>
               </p>
               <p style="margin: 0 0 24px; font-size: 13px; line-height: 20px; color: #64748b;">
                 🛡 For your security, never share this code or your account password with anyone.
@@ -83,11 +83,8 @@ export const notificationService = {
    * Check if Email provider (SMTP) is configured
    */
   isEmailConfigured() {
-    const { SMTP_HOST, SMTP_USER, SMTP_PASS, ENABLE_ETHEREAL_DEV } =
-      process.env;
-    return Boolean(
-      (SMTP_HOST && SMTP_USER && SMTP_PASS) || ENABLE_ETHEREAL_DEV === "true",
-    );
+    const { SMTP_HOST, SMTP_USER, SMTP_PASSWORD, SMTP_PASS } = process.env;
+    return Boolean(SMTP_HOST && SMTP_USER && (SMTP_PASSWORD || SMTP_PASS));
   },
 
   /**
@@ -127,7 +124,7 @@ export const notificationService = {
   /**
    * Send Email OTP via Nodemailer SMTP
    */
-  async sendEmailOtp({ destination, code, userName }) {
+  async sendEmailOtp({ destination, code, userName = "Partner" }) {
     const {
       SMTP_SERVICE,
       SMTP_HOST,
@@ -135,12 +132,16 @@ export const notificationService = {
       SMTP_SECURE,
       SMTP_USER,
       SMTP_PASS,
+      SMTP_PASSWORD,
       SMTP_FROM,
-      ENABLE_ETHEREAL_DEV,
-      DEV_ALLOW_SIMULATED_OTP,
+      EMAIL_FROM,
+      DEV_LOG_OTP,
+      NODE_ENV,
     } = process.env;
 
+    const smtpPassword = SMTP_PASSWORD || SMTP_PASS;
     const fromAddress =
+      EMAIL_FROM ||
       SMTP_FROM ||
       (SMTP_USER
         ? `"Argent Your Verification" <${SMTP_USER}>`
@@ -149,30 +150,35 @@ export const notificationService = {
     let transporter = null;
 
     // Check if real SMTP is configured
-    if (SMTP_USER && SMTP_PASS) {
+    if (SMTP_USER && smtpPassword) {
       const transportConfig = {
         auth: {
           user: SMTP_USER,
-          pass: SMTP_PASS,
-        },
-        tls: {
-          rejectUnauthorized: false,
+          pass: smtpPassword,
         },
       };
 
       if (SMTP_SERVICE) {
         transportConfig.service = SMTP_SERVICE;
+      } else if (SMTP_HOST?.toLowerCase().includes("gmail")) {
+        transportConfig.service = "gmail";
       } else if (SMTP_HOST) {
         transportConfig.host = SMTP_HOST;
         transportConfig.port = Number(SMTP_PORT) || 587;
         transportConfig.secure =
           SMTP_SECURE === "true" || Number(SMTP_PORT) === 465;
-      } else if (SMTP_USER.toLowerCase().endsWith("@gmail.com")) {
-        transportConfig.service = "gmail";
       } else {
-        transportConfig.host = "smtp.gmail.com";
-        transportConfig.port = 587;
+        return {
+          success: false,
+          error:
+            "Unable to send the verification code right now. Please try again or use another verification method.",
+          reason: "SMTP host or service is missing",
+        };
       }
+
+      transportConfig.tls = {
+        rejectUnauthorized: false,
+      };
 
       try {
         transporter = nodemailer.createTransport(transportConfig);
@@ -182,48 +188,37 @@ export const notificationService = {
           tErr.message,
         );
       }
-    } else if (ENABLE_ETHEREAL_DEV === "true") {
-      // Local development test account on Ethereal
-      try {
-        console.log(
-          "ℹ️ [Nodemailer] Generating Ethereal SMTP test account for development...",
-        );
-        const testAccount = await nodemailer.createTestAccount();
-        transporter = nodemailer.createTransport({
-          host: "smtp.ethereal.email",
-          port: 587,
-          secure: false,
-          auth: {
-            user: testAccount.user,
-            pass: testAccount.pass,
-          },
-        });
-      } catch (etherealErr) {
-        console.error(
-          "❌ [Nodemailer] Failed creating Ethereal test account:",
-          etherealErr.message,
-        );
-      }
     }
 
     if (!transporter) {
-      console.log("\n" + "=".repeat(70));
-      console.log("🔒 [AUTH CODE LOCAL VERIFICATION GATEWAY - EMAIL]");
-      console.log(`👤 Recipient:   ${userName}`);
-      console.log(`📧 Destination: ${destination}`);
-      console.log(`🔑 Auth Code:   ${code}`);
-      console.log("⏱ Valid for:   10 minutes");
-      console.log(
-        "💡 Notice: Set SMTP_USER and SMTP_PASS in server/.env for live inbox dispatch",
-      );
-      console.log("=".repeat(70) + "\n");
+      if (
+        NODE_ENV !== "production" &&
+        (DEV_LOG_OTP !== "false" || DEV_ALLOW_SIMULATED_OTP === "true")
+      ) {
+        console.log("\n" + "=".repeat(70));
+        console.log("🔒 [AUTH CODE LOCAL VERIFICATION GATEWAY - EMAIL]");
+        console.log(`👤 Recipient:   ${userName}`);
+        console.log(`📧 Destination: ${destination}`);
+        console.log(`🔑 Auth Code:   ${code}`);
+        console.log("⏱ Valid for:   5 minutes");
+        console.log(
+          "This is development-only server logging; no email was sent.",
+        );
+        console.log("=".repeat(70) + "\n");
+
+        return {
+          success: true,
+          channel: "email",
+          destination,
+          deliveryMode: "development_log",
+        };
+      }
 
       return {
-        success: true,
-        channel: "email",
-        destination,
-        deliveryMode: "local_gateway",
-        devCode: code,
+        success: false,
+        error:
+          "Unable to send the verification code right now. Please try again or contact support.",
+        reason: "SMTP provider not configured",
       };
     }
 
@@ -232,7 +227,7 @@ export const notificationService = {
         from: fromAddress,
         to: destination,
         subject: `${code} is your Argent Your verification code`,
-        text: `Your Argent Your verification code is: ${code}. Valid for 10 minutes. Do not share this code.`,
+        text: `Your Argent Your verification code is: ${code}. Valid for 5 minutes. Do not share this code.`,
         html: buildOtpEmailTemplate(code, userName),
       });
 
@@ -241,10 +236,6 @@ export const notificationService = {
       console.log(`👤 Recipient:  ${userName}`);
       console.log(`📧 Destination: ${destination}`);
       console.log(`🆔 Message ID:  ${info.messageId}`);
-      if (ENABLE_ETHEREAL_DEV === "true") {
-        const previewUrl = nodemailer.getTestMessageUrl(info);
-        if (previewUrl) console.log(`🔗 Ethereal Preview: ${previewUrl}`);
-      }
       console.log("=".repeat(70) + "\n");
 
       return {
@@ -262,7 +253,8 @@ export const notificationService = {
 
       return {
         success: false,
-        error: `Unable to deliver verification code to ${destination}. Please try again later.`,
+        error:
+          "Unable to send the verification code right now. Please try again or contact support.",
         reason: err.message,
       };
     }
@@ -271,33 +263,46 @@ export const notificationService = {
   /**
    * Send SMS OTP via Twilio
    */
-  async sendSmsOtp({ destination, code, userName }) {
+  async sendSmsOtp({ destination, code, userName = "Partner" }) {
     const {
       TWILIO_ACCOUNT_SID,
       TWILIO_AUTH_TOKEN,
       TWILIO_PHONE_NUMBER,
       DEFAULT_COUNTRY_CODE = "+91",
+      DEV_LOG_OTP,
       DEV_ALLOW_SIMULATED_OTP,
+      NODE_ENV,
     } = process.env;
 
     if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_PHONE_NUMBER) {
-      console.log("\n" + "=".repeat(70));
-      console.log("🔒 [AUTH CODE LOCAL VERIFICATION GATEWAY - SMS]");
-      console.log(`👤 Recipient:   ${userName}`);
-      console.log(`📱 Destination: ${destination}`);
-      console.log(`🔑 Auth Code:   ${code}`);
-      console.log("⏱ Valid for:   10 minutes");
-      console.log(
-        "💡 Notice: Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER in server/.env for live mobile SMS dispatch",
-      );
-      console.log("=".repeat(70) + "\n");
+      if (
+        NODE_ENV !== "production" &&
+        (DEV_LOG_OTP !== "false" || DEV_ALLOW_SIMULATED_OTP === "true")
+      ) {
+        console.log("\n" + "=".repeat(70));
+        console.log("🔒 [AUTH CODE LOCAL VERIFICATION GATEWAY - SMS]");
+        console.log(`👤 Recipient:   ${userName}`);
+        console.log(`📱 Destination: ${destination}`);
+        console.log(`🔑 Auth Code:   ${code}`);
+        console.log("⏱ Valid for:   5 minutes");
+        console.log(
+          "This is development-only server logging; no SMS was sent.",
+        );
+        console.log("=".repeat(70) + "\n");
+
+        return {
+          success: true,
+          channel: "sms",
+          destination,
+          deliveryMode: "development_log",
+        };
+      }
 
       return {
-        success: true,
-        channel: "sms",
-        destination,
-        deliveryMode: "local_gateway",
-        devCode: code,
+        success: false,
+        error:
+          "Unable to send the verification code right now. Please try again or use email verification.",
+        reason: "SMS provider not configured",
       };
     }
 
@@ -310,7 +315,7 @@ export const notificationService = {
 
       const client = twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
       const message = await client.messages.create({
-        body: `Your Argent Your verification code is: ${code}. Valid for 10 minutes. Do not share this code.`,
+        body: `Your Argent Your verification code is: ${code}. Valid for 5 minutes. Do not share this code.`,
         from: TWILIO_PHONE_NUMBER,
         to: formattedPhone,
       });
@@ -337,7 +342,8 @@ export const notificationService = {
 
       return {
         success: false,
-        error: `Unable to deliver SMS verification code to ${destination}. Please verify the phone number or try again later.`,
+        error:
+          "Unable to send the verification code right now. Please try again or use email verification.",
         reason: err.message,
       };
     }

@@ -385,9 +385,19 @@ export default function ProfessionalRegisterForm({ onNavigate }) {
     <div className="rounded-2xl sm:rounded-3xl border border-slate-200/90 bg-white p-4 sm:p-8 md:p-10 shadow-sm max-w-3xl mx-auto space-y-5 sm:space-y-6 w-full box-border">
       {/* Form Header */}
       <div className="border-b border-slate-100 pb-4 sm:pb-5">
-        <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-emerald-800 mb-1">
-          <Wrench className="w-4 h-4 text-emerald-700 shrink-0" />
-          <span>Professional Partner Registration</span>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
+          <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-emerald-800">
+            <Wrench className="w-4 h-4 text-emerald-700 shrink-0" />
+            <span>Professional Partner Registration</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => onNavigate("/technician/login")}
+            className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 text-slate-700 hover:text-emerald-800 text-xs font-bold transition-all cursor-pointer shadow-2xs"
+          >
+            <span>Professional Login</span>
+            <ArrowRight className="w-3.5 h-3.5 text-emerald-700" />
+          </button>
         </div>
         <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-snug">
           Join Argent Your Service Network
@@ -468,7 +478,7 @@ export default function ProfessionalRegisterForm({ onNavigate }) {
                     <input
                       type="text"
                       required
-                      placeholder="e.g. Ramesh Kumar Verma"
+                      placeholder=""
                       value={formData.name}
                       onChange={(e) => handleChange("name", e.target.value)}
                       className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 pl-10 pr-4 text-xs font-semibold text-slate-900 focus:border-emerald-600 focus:bg-white outline-none transition-all"
@@ -485,7 +495,7 @@ export default function ProfessionalRegisterForm({ onNavigate }) {
                     <input
                       type="email"
                       required
-                      placeholder="e.g. ramesh.partner@gmail.com"
+                      placeholder=""
                       value={formData.email}
                       onChange={(e) => handleChange("email", e.target.value)}
                       className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 pl-10 pr-4 text-xs font-semibold text-slate-900 focus:border-emerald-600 focus:bg-white outline-none transition-all"
@@ -502,7 +512,7 @@ export default function ProfessionalRegisterForm({ onNavigate }) {
                     <input
                       type="tel"
                       required
-                      placeholder="e.g. +91 98101 23456"
+                      placeholder=""
                       value={formData.phone}
                       onChange={(e) => handleChange("phone", e.target.value)}
                       className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-3 pl-10 pr-4 text-xs font-semibold text-slate-900 focus:border-emerald-600 focus:bg-white outline-none transition-all"
@@ -541,13 +551,12 @@ export default function ProfessionalRegisterForm({ onNavigate }) {
 
                 <div className="sm:col-span-2">
                   <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
-                    Residential / Operating Address{" "}
-                    <span className="text-red-500">*</span>
+                    Service Address <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Flat 301, Sector 62, Noida, Uttar Pradesh"
+                    placeholder=""
                     value={formData.address}
                     onChange={(e) => handleChange("address", e.target.value)}
                     className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 p-3 text-xs font-semibold text-slate-900 focus:border-emerald-600 focus:bg-white outline-none transition-all"
@@ -565,8 +574,7 @@ export default function ProfessionalRegisterForm({ onNavigate }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
-                    Primary Service Category{" "}
-                    <span className="text-red-500">*</span>
+                    Service Category <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={formData.category}
@@ -583,8 +591,7 @@ export default function ProfessionalRegisterForm({ onNavigate }) {
 
                 <div>
                   <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
-                    Years of Field Experience{" "}
-                    <span className="text-red-500">*</span>
+                    Years of Experience <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={formData.experience_years}
@@ -607,7 +614,7 @@ export default function ProfessionalRegisterForm({ onNavigate }) {
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. Pipe Leakage, Concealed Fitting, Water Heater Repair, RO Purifier, Drain Clearing"
+                    placeholder=""
                     value={formData.skills}
                     onChange={(e) => handleChange("skills", e.target.value)}
                     className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 p-3 text-xs font-semibold text-slate-900 focus:border-emerald-600 focus:bg-white outline-none transition-all"
@@ -616,13 +623,12 @@ export default function ProfessionalRegisterForm({ onNavigate }) {
 
                 <div className="sm:col-span-2">
                   <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
-                    Experience Description{" "}
-                    <span className="text-red-500">*</span>
+                    About / Experience <span className="text-red-500">*</span>
                   </label>
                   <textarea
                     required
                     rows={3}
-                    placeholder="Describe your apprenticeship, previous company/contracting work, equipment/tools carried, and customer service experience..."
+                    placeholder=""
                     value={formData.experience_description}
                     onChange={(e) =>
                       handleChange("experience_description", e.target.value)
@@ -642,7 +648,7 @@ export default function ProfessionalRegisterForm({ onNavigate }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
-                    Select Profile Photo
+                    Upload Profile Photo
                   </label>
                   <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
                     <img
@@ -694,12 +700,12 @@ export default function ProfessionalRegisterForm({ onNavigate }) {
 
                 <div className="sm:col-span-2">
                   <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
-                    Document ID / Certificate Ref / Upload Link
+                    Government ID / Document Ref
                   </label>
                   <div className="relative">
                     <input
                       type="text"
-                      placeholder="e.g. DOC-98402-DL or Aadhaar / Certificate Ref / Document Link"
+                      placeholder=""
                       value={formData.id_document_url}
                       onChange={(e) =>
                         handleChange("id_document_url", e.target.value)
@@ -739,7 +745,7 @@ export default function ProfessionalRegisterForm({ onNavigate }) {
                     <input
                       type="text"
                       required
-                      placeholder="e.g. Apex Home Care Solutions Pvt Ltd"
+                      placeholder=""
                       value={formData.company_name}
                       onChange={(e) =>
                         handleChange("company_name", e.target.value)
@@ -759,7 +765,7 @@ export default function ProfessionalRegisterForm({ onNavigate }) {
                     <input
                       type="text"
                       required
-                      placeholder="e.g. Rajesh Singhal (Managing Director)"
+                      placeholder=""
                       value={formData.authorized_person}
                       onChange={(e) =>
                         handleChange("authorized_person", e.target.value)
@@ -778,7 +784,7 @@ export default function ProfessionalRegisterForm({ onNavigate }) {
                     <input
                       type="email"
                       required
-                      placeholder="e.g. operations@apexhomecare.in"
+                      placeholder=""
                       value={formData.business_email}
                       onChange={(e) =>
                         handleChange("business_email", e.target.value)
@@ -797,7 +803,7 @@ export default function ProfessionalRegisterForm({ onNavigate }) {
                     <input
                       type="tel"
                       required
-                      placeholder="e.g. +91 11 4590 1200 / +91 98101 55667"
+                      placeholder=""
                       value={formData.business_phone}
                       onChange={(e) =>
                         handleChange("business_phone", e.target.value)
@@ -816,7 +822,7 @@ export default function ProfessionalRegisterForm({ onNavigate }) {
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Suite 402, Commercial Tower B, Okhla Phase 3, New Delhi"
+                    placeholder=""
                     value={formData.business_address}
                     onChange={(e) =>
                       handleChange("business_address", e.target.value)
@@ -836,8 +842,7 @@ export default function ProfessionalRegisterForm({ onNavigate }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
-                    Primary Service Category{" "}
-                    <span className="text-red-500">*</span>
+                    Service Category <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={formData.category}
@@ -889,7 +894,7 @@ export default function ProfessionalRegisterForm({ onNavigate }) {
                   <div className="relative">
                     <input
                       type="text"
-                      placeholder="e.g. 07AAAAA0000A1Z5 or CIN / MSME Registration Number"
+                      placeholder=""
                       value={formData.business_registration_number}
                       onChange={(e) =>
                         handleChange(
@@ -958,7 +963,7 @@ export default function ProfessionalRegisterForm({ onNavigate }) {
                 <input
                   type={showPassword ? "text" : "password"}
                   required
-                  placeholder="At least 6 characters"
+                  placeholder=""
                   value={formData.password}
                   onChange={(e) => handleChange("password", e.target.value)}
                   className="w-full rounded-xl sm:rounded-2xl border border-slate-200 bg-slate-50/50 py-3 pl-10 pr-10 text-xs font-semibold text-slate-900 focus:border-emerald-600 focus:bg-white outline-none transition-all box-border"
@@ -986,7 +991,7 @@ export default function ProfessionalRegisterForm({ onNavigate }) {
                 <input
                   type={showConfirmPassword ? "text" : "password"}
                   required
-                  placeholder="Repeat account password"
+                  placeholder=""
                   value={formData.confirmPassword}
                   onChange={(e) =>
                     handleChange("confirmPassword", e.target.value)
@@ -1022,12 +1027,27 @@ export default function ProfessionalRegisterForm({ onNavigate }) {
             ) : (
               <>
                 <span>
-                  Submit {isCompany ? "Company" : "Professional"} Registration
+                  Create {isCompany ? "Company" : "Individual"} Account
                 </span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}
           </button>
+
+          {/* Already have an account login option */}
+          <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-center text-xs">
+            <span className="text-slate-500 font-medium">
+              Already have an account?
+            </span>
+            <button
+              type="button"
+              onClick={() => onNavigate("/technician/login")}
+              className="text-emerald-700 hover:text-emerald-900 font-bold underline underline-offset-4 decoration-emerald-500/50 hover:decoration-emerald-800 transition-colors cursor-pointer"
+            >
+              Log in
+            </button>
+          </div>
+
           <p className="text-[11px] text-slate-400 text-center mt-2.5">
             By submitting, you agree to Argent Your's Partner Terms of Service &
             Quality Code.

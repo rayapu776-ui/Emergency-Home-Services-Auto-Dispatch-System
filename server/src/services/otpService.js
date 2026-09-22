@@ -4,9 +4,13 @@ import { v4 as uuidv4 } from "uuid";
 import { query } from "../db/database.js";
 import notificationService from "./notificationService.js";
 
-const OTP_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
-const COOLDOWN_MS = 30 * 1000; // 30 seconds
+const OTP_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
+const COOLDOWN_MS = 60 * 1000; // 60 seconds
 const MAX_ATTEMPTS = 5;
+const MAX_RESENDS = 3;
+const BCRYPT_ROUNDS = 12;
+const MAX_SENDS_PER_WINDOW = 4;
+const SEND_WINDOW_MS = 15 * 60 * 1000;
 
 /**
  * Clean phone numbers to digits only for normalized matching
@@ -20,6 +24,50 @@ function normalizePhone(phone) {
 }
 
 export const otpService = {
+  async getSendRateLimit(userId) {
+    const now = Date.now();
+    const limit = await query.get(
+      "SELECT * FROM otp_send_limits WHERE subject = ?",
+      [userId],
+    );
+    if (!limit || now - limit.window_started_at >= SEND_WINDOW_MS) {
+      return { allowed: true };
+    }
+    if (limit.send_count >= MAX_SENDS_PER_WINDOW) {
+      return {
+        allowed: false,
+        retryAfterSeconds: Math.ceil(
+          (SEND_WINDOW_MS - (now - limit.window_started_at)) / 1000,
+        ),
+      };
+    }
+    return { allowed: true };
+  },
+
+  async recordOtpSend(userId) {
+    const now = Date.now();
+    const limit = await query.get(
+      "SELECT * FROM otp_send_limits WHERE subject = ?",
+      [userId],
+    );
+    if (!limit) {
+      await query.run(
+        "INSERT INTO otp_send_limits (subject, window_started_at, send_count) VALUES (?, ?, 1)",
+        [userId, now],
+      );
+    } else if (now - limit.window_started_at >= SEND_WINDOW_MS) {
+      await query.run(
+        "UPDATE otp_send_limits SET window_started_at = ?, send_count = 1 WHERE subject = ?",
+        [now, userId],
+      );
+    } else {
+      await query.run(
+        "UPDATE otp_send_limits SET send_count = send_count + 1 WHERE subject = ?",
+        [userId],
+      );
+    }
+  },
+
   /**
    * Generates a cryptographically secure 6-digit numeric OTP
    */
@@ -99,29 +147,25 @@ export const otpService = {
     const destination = rawIdentifier.trim();
 
     const plainOtp = this.generateOtp();
-
-    // Dispatch via real configured provider first
-    const sendResult = await notificationService.sendOtp({
-      channel,
-      destination,
-      code: plainOtp,
-      userName: user.name,
-    });
-
-    if (!sendResult.success) {
+    const sendLimit = await this.getSendRateLimit(user.id);
+    if (!sendLimit.allowed) {
       return {
         success: false,
+        rateLimited: true,
+        retryAfterSeconds: sendLimit.retryAfterSeconds,
         error:
-          sendResult.error ||
-          "Unable to send authentication code. Please try again.",
-        reason: sendResult.reason,
+          "Too many verification codes have been requested. Please try again later.",
       };
     }
 
-    // Remove any previous active sessions for this user
-    await query.run("DELETE FROM otp_sessions WHERE user_id = ?", [user.id]);
+    // Persist the hash before delivery so a delivered code always has a server-side session.
+    // Verified sessions are retained as a minimal audit marker; pending sessions are invalidated.
+    await query.run(
+      "DELETE FROM otp_sessions WHERE user_id = ? AND verified_at IS NULL",
+      [user.id],
+    );
 
-    const otpHash = bcrypt.hashSync(plainOtp, 8);
+    const otpHash = bcrypt.hashSync(plainOtp, BCRYPT_ROUNDS);
     const sessionId = uuidv4();
     const now = Date.now();
     const cooldownUntil = now + COOLDOWN_MS;
@@ -141,6 +185,26 @@ export const otpService = {
       ],
     );
 
+    const sendResult = await notificationService.sendOtp({
+      channel,
+      destination,
+      code: plainOtp,
+      userName: user.name,
+    });
+
+    if (!sendResult.success) {
+      // Never leave a code usable when delivery was not accepted by a provider.
+      await query.run("DELETE FROM otp_sessions WHERE id = ?", [sessionId]);
+      return {
+        success: false,
+        error:
+          sendResult.error ||
+          "Unable to send the verification code right now. Please try again.",
+      };
+    }
+
+    await this.recordOtpSend(user.id);
+
     return {
       success: true,
       tempSessionToken: sessionId,
@@ -148,24 +212,55 @@ export const otpService = {
       maskedDestination: this.maskDestination(channel, destination),
       cooldownSeconds: Math.ceil(COOLDOWN_MS / 1000),
       expiresInSeconds: Math.ceil(OTP_EXPIRY_MS / 1000),
-      devCode: sendResult.devCode || undefined,
+      deliveryMode: sendResult.deliveryMode,
     };
+  },
+
+  /**
+   * Find an active, unexpired, unverified OTP session by session ID, destination, or user identifier
+   */
+  async findActiveSession(tokenOrIdentifier) {
+    if (!tokenOrIdentifier) return null;
+    const raw = String(tokenOrIdentifier).trim();
+
+    // 1. Try finding directly by session ID
+    let session = await query.get("SELECT * FROM otp_sessions WHERE id = ?", [
+      raw,
+    ]);
+    if (session) return session;
+
+    // 2. Try finding active pending session by destination (case-insensitive)
+    session = await query.get(
+      "SELECT * FROM otp_sessions WHERE LOWER(destination) = LOWER(?) AND verified_at IS NULL ORDER BY expires_at DESC LIMIT 1",
+      [raw],
+    );
+    if (session) return session;
+
+    // 3. Try finding user first, then active pending session for user
+    const user = await this.findUserByIdentifier(raw);
+    if (user) {
+      session = await query.get(
+        "SELECT * FROM otp_sessions WHERE user_id = ? AND verified_at IS NULL ORDER BY expires_at DESC LIMIT 1",
+        [user.id],
+      );
+      if (session) return session;
+    }
+
+    return null;
   },
 
   /**
    * Verify an OTP session code
    */
-  async verifyOtp(tempSessionToken, inputCode) {
-    if (!tempSessionToken || !inputCode) {
+  async verifyOtp(sessionRef, inputCode) {
+    if (!sessionRef || !inputCode) {
       return {
         success: false,
         error: "Verification code and session token are required",
       };
     }
 
-    const session = await query.get("SELECT * FROM otp_sessions WHERE id = ?", [
-      tempSessionToken,
-    ]);
+    const session = await this.findActiveSession(sessionRef);
 
     if (!session) {
       return {
@@ -175,10 +270,16 @@ export const otpService = {
     }
 
     const now = Date.now();
+    if (session.verified_at) {
+      return {
+        success: false,
+        error:
+          "This verification code has already been used. Please sign in again.",
+      };
+    }
+
     if (now > session.expires_at) {
-      await query.run("DELETE FROM otp_sessions WHERE id = ?", [
-        tempSessionToken,
-      ]);
+      await query.run("DELETE FROM otp_sessions WHERE id = ?", [session.id]);
       return {
         success: false,
         error: "This code has expired. Please request a new code.",
@@ -186,9 +287,7 @@ export const otpService = {
     }
 
     if (session.attempts >= MAX_ATTEMPTS) {
-      await query.run("DELETE FROM otp_sessions WHERE id = ?", [
-        tempSessionToken,
-      ]);
+      await query.run("DELETE FROM otp_sessions WHERE id = ?", [session.id]);
       return {
         success: false,
         error: "Too many incorrect attempts. Please sign in again.",
@@ -203,9 +302,7 @@ export const otpService = {
       const remainingAttempts = Math.max(0, MAX_ATTEMPTS - newAttempts);
 
       if (newAttempts >= MAX_ATTEMPTS) {
-        await query.run("DELETE FROM otp_sessions WHERE id = ?", [
-          tempSessionToken,
-        ]);
+        await query.run("DELETE FROM otp_sessions WHERE id = ?", [session.id]);
         return {
           success: false,
           error: "Too many incorrect attempts. Please sign in again.",
@@ -214,7 +311,7 @@ export const otpService = {
 
       await query.run("UPDATE otp_sessions SET attempts = ? WHERE id = ?", [
         newAttempts,
-        tempSessionToken,
+        session.id,
       ]);
 
       return {
@@ -224,10 +321,11 @@ export const otpService = {
       };
     }
 
-    // OTP matched successfully: destroy session for single-use security
-    await query.run("DELETE FROM otp_sessions WHERE id = ?", [
-      tempSessionToken,
-    ]);
+    // Mark and invalidate the code so it cannot be replayed, while retaining an audit marker.
+    await query.run(
+      "UPDATE otp_sessions SET verified_at = ?, otp_hash = ? WHERE id = ?",
+      [now, bcrypt.hashSync(crypto.randomUUID(), BCRYPT_ROUNDS), session.id],
+    );
 
     const user = await query.get("SELECT * FROM users WHERE id = ?", [
       session.user_id,
@@ -242,14 +340,15 @@ export const otpService = {
   /**
    * Resend a fresh OTP for an active session
    */
-  async resendOtp(tempSessionToken) {
-    if (!tempSessionToken) {
-      return { success: false, error: "Session token is required" };
+  async resendOtp(sessionRef) {
+    if (!sessionRef) {
+      return {
+        success: false,
+        error: "Session token or identifier is required",
+      };
     }
 
-    const session = await query.get("SELECT * FROM otp_sessions WHERE id = ?", [
-      tempSessionToken,
-    ]);
+    const session = await this.findActiveSession(sessionRef);
 
     if (!session) {
       return {
@@ -259,12 +358,27 @@ export const otpService = {
     }
 
     const now = Date.now();
+    if (session.verified_at || now > session.expires_at) {
+      return {
+        success: false,
+        error: "Session expired or invalid. Please sign in again.",
+      };
+    }
+
     if (session.cooldown_until > now) {
       const waitSeconds = Math.ceil((session.cooldown_until - now) / 1000);
       return {
         success: false,
         error: `Please wait ${waitSeconds}s before requesting a new code.`,
         cooldownRemaining: waitSeconds,
+      };
+    }
+
+    if (session.resend_count >= MAX_RESENDS) {
+      return {
+        success: false,
+        error:
+          "Resend limit reached. Please sign in again to request a new code.",
       };
     }
 
@@ -277,6 +391,16 @@ export const otpService = {
     }
 
     const plainOtp = this.generateOtp();
+    const sendLimit = await this.getSendRateLimit(user.id);
+    if (!sendLimit.allowed) {
+      return {
+        success: false,
+        rateLimited: true,
+        retryAfterSeconds: sendLimit.retryAfterSeconds,
+        error:
+          "Too many verification codes have been requested. Please try again later.",
+      };
+    }
 
     // Dispatch via real provider first
     const sendResult = await notificationService.sendOtp({
@@ -296,19 +420,23 @@ export const otpService = {
       };
     }
 
-    const otpHash = bcrypt.hashSync(plainOtp, 8);
+    await this.recordOtpSend(user.id);
+
+    const otpHash = bcrypt.hashSync(plainOtp, BCRYPT_ROUNDS);
     const cooldownUntil = now + COOLDOWN_MS;
     const expiresAt = now + OTP_EXPIRY_MS;
 
     await query.run(
       `UPDATE otp_sessions 
-       SET otp_hash = ?, attempts = 0, cooldown_until = ?, expires_at = ?
+       SET otp_hash = ?, attempts = 0, resend_count = resend_count + 1,
+           cooldown_until = ?, expires_at = ?
        WHERE id = ?`,
-      [otpHash, cooldownUntil, expiresAt, tempSessionToken],
+      [otpHash, cooldownUntil, expiresAt, session.id],
     );
 
     return {
       success: true,
+      tempSessionToken: session.id,
       channel: session.channel,
       maskedDestination: this.maskDestination(
         session.channel,
@@ -316,7 +444,7 @@ export const otpService = {
       ),
       cooldownSeconds: Math.ceil(COOLDOWN_MS / 1000),
       expiresInSeconds: Math.ceil(OTP_EXPIRY_MS / 1000),
-      devCode: sendResult.devCode || undefined,
+      deliveryMode: sendResult.deliveryMode,
     };
   },
 };

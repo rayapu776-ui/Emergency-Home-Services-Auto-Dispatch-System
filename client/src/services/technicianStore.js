@@ -81,22 +81,33 @@ class TechnicianStore {
     localStorage.removeItem(TECH_USER_KEY);
   }
 
-  async loginWithPassword(identifier, password) {
-    const res = await techApi.post("/auth/login-step1", {
+  async sendOtp(identifier, password) {
+    const channel = identifier.includes("@") ? "email" : "sms";
+    const res = await techApi.post("/professional/auth/send-otp", {
       identifier,
-      password,
+      channel,
+      ...(password ? { password } : {}),
     });
     return res.data;
   }
 
-  async verifyOtp(tempSessionToken, otp) {
-    const res = await techApi.post("/auth/verify-otp", {
+  async verifyOtp(tempSessionToken, otp, identifier) {
+    const res = await techApi.post("/professional/auth/verify-otp", {
       tempSessionToken,
       otp,
+      ...(identifier ? { identifier } : {}),
     });
     if (res.data.token && res.data.user) {
       this.saveSession(res.data.token, res.data.user);
     }
+    return res.data;
+  }
+
+  async resendOtp(tempSessionToken, identifier) {
+    const res = await techApi.post("/professional/auth/resend-otp", {
+      tempSessionToken,
+      ...(identifier ? { identifier } : {}),
+    });
     return res.data;
   }
 

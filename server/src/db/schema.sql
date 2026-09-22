@@ -67,9 +67,19 @@ CREATE TABLE IF NOT EXISTS otp_sessions (
   channel TEXT NOT NULL,
   destination TEXT NOT NULL,
   attempts INTEGER DEFAULT 0,
+  resend_count INTEGER NOT NULL DEFAULT 0,
   cooldown_until INTEGER NOT NULL,
   expires_at INTEGER NOT NULL,
+  verified_at INTEGER,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+CREATE INDEX IF NOT EXISTS idx_otp_sessions_user_id ON otp_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_otp_sessions_expires_at ON otp_sessions(expires_at);
+
+CREATE TABLE IF NOT EXISTS otp_send_limits (
+  subject TEXT PRIMARY KEY,
+  window_started_at INTEGER NOT NULL,
+  send_count INTEGER NOT NULL DEFAULT 0
+);

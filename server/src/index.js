@@ -15,6 +15,7 @@ import createAdminRouter from "./routes/adminRoutes.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
 import locationRoutes from "./routes/locationRoutes.js";
 import userDataRoutes from "./routes/userDataRoutes.js";
+import professionalAuthRoutes from "./routes/professionalAuthRoutes.js";
 
 dotenv.config();
 
@@ -52,6 +53,7 @@ app.get("/api/health", (req, res) => {
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/professional/auth", professionalAuthRoutes);
 app.use("/api/requests", createRequestRouter(io));
 app.use("/api/technicians", createTechnicianRouter(io));
 app.use("/api/admin", createAdminRouter(io));

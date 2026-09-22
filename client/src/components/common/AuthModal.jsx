@@ -95,6 +95,23 @@ export default function AuthModal({
   const [profOtpSession, setProfOtpSession] = useState(null);
   const [profOtpDigits, setProfOtpDigits] = useState(["", "", "", "", "", ""]);
   const profOtpInputRefs = useRef([]);
+  const [profCooldown, setProfCooldown] = useState(0);
+
+  // Professional OTP cooldown timer
+  useEffect(() => {
+    let timer;
+    if (profCooldown > 0) {
+      timer = setTimeout(() => setProfCooldown((c) => c - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [profCooldown]);
+
+  // Auto-focus first digit box when professional OTP screen opens
+  useEffect(() => {
+    if (profOtpSession) {
+      setTimeout(() => profOtpInputRefs.current[0]?.focus(), 100);
+    }
+  }, [profOtpSession]);
 
   const [signup, setSignup] = useState({
     name: "",
@@ -226,13 +243,8 @@ export default function AuthModal({
           tempSessionToken: res.tempSessionToken,
           channel: res.channel,
           maskedDestination: res.maskedDestination,
-          devCode: res.devCode,
         });
-        if (res.devCode) {
-          setOtpDigits(res.devCode.split(""));
-        } else {
-          setOtpDigits(["", "", "", "", "", ""]);
-        }
+        setOtpDigits(["", "", "", "", "", ""]);
         setCooldown(res.cooldownSeconds || 30);
         setStatus("");
         setScreen("otp");
@@ -309,12 +321,8 @@ export default function AuthModal({
       const res = await resendOtp(otpSession.tempSessionToken);
       setCooldown(res.cooldownSeconds || 30);
       setStatus("A fresh 6-digit verification code has been dispatched.");
-      if (res.devCode) {
-        setOtpDigits(res.devCode.split(""));
-      } else {
-        setOtpDigits(["", "", "", "", "", ""]);
-        otpInputRefs.current[0]?.focus();
-      }
+      setOtpDigits(["", "", "", "", "", ""]);
+      otpInputRefs.current[0]?.focus();
       setTimeout(() => setStatus(""), 4000);
     } catch (err) {
       setStatus("");
@@ -392,29 +400,19 @@ export default function AuthModal({
     if (!trimmed) {
       return setProfError("Enter your registered mobile number or email.");
     }
-    if (!profPassword) {
-      return setProfError("Enter your partner account password.");
-    }
-
     setProfLoading(true);
     setProfStatus("Verifying credentials...");
     try {
-      const res = await technicianStore.loginWithPassword(
-        trimmed,
-        profPassword,
-      );
+      const res = await technicianStore.sendOtp(trimmed, profPassword);
       if (res.status === "OTP_REQUIRED" || res.tempSessionToken) {
         setProfOtpSession({
           tempSessionToken: res.tempSessionToken,
           channel: res.channel,
-          maskedDestination: res.maskedDestination || trimmed,
-          devCode: res.devCode,
+          maskedDestination:
+            res.maskedDestination || res.destination || trimmed,
         });
-        if (res.devCode) {
-          setProfOtpDigits(res.devCode.split(""));
-        } else {
-          setProfOtpDigits(["", "", "", "", "", ""]);
-        }
+        setProfOtpDigits(["", "", "", "", "", ""]);
+        setProfCooldown(res.cooldownSeconds || 30);
         setProfStatus("");
       } else if (res.token && res.user) {
         if (res.user.role !== "technician" && res.user.role !== "admin") {
@@ -442,10 +440,35 @@ export default function AuthModal({
       setProfStatus("");
       setProfError(
         err.response?.data?.error ||
-          "Invalid credentials. Please verify your email/phone and password.",
+          "Unable to send a verification code. Please verify your email or mobile number.",
       );
     } finally {
       setProfLoading(false);
+    }
+  };
+
+  const handleProfResendOtp = async () => {
+    if (profCooldown > 0 || !profOtpSession?.tempSessionToken || profLoading)
+      return;
+    setProfError("");
+    setProfStatus("Resending code...");
+    try {
+      const res = await technicianStore.resendOtp(
+        profOtpSession.tempSessionToken,
+        profIdentifier.trim(),
+      );
+      setProfCooldown(res.cooldownSeconds || 60);
+      setProfOtpDigits(["", "", "", "", "", ""]);
+      setProfStatus(res.message || "A fresh verification code has been sent.");
+      setTimeout(() => setProfStatus(""), 4000);
+      setTimeout(() => profOtpInputRefs.current[0]?.focus(), 50);
+    } catch (err) {
+      setProfStatus("");
+      console.error("Professional OTP resend error:", err);
+      setProfError(
+        err.response?.data?.error ||
+          "Unable to send verification code. Please try again.",
+      );
     }
   };
 
@@ -455,6 +478,17 @@ export default function AuthModal({
       const newDigits = [...profOtpDigits];
       newDigits[index] = "";
       setProfOtpDigits(newDigits);
+      return;
+    }
+    if (cleaned.length > 1) {
+      const newDigits = [...profOtpDigits];
+      const digitsToFill = cleaned.slice(0, 6);
+      for (let i = 0; i < digitsToFill.length && index + i < 6; i++) {
+        newDigits[index + i] = digitsToFill[i];
+      }
+      setProfOtpDigits(newDigits);
+      const nextFocus = Math.min(index + digitsToFill.length, 5);
+      profOtpInputRefs.current[nextFocus]?.focus();
       return;
     }
     const lastDigit = cleaned.slice(-1);
@@ -468,7 +502,11 @@ export default function AuthModal({
 
   const handleProfDigitKeyDown = (index, e) => {
     if (e.key === "Backspace") {
-      if (!profOtpDigits[index] && index > 0) {
+      if (profOtpDigits[index]) {
+        const newDigits = [...profOtpDigits];
+        newDigits[index] = "";
+        setProfOtpDigits(newDigits);
+      } else if (index > 0) {
         const newDigits = [...profOtpDigits];
         newDigits[index - 1] = "";
         setProfOtpDigits(newDigits);
@@ -516,6 +554,7 @@ export default function AuthModal({
       const res = await technicianStore.verifyOtp(
         profOtpSession.tempSessionToken,
         code,
+        profIdentifier.trim(),
       );
       if (res.user) {
         if (res.user.role !== "technician" && res.user.role !== "admin") {
@@ -528,6 +567,7 @@ export default function AuthModal({
           return;
         }
         setProfStatus("Verified! Redirecting to Dashboard...");
+        setProfStatus("Verification successful! Opening Dashboard...");
         setTimeout(() => {
           onClose();
           if (onNavigate) {
@@ -541,31 +581,6 @@ export default function AuthModal({
       console.error("Prof OTP verify error:", err);
       setProfStatus("");
       setProfError(err.response?.data?.error || "Invalid authentication code.");
-    } finally {
-      setProfLoading(false);
-    }
-  };
-
-  const handleProfDemo = async (category = "Plumbing") => {
-    setProfError("");
-    setProfStatus(`Connecting as ${category} Specialist...`);
-    setProfLoading(true);
-    try {
-      const res = await technicianStore.demoLogin(category);
-      if (res.user) {
-        setProfStatus("Signed in! Redirecting to Dashboard...");
-        setTimeout(() => {
-          onClose();
-          if (onNavigate) {
-            onNavigate("/technician/dashboard");
-          } else {
-            window.location.assign("/technician/dashboard");
-          }
-        }, 300);
-      }
-    } catch (err) {
-      setProfStatus("");
-      setProfError("Demo professional login failed. Please try again.");
     } finally {
       setProfLoading(false);
     }
@@ -598,12 +613,17 @@ export default function AuthModal({
           <X />
         </button>
 
-        <img
-          src="/argent-logo.png"
-          alt="Argent Your"
-          className="h-12 w-12 rounded-2xl object-contain shadow-sm"
-        />
-        <p className="eyebrow mt-4">Argent Your</p>
+        {/* Centered Argent Your Branding */}
+        <div className="flex flex-col items-center justify-center text-center mx-auto mb-1">
+          <img
+            src="/argent-logo.png"
+            alt="Argent Your"
+            className="h-12 w-12 rounded-2xl object-contain shadow-sm"
+          />
+          <p className="eyebrow mt-2 text-xs font-black tracking-widest text-emerald-800 uppercase">
+            Argent Your
+          </p>
+        </div>
 
         {/* Account Type Selector: Customer vs Professional */}
         {!isOtp && !profOtpSession && (
@@ -649,6 +669,7 @@ export default function AuthModal({
                 type="button"
                 onClick={() => {
                   setProfOtpSession(null);
+                  setProfOtpDigits(["", "", "", "", "", ""]);
                   setProfError("");
                   setProfStatus("");
                 }}
@@ -677,32 +698,54 @@ export default function AuthModal({
               </div>
 
               <form onSubmit={submitProfOtp} className="auth-form mt-4">
-                <label className="auth-field">
-                  <span className="text-xs font-bold text-slate-700">
+                <div className="w-full">
+                  <span className="block text-xs font-bold text-slate-700 mb-2">
                     Enter 6-Digit Code
                   </span>
-                  <div
-                    className="grid grid-cols-6 gap-2 mt-2"
-                    onPaste={handleProfOtpPaste}
-                  >
-                    {profOtpDigits.map((digit, index) => (
-                      <input
-                        key={index}
-                        ref={(el) => (profOtpInputRefs.current[index] = el)}
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        maxLength={1}
-                        value={digit}
-                        onChange={(e) =>
-                          handleProfDigitChange(index, e.target.value)
-                        }
-                        onKeyDown={(e) => handleProfDigitKeyDown(index, e)}
-                        className="w-full aspect-square text-center text-lg sm:text-xl font-black rounded-xl border border-slate-300 bg-white focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 outline-none"
-                      />
-                    ))}
+                  <div className="flex items-center justify-center w-full py-1">
+                    <div
+                      className="flex items-center justify-center gap-1.5 sm:gap-2.5"
+                      onPaste={handleProfOtpPaste}
+                    >
+                      {profOtpDigits.map((digit, index) => (
+                        <input
+                          key={index}
+                          ref={(el) => (profOtpInputRefs.current[index] = el)}
+                          type="text"
+                          inputMode="numeric"
+                          autoComplete="one-time-code"
+                          pattern="[0-9]*"
+                          maxLength={1}
+                          value={digit}
+                          onChange={(e) =>
+                            handleProfDigitChange(index, e.target.value)
+                          }
+                          onKeyDown={(e) => handleProfDigitKeyDown(index, e)}
+                          onFocus={(e) => e.target.select()}
+                          className="w-9 h-11 sm:w-11 sm:h-12 text-center text-lg sm:text-xl font-mono font-bold rounded-xl border border-slate-300 bg-white text-slate-900 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-all caret-emerald-600 shadow-sm p-0 shrink-0"
+                        />
+                      ))}
+                    </div>
                   </div>
-                </label>
+                </div>
+
+                <div className="flex items-center justify-between text-xs mt-2 px-0.5 text-slate-500">
+                  <span>Didn't receive code?</span>
+                  <button
+                    type="button"
+                    onClick={handleProfResendOtp}
+                    disabled={profCooldown > 0 || profLoading}
+                    className={`font-bold transition-colors cursor-pointer ${
+                      profCooldown > 0
+                        ? "text-slate-400 cursor-not-allowed"
+                        : "text-emerald-700 hover:text-emerald-900 underline"
+                    }`}
+                  >
+                    {profCooldown > 0
+                      ? `Resend in ${profCooldown}s`
+                      : "Resend Code"}
+                  </button>
+                </div>
 
                 {profError && (
                   <p className="auth-error" role="alert">
@@ -717,8 +760,8 @@ export default function AuthModal({
 
                 <button
                   type="submit"
-                  disabled={profLoading}
-                  className="auth-primary mt-2"
+                  disabled={profLoading || profOtpDigits.join("").length < 6}
+                  className="auth-primary mt-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {profLoading ? (
                     <LoaderCircle className="animate-spin" />
@@ -787,7 +830,7 @@ export default function AuthModal({
                       className="auth-input pr-10"
                       value={profIdentifier}
                       onChange={(e) => setProfIdentifier(e.target.value)}
-                      placeholder="e.g. +91 98101 11223 or partner@email.com"
+                      placeholder="Enter your number or email"
                       autoComplete="username"
                       required
                     />
@@ -805,16 +848,15 @@ export default function AuthModal({
 
                 {/* Password Input */}
                 <label className="auth-field">
-                  <span>Account Password</span>
+                  <span>Account Password (optional)</span>
                   <div className="auth-password-wrap">
                     <input
                       className="auth-input"
                       value={profPassword}
                       onChange={(e) => setProfPassword(e.target.value)}
-                      placeholder="Enter partner password"
+                      placeholder="Enter your password (optional)"
                       type={profShowPassword ? "text" : "password"}
                       autoComplete="current-password"
-                      required
                     />
                     <button
                       type="button"
@@ -859,41 +901,16 @@ export default function AuthModal({
                     <LoaderCircle className="animate-spin" />
                   ) : (
                     <>
-                      <span>Sign In to Dashboard</span>
+                      <span>Continue</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
                 </button>
               </form>
 
-              {/* Quick Partner Demo Logins for Testing */}
-              <div className="mt-4 pt-3 border-t border-slate-100 space-y-2">
-                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider text-center">
-                  Instant Evaluator Demo Sign-In
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleProfDemo("Plumbing")}
-                    className="py-2 px-3 rounded-xl border border-slate-200 hover:border-emerald-600 hover:bg-emerald-50 text-[11px] font-bold text-slate-700 text-center transition-colors cursor-pointer"
-                  >
-                    Demo Plumber
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleProfDemo("AC & Appliance Repair")}
-                    className="py-2 px-3 rounded-xl border border-slate-200 hover:border-emerald-600 hover:bg-emerald-50 text-[11px] font-bold text-slate-700 text-center transition-colors cursor-pointer"
-                  >
-                    Demo AC Tech
-                  </button>
-                </div>
-              </div>
-
               {/* Create Professional Account Link */}
               <div className="mt-5 pt-3 border-t border-slate-100 text-center">
-                <p className="text-xs text-slate-500">
-                  Want to provide services with Argent Your?
-                </p>
+                <p className="text-xs text-slate-500">Don't have an account?</p>
                 <button
                   type="button"
                   onClick={() => {
@@ -906,7 +923,7 @@ export default function AuthModal({
                   }}
                   className="mt-1 text-xs font-black text-emerald-800 hover:text-emerald-950 underline cursor-pointer"
                 >
-                  Create Professional Account / Register as a Professional
+                  Create Professional Account
                 </button>
               </div>
             </div>
