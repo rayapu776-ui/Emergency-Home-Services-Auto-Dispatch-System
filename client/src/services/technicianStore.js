@@ -81,11 +81,31 @@ class TechnicianStore {
     localStorage.removeItem(TECH_USER_KEY);
   }
 
+  async login(identifier, password) {
+    const res = await techApi.post("/professional/auth/login", {
+      identifier,
+      password,
+    });
+    if (res.data.token && res.data.user) {
+      this.saveSession(res.data.token, res.data.user);
+    }
+    return res.data;
+  }
+
   async sendOtp(identifier, password) {
     const channel = identifier.includes("@") ? "email" : "sms";
     const res = await techApi.post("/professional/auth/send-otp", {
       identifier,
       channel,
+      ...(password ? { password } : {}),
+    });
+    return res.data;
+  }
+
+  async sendCode(identifier, password) {
+    const res = await techApi.post("/auth/send-code", {
+      identifier,
+      role: "professional",
       ...(password ? { password } : {}),
     });
     return res.data;
@@ -103,10 +123,32 @@ class TechnicianStore {
     return res.data;
   }
 
+  async verifyCode(code, identifier, tempSessionToken) {
+    const res = await techApi.post("/auth/verify-code", {
+      code,
+      identifier,
+      role: "professional",
+      ...(tempSessionToken ? { tempSessionToken } : {}),
+    });
+    if (res.data.token && res.data.user) {
+      this.saveSession(res.data.token, res.data.user);
+    }
+    return res.data;
+  }
+
   async resendOtp(tempSessionToken, identifier) {
     const res = await techApi.post("/professional/auth/resend-otp", {
       tempSessionToken,
       ...(identifier ? { identifier } : {}),
+    });
+    return res.data;
+  }
+
+  async resendCode(identifier, tempSessionToken) {
+    const res = await techApi.post("/auth/resend-code", {
+      identifier,
+      role: "professional",
+      ...(tempSessionToken ? { tempSessionToken } : {}),
     });
     return res.data;
   }

@@ -235,26 +235,19 @@ export default function AuthModal({
       return setError("Please enter your password.");
     }
 
-    setStatus("Verifying credentials...");
+    setStatus("Signing in...");
     try {
-      const res = await loginStep1(trimmedValue, loginPassword);
-      if (res.status === "OTP_REQUIRED") {
-        setOtpSession({
-          tempSessionToken: res.tempSessionToken,
-          channel: res.channel,
-          maskedDestination: res.maskedDestination,
-        });
-        setOtpDigits(["", "", "", "", "", ""]);
-        setCooldown(res.cooldownSeconds || 30);
-        setStatus("");
-        setScreen("otp");
-      }
+      await login(trimmedValue, loginPassword);
+      setStatus("Sign in successful!");
+      setTimeout(() => {
+        onClose();
+      }, 400);
     } catch (err) {
       setStatus("");
       console.error("[Auth] Login error:", err.response?.data || err.message);
       setError(
         err.response?.data?.error ||
-          "Unable to send authentication code. Please try again.",
+          "Invalid email/phone or password. Please try again.",
       );
     }
   };
@@ -266,6 +259,18 @@ export default function AuthModal({
       const newDigits = [...otpDigits];
       newDigits[index] = "";
       setOtpDigits(newDigits);
+      return;
+    }
+
+    if (cleaned.length > 1) {
+      const newDigits = [...otpDigits];
+      const digitsToFill = cleaned.slice(0, 6);
+      for (let i = 0; i < digitsToFill.length && index + i < 6; i++) {
+        newDigits[index + i] = digitsToFill[i];
+      }
+      setOtpDigits(newDigits);
+      const nextFocus = Math.min(index + digitsToFill.length, 5);
+      otpInputRefs.current[nextFocus]?.focus();
       return;
     }
 
@@ -282,7 +287,11 @@ export default function AuthModal({
 
   const handleDigitKeyDown = (index, e) => {
     if (e.key === "Backspace") {
-      if (!otpDigits[index] && index > 0) {
+      if (otpDigits[index]) {
+        const newDigits = [...otpDigits];
+        newDigits[index] = "";
+        setOtpDigits(newDigits);
+      } else if (index > 0) {
         const newDigits = [...otpDigits];
         newDigits[index - 1] = "";
         setOtpDigits(newDigits);
@@ -399,22 +408,14 @@ export default function AuthModal({
     const trimmed = profIdentifier.trim();
     if (!trimmed) {
       return setProfError("Enter your registered mobile number or email.");
+    if (!profPassword) {
+      return setProfError("Please enter your password.");
     }
     setProfLoading(true);
-    setProfStatus("Verifying credentials...");
+    setProfStatus("Signing in...");
     try {
-      const res = await technicianStore.sendOtp(trimmed, profPassword);
-      if (res.status === "OTP_REQUIRED" || res.tempSessionToken) {
-        setProfOtpSession({
-          tempSessionToken: res.tempSessionToken,
-          channel: res.channel,
-          maskedDestination:
-            res.maskedDestination || res.destination || trimmed,
-        });
-        setProfOtpDigits(["", "", "", "", "", ""]);
-        setProfCooldown(res.cooldownSeconds || 30);
-        setProfStatus("");
-      } else if (res.token && res.user) {
+      const res = await technicianStore.login(trimmed, profPassword);
+      if (res.token && res.user) {
         if (res.user.role !== "technician" && res.user.role !== "admin") {
           technicianStore.logout();
           setProfStatus("");
@@ -440,7 +441,7 @@ export default function AuthModal({
       setProfStatus("");
       setProfError(
         err.response?.data?.error ||
-          "Unable to send a verification code. Please verify your email or mobile number.",
+          "Invalid email/phone or password. Please verify and try again.",
       );
     } finally {
       setProfLoading(false);
@@ -662,118 +663,8 @@ export default function AuthModal({
         )}
 
         {accountType === "professional" ? (
-          profOtpSession ? (
-            /* PROFESSIONAL OTP VERIFICATION */
-            <div className="mt-2 text-left w-full animate-fade-in">
-              <button
-                type="button"
-                onClick={() => {
-                  setProfOtpSession(null);
-                  setProfOtpDigits(["", "", "", "", "", ""]);
-                  setProfError("");
-                  setProfStatus("");
-                }}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-800 hover:text-emerald-950 mb-3 cursor-pointer"
-              >
-                <ArrowLeft className="h-3.5 w-3.5" />
-                <span>Change Mobile / Email</span>
-              </button>
-
-              <div className="flex items-center gap-2 mb-1">
-                <div className="h-9 w-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                  <ShieldCheck className="h-5 w-5" />
-                </div>
-                <h2 className="display-font text-2xl font-bold text-slate-950">
-                  Partner Verification Code
-                </h2>
-              </div>
-
-              <div className="mt-3 rounded-2xl bg-slate-50 border border-slate-200/80 p-3.5 space-y-1">
-                <p className="text-xs font-bold text-slate-500">
-                  Security code sent to:
-                </p>
-                <p className="text-sm font-black text-slate-900 font-mono">
-                  {profOtpSession?.maskedDestination || profIdentifier}
-                </p>
-              </div>
-
-              <form onSubmit={submitProfOtp} className="auth-form mt-4">
-                <div className="w-full">
-                  <span className="block text-xs font-bold text-slate-700 mb-2">
-                    Enter 6-Digit Code
-                  </span>
-                  <div className="flex items-center justify-center w-full py-1">
-                    <div
-                      className="flex items-center justify-center gap-1.5 sm:gap-2.5"
-                      onPaste={handleProfOtpPaste}
-                    >
-                      {profOtpDigits.map((digit, index) => (
-                        <input
-                          key={index}
-                          ref={(el) => (profOtpInputRefs.current[index] = el)}
-                          type="text"
-                          inputMode="numeric"
-                          autoComplete="one-time-code"
-                          pattern="[0-9]*"
-                          maxLength={1}
-                          value={digit}
-                          onChange={(e) =>
-                            handleProfDigitChange(index, e.target.value)
-                          }
-                          onKeyDown={(e) => handleProfDigitKeyDown(index, e)}
-                          onFocus={(e) => e.target.select()}
-                          className="w-9 h-11 sm:w-11 sm:h-12 text-center text-lg sm:text-xl font-mono font-bold rounded-xl border border-slate-300 bg-white text-slate-900 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-all caret-emerald-600 shadow-sm p-0 shrink-0"
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between text-xs mt-2 px-0.5 text-slate-500">
-                  <span>Didn't receive code?</span>
-                  <button
-                    type="button"
-                    onClick={handleProfResendOtp}
-                    disabled={profCooldown > 0 || profLoading}
-                    className={`font-bold transition-colors cursor-pointer ${
-                      profCooldown > 0
-                        ? "text-slate-400 cursor-not-allowed"
-                        : "text-emerald-700 hover:text-emerald-900 underline"
-                    }`}
-                  >
-                    {profCooldown > 0
-                      ? `Resend in ${profCooldown}s`
-                      : "Resend Code"}
-                  </button>
-                </div>
-
-                {profError && (
-                  <p className="auth-error" role="alert">
-                    {profError}
-                  </p>
-                )}
-                {profStatus && (
-                  <p className="auth-status">
-                    <Check /> {profStatus}
-                  </p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={profLoading || profOtpDigits.join("").length < 6}
-                  className="auth-primary mt-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {profLoading ? (
-                    <LoaderCircle className="animate-spin" />
-                  ) : (
-                    "Verify & Access Dashboard"
-                  )}
-                </button>
-              </form>
-            </div>
-          ) : (
-            /* PROFESSIONAL LOGIN FORM */
-            <div className="mt-1 text-left w-full animate-fade-in">
+          /* PROFESSIONAL LOGIN FORM */
+          <div className="mt-1 text-left w-full animate-fade-in">
               <div className="mb-4">
                 <span className="text-[10px] font-black uppercase tracking-widest text-emerald-800 block mb-0.5">
                   SERVICE PARTNER & TECHNICIAN
@@ -848,13 +739,13 @@ export default function AuthModal({
 
                 {/* Password Input */}
                 <label className="auth-field">
-                  <span>Account Password (optional)</span>
+                  <span>Password</span>
                   <div className="auth-password-wrap">
                     <input
                       className="auth-input"
                       value={profPassword}
                       onChange={(e) => setProfPassword(e.target.value)}
-                      placeholder="Enter your password (optional)"
+                      placeholder="Enter your password"
                       type={profShowPassword ? "text" : "password"}
                       autoComplete="current-password"
                     />
@@ -901,7 +792,7 @@ export default function AuthModal({
                     <LoaderCircle className="animate-spin" />
                   ) : (
                     <>
-                      <span>Continue</span>
+                      <span>Sign In to Dashboard</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
@@ -927,116 +818,6 @@ export default function AuthModal({
                 </button>
               </div>
             </div>
-          )
-        ) : isOtp ? (
-          /* STEP 2: TWO-STEP OTP VERIFICATION SCREEN (Customer) */
-          <div className="mt-2 text-left w-full">
-            <button
-              type="button"
-              onClick={() => {
-                setScreen("login");
-                resetMessage();
-              }}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-800 hover:text-emerald-950 mb-3 cursor-pointer"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              <span>Change Email / Phone</span>
-            </button>
-
-            <div className="flex items-center gap-2 mb-1">
-              <div className="h-9 w-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                <ShieldCheck className="h-5 w-5" />
-              </div>
-              <h2
-                id="auth-title"
-                className="display-font text-2xl sm:text-3xl font-bold text-slate-950"
-              >
-                Enter Authentication Code
-              </h2>
-            </div>
-
-            <div className="mt-3 rounded-2xl bg-slate-50 border border-slate-200/80 p-3.5 space-y-1">
-              <p className="text-xs font-bold text-slate-500">Code sent to:</p>
-              <p className="text-sm sm:text-base font-black text-slate-900 tracking-wide font-mono">
-                {otpSession?.maskedDestination || "your registered contact"}
-              </p>
-            </div>
-
-            <div className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-100">
-              {otpSession?.channel === "email" ? (
-                <>
-                  <Mail className="h-3.5 w-3.5 text-emerald-600" />
-                  <span>Channel: Email Address</span>
-                </>
-              ) : (
-                <>
-                  <Smartphone className="h-3.5 w-3.5 text-emerald-600" />
-                  <span>Channel: Mobile SMS</span>
-                </>
-              )}
-            </div>
-
-            <form onSubmit={submitOtp} className="auth-form mt-4">
-              <label className="auth-field">
-                <span className="text-xs font-bold text-slate-700">
-                  Enter 6-Digit Code
-                </span>
-                <div className="auth-otp-group" onPaste={handleOtpPaste}>
-                  {otpDigits.map((digit, index) => (
-                    <input
-                      key={index}
-                      ref={(el) => (otpInputRefs.current[index] = el)}
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      maxLength={1}
-                      value={digit}
-                      onChange={(e) => handleDigitChange(index, e.target.value)}
-                      onKeyDown={(e) => handleDigitKeyDown(index, e)}
-                      className="auth-otp-box"
-                      required
-                    />
-                  ))}
-                </div>
-              </label>
-
-              {error && (
-                <p className="auth-error" role="alert">
-                  {error}
-                </p>
-              )}
-              {status && (
-                <p className="auth-status">
-                  <Check /> {status}
-                </p>
-              )}
-
-              <button
-                type="submit"
-                disabled={Boolean(status) || otpDigits.join("").length < 6}
-                className="auth-primary w-full justify-center mt-2"
-              >
-                {status ? <LoaderCircle className="animate-spin" /> : "Verify"}
-              </button>
-
-              <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs text-slate-500">
-                <span>Didn't receive the code?</span>
-                {cooldown > 0 ? (
-                  <span className="font-semibold text-slate-400">
-                    Resend code in {cooldown}s
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleResendOtp}
-                    className="font-bold text-emerald-700 hover:text-emerald-950 inline-flex items-center gap-1 cursor-pointer"
-                  >
-                    <RefreshCw className="h-3.5 w-3.5" /> Resend Code
-                  </button>
-                )}
-              </div>
-            </form>
-          </div>
         ) : (
           /* STEP 1: LOGIN OR SIGNUP SCREEN */
           <>
@@ -1211,7 +992,7 @@ export default function AuthModal({
                 ) : isSignup ? (
                   "Create Account"
                 ) : (
-                  "Continue / Log in"
+                  "Log in"
                 )}
               </button>
             </form>

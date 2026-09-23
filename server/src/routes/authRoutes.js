@@ -260,8 +260,418 @@ router.post("/register-technician", async (req, res) => {
   }
 });
 
-// Step 1: Verify Credentials (Email or Phone + Password) and Issue OTP
-router.post("/login-step1", async (req, res) => {
+/**
+ * Shared Send Code Handler
+ * POST /api/auth/send-code
+ * Body: { identifier, role = "customer", channel, password }
+ */
+const handleSendCode = async (req, res) => {
+  try {
+    const {
+      identifier,
+      email,
+      phone,
+      role: rawRole,
+      channel: requestedChannel,
+      password,
+    } = req.body;
+    const rawIdentifier = (identifier || email || phone || "").trim();
+
+    if (!rawIdentifier) {
+      return res.status(400).json({
+        error: "Please enter your registered email address or mobile number.",
+      });
+    }
+
+    const isEmail = rawIdentifier.includes("@");
+    const channel = requestedChannel || (isEmail ? "email" : "sms");
+    const normalizedIdentifier = isEmail
+      ? rawIdentifier.toLowerCase()
+      : rawIdentifier;
+
+    const role =
+      rawRole === "professional" || rawRole === "technician"
+        ? "technician"
+        : "customer";
+
+    // Look up existing user
+    let user = await otpService.findUserByIdentifier(normalizedIdentifier);
+
+    // If user exists, enforce role separation
+    if (user) {
+      if (
+        role === "technician" &&
+        user.role !== "technician" &&
+        user.role !== "admin"
+      ) {
+        return res.status(403).json({
+          error:
+            "This account is registered as a customer. Please use customer sign-in or register as a professional.",
+        });
+      }
+      if (role === "customer" && user.role === "technician") {
+        return res.status(403).json({
+          error:
+            "This account is registered as a service professional. Please use the Professional login portal.",
+        });
+      }
+
+      // If password provided, verify it
+      if (password) {
+        const isMatch = bcrypt.compareSync(password, user.password_hash);
+        if (!isMatch) {
+          return res
+            .status(401)
+            .json({ error: "Invalid email/phone or password" });
+        }
+      }
+    } else {
+      // If user does not exist yet (OTP-based registration or passwordless entry)
+      const newUserId = uuidv4();
+      const userEmail = isEmail
+        ? normalizedIdentifier
+        : `user_${newUserId.slice(0, 8)}@temp.argentyour.com`;
+      const userPhone = isEmail ? null : normalizedIdentifier;
+      const userName =
+        role === "technician" ? "New Professional Partner" : "Valued Customer";
+
+      await query.run(
+        `INSERT INTO users (id, name, email, password_hash, role, phone, address)
+         VALUES (?, ?, ?, ?, ?, ?, 'Delhi NCR')`,
+        [
+          newUserId,
+          userName,
+          userEmail,
+          bcrypt.hashSync(uuidv4(), 8),
+          role,
+          userPhone,
+        ],
+      );
+
+      if (role === "technician") {
+        const techId = uuidv4();
+        await query.run(
+          `INSERT INTO technicians (id, user_id, category, latitude, longitude, is_online, rating, total_jobs)
+           VALUES (?, ?, 'Plumbing', 28.6139, 77.2090, 1, 4.9, 0)`,
+          [techId, newUserId],
+        );
+      }
+
+      user = await query.get("SELECT * FROM users WHERE id = ?", [newUserId]);
+    }
+
+    const otpResult = await otpService.createOtpSession(
+      user,
+      normalizedIdentifier,
+    );
+
+    if (!otpResult.success) {
+      return res.status(otpResult.rateLimited ? 429 : 503).json({
+        error:
+          otpResult.error ||
+          "Unable to send the verification code right now. Please try again.",
+        retryAfterSeconds: otpResult.retryAfterSeconds,
+      });
+    }
+
+    return res.json({
+      success: true,
+      status: "OTP_REQUIRED",
+      message: "Verification code sent successfully",
+      channel: otpResult.channel,
+      maskedDestination: otpResult.maskedDestination,
+      tempSessionToken: otpResult.tempSessionToken,
+      cooldownSeconds: otpResult.cooldownSeconds || 60,
+      expiresInSeconds: otpResult.expiresInSeconds || 300,
+    });
+  } catch (err) {
+    console.error("❌ [Auth] Error in send-code:", err);
+    return res.status(500).json({
+      error:
+        "Unable to send the verification code right now. Please try again.",
+    });
+  }
+};
+
+/**
+ * Shared Verify Code Handler
+ * POST /api/auth/verify-code
+ * Body: { identifier, role, code, otp, tempSessionToken }
+ */
+const handleVerifyCode = async (req, res) => {
+  try {
+    const {
+      tempSessionToken,
+      identifier,
+      email,
+      phone,
+      code,
+      otp,
+      role: rawRole,
+    } = req.body;
+    const sessionRef = tempSessionToken || identifier || email || phone;
+    const inputCode = String(code || otp || "").trim();
+
+    if (!sessionRef || !inputCode) {
+      return res.status(400).json({
+        error: "Verification code and session identifier are required.",
+      });
+    }
+
+    if (inputCode.length !== 6 || !/^\d{6}$/.test(inputCode)) {
+      return res.status(400).json({
+        error: "Please enter the complete 6-digit numeric verification code.",
+      });
+    }
+
+    const verifyResult = await otpService.verifyOtp(sessionRef, inputCode);
+
+    if (!verifyResult.success) {
+      return res.status(400).json({
+        success: false,
+        error:
+          verifyResult.error || "Invalid verification code. Please try again.",
+        remainingAttempts: verifyResult.remainingAttempts,
+      });
+    }
+
+    const user = verifyResult.user;
+    const role =
+      rawRole === "professional" || rawRole === "technician"
+        ? "technician"
+        : rawRole || user.role;
+
+    // Enforce role access control
+    if (
+      role === "technician" &&
+      user.role !== "technician" &&
+      user.role !== "admin"
+    ) {
+      return res.status(403).json({
+        success: false,
+        error:
+          "This account is registered as a customer. Please use customer sign-in or register as a professional.",
+      });
+    }
+    if (role === "customer" && user.role === "technician") {
+      return res.status(403).json({
+        success: false,
+        error:
+          "This account is registered as a service professional. Please use the Professional login portal.",
+      });
+    }
+
+    let technicianData = null;
+    if (user.role === "technician") {
+      technicianData = await query.get(
+        "SELECT * FROM technicians WHERE user_id = ?",
+        [user.id],
+      );
+      if (!technicianData) {
+        const techId = uuidv4();
+        await query.run(
+          `INSERT INTO technicians (id, user_id, category, latitude, longitude, is_online, rating, total_jobs)
+           VALUES (?, ?, 'Plumbing', 28.6139, 77.2090, 1, 4.9, 0)`,
+          [techId, user.id],
+        );
+        technicianData = await query.get(
+          "SELECT * FROM technicians WHERE id = ?",
+          [techId],
+        );
+      }
+    }
+
+    const token = generateToken({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      name: user.name,
+    });
+
+    return res.json({
+      success: true,
+      message: "Verification successful",
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        phone: user.phone,
+        address: user.address,
+        avatar: user.avatar,
+        technician: technicianData,
+      },
+    });
+  } catch (err) {
+    console.error("❌ [Auth] Error in verify-code:", err);
+    return res.status(500).json({
+      error: "Unable to verify authentication code. Please try again.",
+    });
+  }
+};
+
+/**
+ * Shared Resend Code Handler
+ * POST /api/auth/resend-code
+ * Body: { tempSessionToken, identifier }
+ */
+const handleResendCode = async (req, res) => {
+  try {
+    const { tempSessionToken, identifier, email, phone } = req.body;
+    const sessionRef = tempSessionToken || identifier || email || phone;
+
+    if (!sessionRef) {
+      return res.status(400).json({
+        error:
+          "Session token or registered identifier is required to resend code.",
+      });
+    }
+
+    const resendResult = await otpService.resendOtp(sessionRef);
+
+    if (!resendResult.success) {
+      const statusCode =
+        resendResult.cooldownRemaining || resendResult.rateLimited ? 429 : 400;
+      return res.status(statusCode).json({
+        success: false,
+        error:
+          resendResult.error ||
+          "Unable to send the verification code right now. Please try again.",
+        cooldownRemaining: resendResult.cooldownRemaining,
+        retryAfterSeconds: resendResult.retryAfterSeconds,
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "A fresh verification code has been sent.",
+      channel: resendResult.channel,
+      maskedDestination: resendResult.maskedDestination,
+      tempSessionToken: resendResult.tempSessionToken || tempSessionToken,
+      cooldownSeconds: resendResult.cooldownSeconds || 60,
+      expiresInSeconds: resendResult.expiresInSeconds || 300,
+    });
+  } catch (err) {
+    console.error("❌ [Auth] Error in resend-code:", err);
+    return res.status(500).json({
+      error:
+        "Unable to send the verification code right now. Please try again.",
+    });
+  }
+};
+
+// Route definitions for send-code, verify-code, and resend-code
+router.post("/send-code", handleSendCode);
+router.post("/send-otp", handleSendCode);
+router.post("/login-step1", handleSendCode);
+
+router.post("/verify-code", handleVerifyCode);
+router.post("/verify-otp", handleVerifyCode);
+
+router.post("/resend-code", handleResendCode);
+router.post("/resend-otp", handleResendCode);
+
+// Password Reset Endpoints
+router.post("/forgot-password", async (req, res) => {
+  try {
+    const { identifier, email, phone } = req.body;
+    const rawIdentifier = (identifier || email || phone || "").trim();
+    if (!rawIdentifier) {
+      return res
+        .status(400)
+        .json({ error: "Please enter your registered email or phone." });
+    }
+
+    const user = await otpService.findUserByIdentifier(rawIdentifier);
+    if (!user) {
+      return res.status(404).json({
+        error: "No account found with this email or mobile number.",
+      });
+    }
+
+    const otpResult = await otpService.createOtpSession(user, rawIdentifier);
+    if (!otpResult.success) {
+      return res.status(503).json({
+        error:
+          otpResult.error ||
+          "Unable to send the verification code right now. Please try again.",
+      });
+    }
+
+    return res.json({
+      success: true,
+      status: "OTP_REQUIRED",
+      message: "Verification code sent to your registered contact.",
+      tempSessionToken: otpResult.tempSessionToken,
+      maskedDestination: otpResult.maskedDestination,
+      cooldownSeconds: otpResult.cooldownSeconds || 60,
+    });
+  } catch (err) {
+    console.error("Forgot password error:", err);
+    return res.status(500).json({
+      error: "Unable to process password reset request. Please try again.",
+    });
+  }
+});
+
+router.post("/reset-password", async (req, res) => {
+  try {
+    const {
+      identifier,
+      tempSessionToken,
+      code,
+      otp,
+      newPassword,
+      new_password,
+      password,
+    } = req.body;
+    const sessionRef = tempSessionToken || identifier;
+    const inputCode = String(code || otp || "").trim();
+    const effectiveNewPassword = newPassword || new_password || password;
+
+    if (!sessionRef || !inputCode) {
+      return res.status(400).json({
+        error: "Verification code and session identifier are required.",
+      });
+    }
+
+    if (!effectiveNewPassword || effectiveNewPassword.length < 6) {
+      return res.status(400).json({
+        error: "New password must be at least 6 characters long.",
+      });
+    }
+
+    const verifyResult = await otpService.verifyOtp(sessionRef, inputCode);
+    if (!verifyResult.success) {
+      return res.status(400).json({
+        error:
+          verifyResult.error || "Invalid verification code. Please try again.",
+      });
+    }
+
+    const user = verifyResult.user;
+    const newHash = bcrypt.hashSync(effectiveNewPassword, 10);
+    await query.run("UPDATE users SET password_hash = ? WHERE id = ?", [
+      newHash,
+      user.id,
+    ]);
+
+    return res.json({
+      success: true,
+      message:
+        "Password updated successfully. You can now log in with your new password.",
+    });
+  } catch (err) {
+    console.error("Reset password error:", err);
+    return res
+      .status(500)
+      .json({ error: "Failed to reset password. Please try again." });
+  }
+});
+
+// Direct Login endpoint with Email or Phone + Password (No OTP)
+router.post("/login", async (req, res) => {
   try {
     const { identifier, email, phone, password } = req.body;
     const inputIdentifier = (identifier || email || phone || "").trim();
@@ -282,52 +692,16 @@ router.post("/login-step1", async (req, res) => {
       return res.status(401).json({ error: "Invalid email/phone or password" });
     }
 
-    const sessionInfo = await otpService.createOtpSession(
-      user,
-      inputIdentifier,
-    );
-
-    if (!sessionInfo.success) {
-      return res.status(503).json({
-        error:
-          sessionInfo.error ||
-          "Unable to send authentication code. Please try again.",
-        details: sessionInfo.reason,
-      });
-    }
-
-    return res.json({
-      status: "OTP_REQUIRED",
-      ...sessionInfo,
-      message: "Verification code sent successfully",
-    });
-  } catch (err) {
-    console.error("Login step 1 error:", err);
-    res.status(500).json({ error: "Failed to process login request" });
-  }
-});
-
-// Step 2: Verify 6-digit OTP and Issue JWT Auth Token
-router.post("/verify-otp", async (req, res) => {
-  try {
-    const { tempSessionToken, otp } = req.body;
-    if (!tempSessionToken || !otp) {
-      return res.status(400).json({
-        error: "Session token and 6-digit verification code are required",
-      });
-    }
-
-    const result = await otpService.verifyOtp(tempSessionToken, otp);
-    if (!result.success) {
-      return res.status(400).json({
-        error: result.error,
-        remainingAttempts: result.remainingAttempts,
-      });
-    }
-
-    const user = result.user;
-    let technicianData = null;
+    // Role check: Prevent technician from logging in through Customer portal
     if (user.role === "technician") {
+      return res.status(403).json({
+        error:
+          "This account is registered as a service professional. Please use the Professional login portal.",
+      });
+    }
+
+    let technicianData = null;
+    if (user.role === "technician" || user.role === "admin") {
       technicianData = await query.get(
         "SELECT * FROM technicians WHERE user_id = ?",
         [user.id],
@@ -342,6 +716,7 @@ router.post("/verify-otp", async (req, res) => {
     });
 
     return res.json({
+      success: true,
       token,
       user: {
         id: user.id,
@@ -350,131 +725,11 @@ router.post("/verify-otp", async (req, res) => {
         role: user.role,
         phone: user.phone,
         address: user.address,
+        avatar: user.avatar,
         latitude: user.latitude,
         longitude: user.longitude,
         technician: technicianData,
       },
-    });
-  } catch (err) {
-    console.error("OTP verification error:", err);
-    res.status(500).json({ error: "Failed to verify code" });
-  }
-});
-
-// Resend OTP code with rate limit enforcement
-router.post("/resend-otp", async (req, res) => {
-  try {
-    const { tempSessionToken } = req.body;
-    if (!tempSessionToken) {
-      return res.status(400).json({ error: "Session token is required" });
-    }
-
-    const result = await otpService.resendOtp(tempSessionToken);
-    if (!result.success) {
-      const statusCode = result.cooldownRemaining ? 400 : 503;
-      return res.status(statusCode).json({
-        error:
-          result.error ||
-          "Unable to send authentication code. Please try again.",
-        cooldownRemaining: result.cooldownRemaining,
-        details: result.reason,
-      });
-    }
-
-    return res.json({
-      ...result,
-      message: "A fresh verification code has been dispatched",
-    });
-  } catch (err) {
-    console.error("OTP resend error:", err);
-    res.status(500).json({ error: "Failed to resend verification code" });
-  }
-});
-
-// Traditional or fallback login endpoint
-router.post("/login", async (req, res) => {
-  try {
-    const { identifier, email, phone, password, otp, tempSessionToken } =
-      req.body;
-
-    // If OTP is provided, verify Step 2
-    if (otp && tempSessionToken) {
-      const result = await otpService.verifyOtp(tempSessionToken, otp);
-      if (!result.success) {
-        return res.status(400).json({
-          error: result.error,
-          remainingAttempts: result.remainingAttempts,
-        });
-      }
-
-      const user = result.user;
-      let technicianData = null;
-      if (user.role === "technician") {
-        technicianData = await query.get(
-          "SELECT * FROM technicians WHERE user_id = ?",
-          [user.id],
-        );
-      }
-
-      const token = generateToken({
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        name: user.name,
-      });
-
-      return res.json({
-        token,
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          phone: user.phone,
-          address: user.address,
-          latitude: user.latitude,
-          longitude: user.longitude,
-          technician: technicianData,
-        },
-      });
-    }
-
-    // Step 1 check
-    const inputIdentifier = (identifier || email || phone || "").trim();
-    if (!inputIdentifier || !password) {
-      return res
-        .status(400)
-        .json({ error: "Email or phone number and password are required" });
-    }
-
-    const user = await otpService.findUserByIdentifier(inputIdentifier);
-    if (!user) {
-      return res.status(401).json({ error: "Invalid email/phone or password" });
-    }
-
-    const isMatch = bcrypt.compareSync(password, user.password_hash);
-    if (!isMatch) {
-      return res.status(401).json({ error: "Invalid email/phone or password" });
-    }
-
-    const sessionInfo = await otpService.createOtpSession(
-      user,
-      inputIdentifier,
-    );
-
-    if (!sessionInfo.success) {
-      return res.status(503).json({
-        error:
-          sessionInfo.error ||
-          "Unable to send authentication code. Please try again.",
-        details: sessionInfo.reason,
-      });
-    }
-
-    return res.json({
-      status: "OTP_REQUIRED",
-      ...sessionInfo,
-      message: "Verification code sent successfully",
     });
   } catch (err) {
     console.error("Login error:", err);

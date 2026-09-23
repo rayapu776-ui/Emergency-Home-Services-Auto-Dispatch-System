@@ -35,10 +35,10 @@ function getVerifiedChannel(identifier, requestedChannel) {
 }
 
 /**
- * POST /api/professional/auth/send-otp
+ * POST /api/professional/auth/send-otp and /send-code
  * Generates secure 6-digit OTP and dispatches via configured Email / SMS provider
  */
-router.post("/send-otp", async (req, res) => {
+const handleSendOtp = async (req, res) => {
   try {
     const { identifier, channel: requestedChannel, password } = req.body;
 
@@ -144,24 +144,27 @@ router.post("/send-otp", async (req, res) => {
         "Unable to send the verification code right now. Please try again later.",
     });
   }
-});
+};
+
+router.post("/send-otp", handleSendOtp);
+router.post("/send-code", handleSendOtp);
 
 /**
- * POST /api/professional/auth/verify-otp
+ * POST /api/professional/auth/verify-otp and /verify-code
  * Validates 6-digit OTP, checks expiration & attempts, authenticates professional session
  */
-router.post("/verify-otp", async (req, res) => {
+const handleVerifyOtp = async (req, res) => {
   try {
-    const { tempSessionToken, identifier, otp } = req.body;
+    const { tempSessionToken, identifier, otp, code } = req.body;
     const sessionRef = tempSessionToken || identifier;
+    const cleanOtp = String(code || otp || "").trim();
 
-    if (!sessionRef || !otp) {
+    if (!sessionRef || !cleanOtp) {
       return res.status(400).json({
         error: "Verification code and session identifier are required.",
       });
     }
 
-    const cleanOtp = String(otp).trim();
     if (cleanOtp.length !== 6 || !/^\d{6}$/.test(cleanOtp)) {
       return res.status(400).json({
         error: "Please enter the complete 6-digit numeric verification code.",
@@ -236,13 +239,16 @@ router.post("/verify-otp", async (req, res) => {
       error: "Failed to verify authentication code. Please try again.",
     });
   }
-});
+};
+
+router.post("/verify-otp", handleVerifyOtp);
+router.post("/verify-code", handleVerifyOtp);
 
 /**
- * POST /api/professional/auth/resend-otp
+ * POST /api/professional/auth/resend-otp and /resend-code
  * Generates a new OTP, invalidates previous OTP, enforces 60-second cooldown
  */
-router.post("/resend-otp", async (req, res) => {
+const handleResendOtp = async (req, res) => {
   try {
     const { tempSessionToken, identifier } = req.body;
     const sessionRef = tempSessionToken || identifier;
@@ -284,6 +290,85 @@ router.post("/resend-otp", async (req, res) => {
       error: "Failed to resend verification code. Please try again later.",
     });
   }
-});
+};
+
+router.post("/resend-otp", handleResendOtp);
+router.post("/resend-code", handleResendOtp);
+
+/**
+ * POST /api/professional/auth/login
+ * Direct Professional login with Email or Phone + Password (No OTP)
+ */
+const handleProfessionalLogin = async (req, res) => {
+  try {
+    const { identifier, email, phone, password } = req.body;
+    const inputIdentifier = (identifier || email || phone || "").trim();
+
+    if (!inputIdentifier || !password) {
+      return res.status(400).json({
+        error: "Please enter your registered email/phone and password.",
+      });
+    }
+
+    const user = await otpService.findUserByIdentifier(inputIdentifier);
+    if (!user) {
+      return res.status(401).json({
+        error:
+          "No partner account found with this email or mobile number. Please verify or register as a professional.",
+      });
+    }
+
+    const isMatch = bcrypt.compareSync(password, user.password_hash);
+    if (!isMatch) {
+      return res.status(401).json({
+        error: "Invalid password for this partner account.",
+      });
+    }
+
+    // Role check: Ensure user is a technician or admin
+    if (user.role !== "technician" && user.role !== "admin") {
+      return res.status(403).json({
+        error:
+          "This account is registered as a customer. Please use Customer login or register as a professional.",
+      });
+    }
+
+    const technicianData = await query.get(
+      "SELECT * FROM technicians WHERE user_id = ?",
+      [user.id],
+    );
+
+    const token = generateToken({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      name: user.name,
+    });
+
+    return res.json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        phone: user.phone,
+        address: user.address,
+        avatar: user.avatar,
+        latitude: user.latitude,
+        longitude: user.longitude,
+        technician: technicianData,
+      },
+    });
+  } catch (err) {
+    console.error("❌ [Professional Auth] Login error:", err);
+    return res
+      .status(500)
+      .json({ error: "Failed to authenticate professional." });
+  }
+};
+
+router.post("/login", handleProfessionalLogin);
 
 export default router;

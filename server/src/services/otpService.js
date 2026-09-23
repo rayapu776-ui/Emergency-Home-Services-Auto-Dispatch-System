@@ -265,7 +265,7 @@ export const otpService = {
     if (!session) {
       return {
         success: false,
-        error: "This code has expired. Please request a new code.",
+        error: "This verification code has expired. Please request a new code.",
       };
     }
 
@@ -282,7 +282,7 @@ export const otpService = {
       await query.run("DELETE FROM otp_sessions WHERE id = ?", [session.id]);
       return {
         success: false,
-        error: "This code has expired. Please request a new code.",
+        error: "This verification code has expired. Please request a new code.",
       };
     }
 
@@ -290,7 +290,7 @@ export const otpService = {
       await query.run("DELETE FROM otp_sessions WHERE id = ?", [session.id]);
       return {
         success: false,
-        error: "Too many incorrect attempts. Please sign in again.",
+        error: "Too many attempts. Please request a new code.",
       };
     }
 
@@ -305,7 +305,7 @@ export const otpService = {
         await query.run("DELETE FROM otp_sessions WHERE id = ?", [session.id]);
         return {
           success: false,
-          error: "Too many incorrect attempts. Please sign in again.",
+          error: "Too many attempts. Please request a new code.",
         };
       }
 
@@ -316,7 +316,7 @@ export const otpService = {
 
       return {
         success: false,
-        error: `Invalid authentication code. (${remainingAttempts} attempt${remainingAttempts === 1 ? "" : "s"} remaining)`,
+        error: "Invalid verification code. Please try again.",
         remainingAttempts,
       };
     }

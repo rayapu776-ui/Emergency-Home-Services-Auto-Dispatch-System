@@ -195,6 +195,7 @@ export const notificationService = {
         NODE_ENV !== "production" &&
         (DEV_LOG_OTP !== "false" || DEV_ALLOW_SIMULATED_OTP === "true")
       ) {
+        console.log(`[DEV AUTH] OTP generated for ${destination}: ${code}`);
         console.log("\n" + "=".repeat(70));
         console.log("🔒 [AUTH CODE LOCAL VERIFICATION GATEWAY - EMAIL]");
         console.log(`👤 Recipient:   ${userName}`);
@@ -217,7 +218,7 @@ export const notificationService = {
       return {
         success: false,
         error:
-          "Unable to send the verification code right now. Please try again or contact support.",
+          "Unable to send the verification code right now. Please try again.",
         reason: "SMTP provider not configured",
       };
     }
@@ -279,6 +280,7 @@ export const notificationService = {
         NODE_ENV !== "production" &&
         (DEV_LOG_OTP !== "false" || DEV_ALLOW_SIMULATED_OTP === "true")
       ) {
+        console.log(`[DEV AUTH] OTP generated for ${destination}: ${code}`);
         console.log("\n" + "=".repeat(70));
         console.log("🔒 [AUTH CODE LOCAL VERIFICATION GATEWAY - SMS]");
         console.log(`👤 Recipient:   ${userName}`);
@@ -301,7 +303,7 @@ export const notificationService = {
       return {
         success: false,
         error:
-          "Unable to send the verification code right now. Please try again or use email verification.",
+          "Unable to send the verification code right now. Please try again.",
         reason: "SMS provider not configured",
       };
     }

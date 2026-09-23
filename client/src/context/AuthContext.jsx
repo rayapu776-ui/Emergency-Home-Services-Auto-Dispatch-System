@@ -37,6 +37,15 @@ export function AuthProvider({ children }) {
     return res.data;
   };
 
+  const sendCode = async (identifier, role = "customer", password = null) => {
+    const res = await api.post("/auth/send-code", {
+      identifier,
+      role,
+      ...(password ? { password } : {}),
+    });
+    return res.data;
+  };
+
   const verifyOtp = async (tempSessionToken, otp) => {
     const res = await api.post("/auth/verify-otp", { tempSessionToken, otp });
     const { token: newToken, user: newUser } = res.data;
@@ -47,21 +56,54 @@ export function AuthProvider({ children }) {
     return newUser;
   };
 
+  const verifyCode = async (
+    identifier,
+    code,
+    tempSessionToken = null,
+    role = "customer",
+  ) => {
+    const res = await api.post("/auth/verify-code", {
+      identifier,
+      code,
+      role,
+      ...(tempSessionToken ? { tempSessionToken } : {}),
+    });
+    const { token: newToken, user: newUser } = res.data;
+    if (newToken && newUser) {
+      setToken(newToken);
+      setUser(newUser);
+      localStorage.setItem("emergency_token", newToken);
+      localStorage.setItem("emergency_user", JSON.stringify(newUser));
+    }
+    return res.data;
+  };
+
   const resendOtp = async (tempSessionToken) => {
     const res = await api.post("/auth/resend-otp", { tempSessionToken });
     return res.data;
   };
 
-  const login = async (
+  const resendCode = async (
     identifier,
-    password,
-    otp = null,
     tempSessionToken = null,
+    role = "customer",
   ) => {
-    if (otp && tempSessionToken) {
-      return await verifyOtp(tempSessionToken, otp);
-    }
-    return await loginStep1(identifier, password);
+    const res = await api.post("/auth/resend-code", {
+      identifier,
+      role,
+      ...(tempSessionToken ? { tempSessionToken } : {}),
+    });
+    return res.data;
+  };
+
+  const login = async (identifier, password) => {
+    const res = await api.post("/auth/login", { identifier, password });
+    const { token: newToken, user: newUser } = res.data;
+    setToken(newToken);
+    setUser(newUser);
+    localStorage.setItem("emergency_token", newToken);
+    localStorage.setItem("emergency_user", JSON.stringify(newUser));
+    return newUser;
   };
 
   const demoLogin = async (role = "customer", category = "Plumbing") => {
@@ -105,8 +147,11 @@ export function AuthProvider({ children }) {
         loading,
         login,
         loginStep1,
+        sendCode,
         verifyOtp,
+        verifyCode,
         resendOtp,
+        resendCode,
         demoLogin,
         register,
         logout,
