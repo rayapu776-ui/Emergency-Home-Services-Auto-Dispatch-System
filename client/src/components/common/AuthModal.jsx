@@ -408,6 +408,7 @@ export default function AuthModal({
     const trimmed = profIdentifier.trim();
     if (!trimmed) {
       return setProfError("Enter your registered mobile number or email.");
+    }
     if (!profPassword) {
       return setProfError("Please enter your password.");
     }
@@ -665,159 +666,159 @@ export default function AuthModal({
         {accountType === "professional" ? (
           /* PROFESSIONAL LOGIN FORM */
           <div className="mt-1 text-left w-full animate-fade-in">
-              <div className="mb-4">
-                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-800 block mb-0.5">
-                  SERVICE PARTNER & TECHNICIAN
-                </span>
-                <h2 className="display-font text-2xl font-bold text-slate-950">
-                  Professional Login
-                </h2>
-                <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                  Sign in to access your dispatch dashboard, active jobs, and
-                  customer requests.
-                </p>
-              </div>
+            <div className="mb-4">
+              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-800 block mb-0.5">
+                SERVICE PARTNER & TECHNICIAN
+              </span>
+              <h2 className="display-font text-2xl font-bold text-slate-950">
+                Professional Login
+              </h2>
+              <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                Sign in to access your dispatch dashboard, active jobs, and
+                customer requests.
+              </p>
+            </div>
 
-              {/* Forgot Password Helper Banner */}
-              {profShowForgot && (
-                <div className="mb-4 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs space-y-1.5 text-emerald-950 animate-fade-in">
-                  <div className="flex items-center justify-between font-bold text-emerald-900">
-                    <span>Password Assistance</span>
-                    <button
-                      type="button"
-                      onClick={() => setProfShowForgot(false)}
-                      className="text-slate-400 hover:text-slate-700"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  <p className="text-slate-600 text-[11px] leading-relaxed">
-                    For partner security, credential resets are assisted by
-                    dispatch operations. Contact partner desk at{" "}
-                    <strong className="text-slate-900">+91 98101 11223</strong>{" "}
-                    or verify via your registered emergency contact.
-                  </p>
-                </div>
-              )}
-
-              <form onSubmit={submitProfLogin} className="auth-form space-y-3">
-                {/* Identifier Input */}
-                <label className="auth-field">
-                  <div className="flex items-center justify-between mb-1">
-                    <span>Mobile Number or Email</span>
-                    {profDetectedType === "phone" && (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
-                        <Phone className="h-3 w-3" /> Phone
-                      </span>
-                    )}
-                    {profDetectedType === "email" && (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
-                        <Mail className="h-3 w-3" /> Email
-                      </span>
-                    )}
-                  </div>
-                  <div className="relative">
-                    <input
-                      className="auth-input pr-10"
-                      value={profIdentifier}
-                      onChange={(e) => setProfIdentifier(e.target.value)}
-                      placeholder="Enter your number or email"
-                      autoComplete="username"
-                      required
-                    />
-                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
-                      {profDetectedType === "email" ? (
-                        <Mail className="h-4 w-4 text-emerald-600" />
-                      ) : profDetectedType === "phone" ? (
-                        <Phone className="h-4 w-4 text-emerald-600" />
-                      ) : (
-                        <KeyRound className="h-4 w-4 text-slate-400" />
-                      )}
-                    </div>
-                  </div>
-                </label>
-
-                {/* Password Input */}
-                <label className="auth-field">
-                  <span>Password</span>
-                  <div className="auth-password-wrap">
-                    <input
-                      className="auth-input"
-                      value={profPassword}
-                      onChange={(e) => setProfPassword(e.target.value)}
-                      placeholder="Enter your password"
-                      type={profShowPassword ? "text" : "password"}
-                      autoComplete="current-password"
-                    />
-                    <button
-                      type="button"
-                      className="auth-password-toggle"
-                      onClick={() => setProfShowPassword(!profShowPassword)}
-                      aria-label={
-                        profShowPassword ? "Hide password" : "Show password"
-                      }
-                    >
-                      {profShowPassword ? <EyeOff /> : <Eye />}
-                    </button>
-                  </div>
-                </label>
-
-                <div className="flex items-center justify-between text-xs pt-0.5">
+            {/* Forgot Password Helper Banner */}
+            {profShowForgot && (
+              <div className="mb-4 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs space-y-1.5 text-emerald-950 animate-fade-in">
+                <div className="flex items-center justify-between font-bold text-emerald-900">
+                  <span>Password Assistance</span>
                   <button
                     type="button"
-                    onClick={() => setProfShowForgot(!profShowForgot)}
-                    className="text-emerald-800 hover:text-emerald-950 font-bold hover:underline"
+                    onClick={() => setProfShowForgot(false)}
+                    className="text-slate-400 hover:text-slate-700"
                   >
-                    Forgot Password?
+                    ✕
                   </button>
                 </div>
+                <p className="text-slate-600 text-[11px] leading-relaxed">
+                  For partner security, credential resets are assisted by
+                  dispatch operations. Contact partner desk at{" "}
+                  <strong className="text-slate-900">+91 98101 11223</strong> or
+                  verify via your registered emergency contact.
+                </p>
+              </div>
+            )}
 
-                {profError && (
-                  <p className="auth-error" role="alert">
-                    {profError}
-                  </p>
-                )}
-                {profStatus && (
-                  <p className="auth-status">
-                    <Check /> {profStatus}
-                  </p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={profLoading}
-                  className="w-full py-3.5 px-6 rounded-2xl bg-slate-950 hover:bg-emerald-800 text-white font-bold text-xs sm:text-sm transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer mt-1"
-                >
-                  {profLoading ? (
-                    <LoaderCircle className="animate-spin" />
-                  ) : (
-                    <>
-                      <span>Sign In to Dashboard</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </>
+            <form onSubmit={submitProfLogin} className="auth-form space-y-3">
+              {/* Identifier Input */}
+              <label className="auth-field">
+                <div className="flex items-center justify-between mb-1">
+                  <span>Mobile Number or Email</span>
+                  {profDetectedType === "phone" && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                      <Phone className="h-3 w-3" /> Phone
+                    </span>
                   )}
-                </button>
-              </form>
+                  {profDetectedType === "email" && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                      <Mail className="h-3 w-3" /> Email
+                    </span>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    className="auth-input pr-10"
+                    value={profIdentifier}
+                    onChange={(e) => setProfIdentifier(e.target.value)}
+                    placeholder="Enter your number or email"
+                    autoComplete="username"
+                    required
+                  />
+                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                    {profDetectedType === "email" ? (
+                      <Mail className="h-4 w-4 text-emerald-600" />
+                    ) : profDetectedType === "phone" ? (
+                      <Phone className="h-4 w-4 text-emerald-600" />
+                    ) : (
+                      <KeyRound className="h-4 w-4 text-slate-400" />
+                    )}
+                  </div>
+                </div>
+              </label>
 
-              {/* Create Professional Account Link */}
-              <div className="mt-5 pt-3 border-t border-slate-100 text-center">
-                <p className="text-xs text-slate-500">Don't have an account?</p>
+              {/* Password Input */}
+              <label className="auth-field">
+                <span>Password</span>
+                <div className="auth-password-wrap">
+                  <input
+                    className="auth-input"
+                    value={profPassword}
+                    onChange={(e) => setProfPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    type={profShowPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                  />
+                  <button
+                    type="button"
+                    className="auth-password-toggle"
+                    onClick={() => setProfShowPassword(!profShowPassword)}
+                    aria-label={
+                      profShowPassword ? "Hide password" : "Show password"
+                    }
+                  >
+                    {profShowPassword ? <EyeOff /> : <Eye />}
+                  </button>
+                </div>
+              </label>
+
+              <div className="flex items-center justify-between text-xs pt-0.5">
                 <button
                   type="button"
-                  onClick={() => {
-                    onClose();
-                    if (onNavigate) {
-                      onNavigate("/professionals/register");
-                    } else {
-                      window.location.assign("/professionals/register");
-                    }
-                  }}
-                  className="mt-1 text-xs font-black text-emerald-800 hover:text-emerald-950 underline cursor-pointer"
+                  onClick={() => setProfShowForgot(!profShowForgot)}
+                  className="text-emerald-800 hover:text-emerald-950 font-bold hover:underline"
                 >
-                  Create Professional Account
+                  Forgot Password?
                 </button>
               </div>
+
+              {profError && (
+                <p className="auth-error" role="alert">
+                  {profError}
+                </p>
+              )}
+              {profStatus && (
+                <p className="auth-status">
+                  <Check /> {profStatus}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={profLoading}
+                className="w-full py-3.5 px-6 rounded-2xl bg-slate-950 hover:bg-emerald-800 text-white font-bold text-xs sm:text-sm transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer mt-1"
+              >
+                {profLoading ? (
+                  <LoaderCircle className="animate-spin" />
+                ) : (
+                  <>
+                    <span>Sign In to Dashboard</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </form>
+
+            {/* Create Professional Account Link */}
+            <div className="mt-5 pt-3 border-t border-slate-100 text-center">
+              <p className="text-xs text-slate-500">Don't have an account?</p>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  if (onNavigate) {
+                    onNavigate("/professionals/register");
+                  } else {
+                    window.location.assign("/professionals/register");
+                  }
+                }}
+                className="mt-1 text-xs font-black text-emerald-800 hover:text-emerald-950 underline cursor-pointer"
+              >
+                Create Professional Account
+              </button>
             </div>
+          </div>
         ) : (
           /* STEP 1: LOGIN OR SIGNUP SCREEN */
           <>

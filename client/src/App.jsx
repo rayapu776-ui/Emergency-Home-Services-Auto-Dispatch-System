@@ -45,20 +45,37 @@ const infoRoutePrefixes = [
   "/app/",
 ];
 
+const professionalPortalPaths = new Set([
+  "/technician/dashboard",
+  "/technician/jobs",
+  "/technician/earnings",
+  "/technician/notifications",
+  "/technician/profile",
+]);
+
+const isProfessionalPortalPath = (path) =>
+  professionalPortalPaths.has(path) || path === "/technician";
+
 function MainApp() {
   const { user, isAuthenticated, loading } = useAuth();
 
   const getInitialPage = () => {
-    const path = window.location.pathname;
-    if (path === "/technician/dashboard") {
-      return technicianStore.isLoggedIn()
-        ? "technician-dashboard"
-        : "technician-login";
+    // Keep an authenticated professional inside the portal, while preserving the
+    // exact section the browser is currently showing.
+    if (technicianStore.isLoggedIn()) {
+      if (!isProfessionalPortalPath(window.location.pathname)) {
+        window.history.replaceState({}, "", "/technician/dashboard");
+      }
+      return "technician-dashboard";
     }
-    if (path === "/technician/login" || path === "/technician") {
-      return technicianStore.isLoggedIn()
-        ? "technician-dashboard"
-        : "technician-login";
+
+    const path = window.location.pathname;
+    if (
+      path === "/technician/dashboard" ||
+      path === "/technician/login" ||
+      path === "/technician"
+    ) {
+      return "technician-login";
     }
     return "argent-home";
   };
@@ -69,19 +86,22 @@ function MainApp() {
 
   useEffect(() => {
     const handlePopState = () => {
+      // Browser history stays within the authenticated professional portal.
+      if (technicianStore.isLoggedIn()) {
+        if (!isProfessionalPortalPath(window.location.pathname)) {
+          window.history.replaceState(null, "", "/technician/dashboard");
+        }
+        setActivePage("technician-dashboard");
+        return;
+      }
+
       const path = window.location.pathname;
-      if (path === "/technician/dashboard") {
-        setActivePage(
-          technicianStore.isLoggedIn()
-            ? "technician-dashboard"
-            : "technician-login",
-        );
-      } else if (path === "/technician/login" || path === "/technician") {
-        setActivePage(
-          technicianStore.isLoggedIn()
-            ? "technician-dashboard"
-            : "technician-login",
-        );
+      if (
+        path === "/technician/dashboard" ||
+        path === "/technician/login" ||
+        path === "/technician"
+      ) {
+        setActivePage("technician-login");
       } else if (
         path === "/" ||
         path === "/services" ||

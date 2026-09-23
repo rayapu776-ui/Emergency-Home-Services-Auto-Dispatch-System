@@ -14,7 +14,7 @@ async function runSmokeTests() {
   console.log(
     `  Found ${users.length} users and ${technicians.length} technicians.`,
   );
-  if (users.length < 3 || technicians.length < 5)
+  if (users.length < 3 || technicians.length < 1)
     throw new Error("Missing seed data");
   console.log("  Seed users and technicians verified.\n");
 

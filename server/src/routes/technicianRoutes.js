@@ -2,6 +2,7 @@ import express from "express";
 import { v4 as uuidv4 } from "uuid";
 import { query } from "../db/database.js";
 import { authenticateToken } from "../middleware/auth.js";
+import { calculateDistance } from "../utils/geo.js";
 
 export default function createTechnicianRouter(io) {
   const router = express.Router();
@@ -11,6 +12,31 @@ export default function createTechnicianRouter(io) {
     if (!val) return 0;
     const clean = String(val).replace(/[^0-9.]/g, "");
     return parseFloat(clean) || 0;
+  };
+
+  // Helper to create technician notification & emit realtime event
+  const notifyTechnician = async (userId, title, description, type = "dispatch") => {
+    try {
+      const notifId = uuidv4();
+      await query.run(
+        `INSERT INTO user_notifications (id, user_id, title, description, type, unread)
+         VALUES (?, ?, ?, ?, ?, 1)`,
+        [notifId, userId, title, description, type]
+      );
+      if (io) {
+        io.to(`user_${userId}`).emit("technician_notification", {
+          id: notifId,
+          user_id: userId,
+          title,
+          description,
+          type,
+          unread: 1,
+          created_at: new Date().toISOString(),
+        });
+      }
+    } catch (e) {
+      console.warn("Error creating technician notification:", e);
+    }
   };
 
   // Get all technicians (for map and admin workforce monitor)
@@ -198,10 +224,8 @@ export default function createTechnicianRouter(io) {
         .map((job) => ({
           id: job.id,
           rating: job.rating,
-          feedback:
-            job.feedback ||
-            "Service was prompt, reliable, and neatly executed.",
-          customerName: job.customer_name || "Verified Customer",
+          feedback: job.feedback || null,
+          customerName: job.customer_name || null,
           date: job.updated_at || job.created_at,
           serviceName: job.service_name || job.category,
         }));
@@ -213,7 +237,7 @@ export default function createTechnicianRouter(io) {
         title: `Service Earnings: ${job.service_name || job.category}`,
         service: job.service_name || job.category,
         orderId: `#${job.id}`,
-        customerName: job.customer_name || "Customer",
+        customerName: job.customer_name || null,
         amount: parseAmount(job.total_paid || job.price || 0),
         amountFormatted: `+₹${parseAmount(job.total_paid || job.price || 0).toLocaleString("en-IN")}`,
         date: job.updated_at || job.created_at,
@@ -259,13 +283,13 @@ export default function createTechnicianRouter(io) {
       res.json({
         technician: {
           ...tech,
-          status: tech.status || "Approved",
+          status: tech.status || "Pending Verification",
           account_type: tech.account_type || "individual",
           company_name: tech.company_name || null,
           authorized_person: tech.authorized_person || null,
-          service_areas: tech.service_areas || "Delhi NCR",
+          service_areas: tech.service_areas || "",
         },
-        status: tech.status || "Approved",
+        status: tech.status || "Pending Verification",
         availability: tech.is_online === 1 ? "ONLINE" : "OFFLINE",
         activeJobs,
         newRequests,
@@ -277,7 +301,7 @@ export default function createTechnicianRouter(io) {
           completedCount: completedJobs.length,
           activeCount: activeJobs.length,
           pendingCount: newRequests.length,
-          rating: Number(tech.rating || 4.9).toFixed(1),
+          rating: tech.rating == null ? null : Number(tech.rating).toFixed(1),
           totalEarnings: totalEarningsNum,
           todayEarnings: todayEarningsNum,
           weekEarnings: weekEarningsNum,
@@ -313,6 +337,19 @@ export default function createTechnicianRouter(io) {
       res.json({ success: true, message: "All notifications marked as read" });
     } catch (err) {
       res.status(500).json({ error: "Failed to mark notifications as read" });
+    }
+  });
+
+  // Mark a single notification as read
+  router.put("/notifications/:id/read", authenticateToken, async (req, res) => {
+    try {
+      await query.run(
+        `UPDATE user_notifications SET unread = 0 WHERE id = ? AND user_id = ?`,
+        [req.params.id, req.user.id],
+      );
+      res.json({ success: true, message: "Notification marked as read" });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to mark notification as read" });
     }
   });
 
@@ -408,6 +445,13 @@ export default function createTechnicianRouter(io) {
           },
         },
       });
+
+      notifyTechnician(
+        req.user.id,
+        "Profile Updated",
+        "Your professional profile details and avatar were successfully updated.",
+        "system"
+      );
     } catch (err) {
       console.error("Update profile error:", err);
       res.status(500).json({ error: "Failed to update professional profile" });
@@ -545,6 +589,13 @@ export default function createTechnicianRouter(io) {
         [payoutId, tech.id, numAmount, bankTail, refId],
       );
 
+      notifyTechnician(
+        req.user.id,
+        "Payout Processed",
+        `Payout of ₹${numAmount.toLocaleString("en-IN")} was processed successfully to account ending in •••${bankTail}. Ref: ${refId}`,
+        "payout"
+      );
+
       res.json({
         success: true,
         message: `Payout of ₹${numAmount.toLocaleString("en-IN")} processed successfully to account ending in •••${bankTail}.`,
@@ -578,6 +629,21 @@ export default function createTechnicianRouter(io) {
           error: `Cannot go ONLINE. Your account status is '${tech.status}'. Only Approved technicians can go online and receive customer jobs.`,
           status: tech.status,
         });
+      }
+
+      if (!is_online) {
+        const activeJob = await query.get(
+          `SELECT id, status FROM service_requests 
+           WHERE technician_id = ? 
+           AND status IN ('ACCEPTED', 'ON_THE_WAY', 'ARRIVED', 'IN_PROGRESS', 'ASSIGNED')`,
+          [tech.id],
+        );
+        if (activeJob) {
+          return res.status(400).json({
+            error:
+              "Cannot go OFFLINE while an active job is assigned. Please complete the job first.",
+          });
+        }
       }
 
       const newOnlineStatus = is_online ? 1 : 0;
@@ -721,6 +787,13 @@ export default function createTechnicianRouter(io) {
         console.warn("Notification insert error on accept:", notifErr);
       }
 
+      notifyTechnician(
+        req.user.id,
+        "Job Accepted",
+        `You accepted booking #${req.params.id} for ${request.service_name || request.category}. Address: ${request.address || "Customer Location"}.`,
+        "dispatch"
+      );
+
       // Realtime websocket notifications
       io.to(`request_${req.params.id}`).emit("request_updated", {
         id: req.params.id,
@@ -798,6 +871,13 @@ export default function createTechnicianRouter(io) {
         ],
       );
 
+      notifyTechnician(
+        req.user.id,
+        "Job Request Declined",
+        `You declined booking #${req.params.id}. ${reason ? `Reason: ${reason}` : ""}`,
+        "system"
+      );
+
       res.json({
         success: true,
         message: "Job request declined",
@@ -837,14 +917,86 @@ export default function createTechnicianRouter(io) {
         "SELECT * FROM service_requests WHERE id = ?",
         [req.params.id],
       );
-      if (!request)
-        return res.status(404).json({ error: "Job request not found" });
+      // Sequential Workflow & Location Verification
+      if (newStatus === "ON_THE_WAY") {
+        if (!["ACCEPTED", "ASSIGNED"].includes(request.status)) {
+          return res.status(400).json({
+            error: "Cannot start trip. Job must be in ACCEPTED status first.",
+          });
+        }
+      } else if (newStatus === "ARRIVED") {
+        if (request.status !== "ON_THE_WAY") {
+          return res.status(400).json({
+            error:
+              "Cannot mark arrived before starting trip (ON_THE_WAY status required).",
+          });
+        }
+
+        const techLat = parseFloat(req.body.lat);
+        const techLng = parseFloat(req.body.lng);
+
+        if (isNaN(techLat) || isNaN(techLng)) {
+          return res.status(400).json({
+            error:
+              "Location access and verified GPS coordinates are required to confirm arrival at customer doorstep.",
+          });
+        }
+
+        const customerLat = parseFloat(request.latitude);
+        const customerLng = parseFloat(request.longitude);
+
+        if (!isNaN(customerLat) && !isNaN(customerLng)) {
+          const distKm = calculateDistance(
+            techLat,
+            techLng,
+            customerLat,
+            customerLng,
+          );
+          const distMeters = Math.round(distKm * 1000);
+          const MAX_ARRIVAL_RADIUS_METERS = 100;
+
+          if (distMeters > MAX_ARRIVAL_RADIUS_METERS) {
+            return res.status(400).json({
+              error: `Location validation failed: You are ${distMeters}m away from customer doorstep. Arrival requires being within ${MAX_ARRIVAL_RADIUS_METERS} meters.`,
+              distanceMeters: distMeters,
+              maxRadiusMeters: MAX_ARRIVAL_RADIUS_METERS,
+            });
+          }
+        }
+
+        // Update technician's verified coordinates
+        await query.run(
+          "UPDATE technicians SET latitude = ?, longitude = ? WHERE id = ?",
+          [techLat, techLng, tech.id],
+        );
+      } else if (newStatus === "IN_PROGRESS") {
+        if (request.status !== "ARRIVED") {
+          return res.status(400).json({
+            error:
+              "Cannot start service before arriving at customer doorstep (ARRIVED status required).",
+          });
+        }
+      } else if (newStatus === "COMPLETED") {
+        if (request.status !== "IN_PROGRESS") {
+          return res.status(400).json({
+            error:
+              "Cannot complete job before service has started (IN_PROGRESS status required).",
+          });
+        }
+      }
 
       // Update request status
-      await query.run(
-        `UPDATE service_requests SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-        [newStatus, req.params.id],
-      );
+      if (newStatus === "COMPLETED") {
+        await query.run(
+          `UPDATE service_requests SET status = 'COMPLETED', updated_at = CURRENT_TIMESTAMP, completed_at = CURRENT_TIMESTAMP WHERE id = ?`,
+          [req.params.id],
+        );
+      } else {
+        await query.run(
+          `UPDATE service_requests SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+          [newStatus, req.params.id],
+        );
+      }
 
       // Handle completion
       if (newStatus === "COMPLETED") {
@@ -917,6 +1069,39 @@ export default function createTechnicianRouter(io) {
         }
       }
 
+      // Send real technician notification
+      const techNotifMeta = {
+        ON_THE_WAY: {
+          title: "Trip Started",
+          desc: `You started the trip to customer premises (${request.address || "Service Location"}).`,
+          type: "tracking",
+        },
+        ARRIVED: {
+          title: "Arrived at Doorstep",
+          desc: `GPS verified arrival confirmed for booking #${req.params.id}.`,
+          type: "dispatch",
+        },
+        IN_PROGRESS: {
+          title: "Service In Progress",
+          desc: `Service commenced for booking #${req.params.id}.`,
+          type: "service",
+        },
+        COMPLETED: {
+          title: "Service Completed",
+          desc: `Booking #${req.params.id} completed. Earnings of ₹${parseAmount(request.total_paid || request.price || 0).toLocaleString("en-IN")} credited.`,
+          type: "completed",
+        },
+      };
+
+      if (techNotifMeta[newStatus]) {
+        notifyTechnician(
+          req.user.id,
+          techNotifMeta[newStatus].title,
+          techNotifMeta[newStatus].desc,
+          techNotifMeta[newStatus].type,
+        );
+      }
+
       // Emit realtime socket event
       io.to(`request_${req.params.id}`).emit("request_updated", {
         id: req.params.id,
@@ -963,8 +1148,15 @@ export default function createTechnicianRouter(io) {
       if (!request)
         return res.status(404).json({ error: "Job request not found" });
 
+      if (request.status !== "IN_PROGRESS") {
+        return res.status(400).json({
+          error:
+            "Cannot complete job before service has started (IN_PROGRESS status required).",
+        });
+      }
+
       await query.run(
-        `UPDATE service_requests SET status = 'COMPLETED', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        `UPDATE service_requests SET status = 'COMPLETED', updated_at = CURRENT_TIMESTAMP, completed_at = CURRENT_TIMESTAMP WHERE id = ?`,
         [req.params.id],
       );
 
@@ -1000,6 +1192,13 @@ export default function createTechnicianRouter(io) {
       } catch (notifErr) {
         console.warn("Notification insert error on complete:", notifErr);
       }
+
+      notifyTechnician(
+        req.user.id,
+        "Service Completed",
+        `Job #${req.params.id} marked complete. ₹${parseAmount(request.total_paid || request.price || 0).toLocaleString("en-IN")} credited to your balance.`,
+        "completed"
+      );
 
       io.to(`request_${req.params.id}`).emit("request_updated", {
         id: req.params.id,

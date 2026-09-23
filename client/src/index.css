@@ -69,6 +69,32 @@
     sans-serif;
 }
 
+/* Clean modern Sans Serif font throughout Technician Dashboard */
+.technician-dashboard,
+.technician-dashboard *,
+.technician-dashboard h1,
+.technician-dashboard h2,
+.technician-dashboard h3,
+.technician-dashboard h4,
+.technician-dashboard h5,
+.technician-dashboard h6,
+.technician-dashboard p,
+.technician-dashboard span,
+.technician-dashboard button,
+.technician-dashboard input,
+.technician-dashboard label {
+  font-family:
+    "Google Sans",
+    "Google Sans Text",
+    Inter,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    sans-serif !important;
+}
+
 .eyebrow {
   color: #167257;
   font-size: 0.68rem;

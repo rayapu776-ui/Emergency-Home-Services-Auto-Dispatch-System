@@ -38,10 +38,29 @@ import {
   LayoutDashboard,
   Search,
   ArrowRight,
+  HelpCircle,
+  Settings,
 } from "lucide-react";
 import technicianStore from "../services/technicianStore";
 import { useSocket } from "../context/SocketContext";
 import TechnicianJobDetailsModal from "../components/common/TechnicianJobDetailsModal";
+import InAppMapNavigationSheet from "../components/common/InAppMapNavigationSheet";
+
+const portalPathForTab = (tab) => {
+  if (["jobs", "active", "requests", "upcoming", "completed"].includes(tab)) return "/technician/jobs";
+  if (["earnings", "payout_setup"].includes(tab)) return "/technician/earnings";
+  if (tab === "notifications") return "/technician/notifications";
+  if (["profile", "service_areas", "reviews"].includes(tab)) return "/technician/profile";
+  return "/technician/dashboard";
+};
+
+const tabForPortalPath = (path) => {
+  if (path === "/technician/jobs") return "active";
+  if (path === "/technician/earnings") return "earnings";
+  if (path === "/technician/notifications") return "notifications";
+  if (path === "/technician/profile") return "profile";
+  return "overview";
+};
 
 export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
   const { socket, joinRoom } = useSocket();
@@ -52,7 +71,9 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
   const [isOnline, setIsOnline] = useState(
     technicianStore.getAvailability() === "ONLINE",
   );
-  const [activeTab, setActiveTab] = useState("overview"); // 'overview' | 'requests' | 'active' | 'upcoming' | 'completed' | 'earnings' | 'payout_setup' | 'notifications' | 'service_areas' | 'reviews' | 'profile'
+  const [activeTab, setActiveTab] = useState(() =>
+    window.history.state?.tab || tabForPortalPath(window.location.pathname),
+  ); // 'overview' | 'requests' | 'active' | 'upcoming' | 'completed' | 'earnings' | 'payout_setup' | 'notifications' | 'service_areas' | 'reviews' | 'profile'
   const [searchQuery, setSearchQuery] = useState("");
   const [mobileJobsTab, setMobileJobsTab] = useState("active"); // 'active' | 'requests' | 'upcoming' | 'history'
 
@@ -68,7 +89,7 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
     completedCount: 0,
     activeCount: 0,
     pendingCount: 0,
-    rating: "4.9",
+    rating: null,
     totalEarnings: 0,
     todayEarnings: 0,
     weekEarnings: 0,
@@ -132,6 +153,8 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
   // Modals
   const [selectedJobForModal, setSelectedJobForModal] = useState(null);
   const [completeConfirmJob, setCompleteConfirmJob] = useState(null);
+  const [declineConfirmJob, setDeclineConfirmJob] = useState(null);
+  const [navigationJob, setNavigationJob] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
   const [actionLoadingId, setActionLoadingId] = useState(null);
 
@@ -153,7 +176,7 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
       avatar: techProfile?.avatar || "",
       service_areas: techProfile?.service_areas || "Delhi NCR",
     });
-    setShowEditProfile(true);
+    openEditProfile();
   };
 
   const handleSaveProfile = async (e) => {
@@ -181,7 +204,7 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
       account_number: "",
       ifsc: bankAccount?.ifsc || "",
     });
-    setShowBankModal(true);
+    openBankModal();
   };
 
   const handleSaveBankAccount = async (e) => {
@@ -350,6 +373,13 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
 
   useEffect(() => {
     loadDashboardData();
+
+    // Silent background auto-refresh every 10 seconds without resetting tabs or modals
+    const intervalId = setInterval(() => {
+      loadDashboardData(true);
+    }, 10000);
+
+    return () => clearInterval(intervalId);
   }, []);
 
   // Listen to realtime socket events for incoming jobs or updates
@@ -369,8 +399,314 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
     };
   }, [socket]);
 
+  const hasActiveJob = (activeJobs || []).some((j) =>
+    ["ACCEPTED", "ON_THE_WAY", "ARRIVED", "IN_PROGRESS", "ASSIGNED"].includes(
+      j.status,
+    ),
+  );
+
+  // Exact Geolocation & Arrival Radius State (100 meters)
+  const ARRIVAL_RADIUS_METERS = 100;
+  const [currentTechCoords, setCurrentTechCoords] = useState(null);
+  const [geoStatus, setGeoStatus] = useState("idle"); // 'idle' | 'locating' | 'granted' | 'denied' | 'error'
+  const [geoError, setGeoError] = useState(null);
+
+  // Haversine distance in meters
+  const calculateDistanceMeters = (lat1, lon1, lat2, lon2) => {
+    if (!lat1 || !lon1 || !lat2 || !lon2) return null;
+    const R = 6371e3;
+    const φ1 = (Number(lat1) * Math.PI) / 180;
+    const φ2 = (Number(lat2) * Math.PI) / 180;
+    const Δφ = ((Number(lat2) - Number(lat1)) * Math.PI) / 180;
+    const Δλ = ((Number(lon2) - Number(lon1)) * Math.PI) / 180;
+    const a =
+      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+      Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return Math.round(R * c);
+  };
+
+  const getLiveTechnicianPosition = () => {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        const err = new Error("Geolocation is not supported by your browser.");
+        setGeoError(err.message);
+        setGeoStatus("error");
+        reject(err);
+        return;
+      }
+      setGeoStatus("locating");
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const coords = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracy: pos.coords.accuracy,
+            timestamp: pos.timestamp,
+          };
+          setCurrentTechCoords(coords);
+          setGeoStatus("granted");
+          setGeoError(null);
+          resolve(coords);
+        },
+        (err) => {
+          let msg = "Unable to determine device location.";
+          if (err.code === 1) {
+            msg =
+              "Location permission denied. Please allow location access in your browser to confirm arrival.";
+            setGeoStatus("denied");
+          } else if (err.code === 2) {
+            msg =
+              "GPS signal unavailable. Please ensure location is turned on.";
+            setGeoStatus("error");
+          } else if (err.code === 3) {
+            msg = "GPS request timed out. Please check your signal.";
+            setGeoStatus("error");
+          }
+          setGeoError(msg);
+          reject(new Error(msg));
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 },
+      );
+    });
+  };
+
+  const getJobDistanceMeters = (job) => {
+    if (!currentTechCoords) return null;
+    const destLat = Number(job.latitude || job.lat);
+    const destLng = Number(job.longitude || job.lng);
+    if (!destLat || !destLng) return null;
+    return calculateDistanceMeters(
+      currentTechCoords.lat,
+      currentTechCoords.lng,
+      destLat,
+      destLng,
+    );
+  };
+
+  // Watch position when job is ON_THE_WAY
+  useEffect(() => {
+    const hasEnRoute = activeJobs.some((j) => j.status === "ON_THE_WAY");
+    if (!hasEnRoute) return;
+
+    getLiveTechnicianPosition().catch(() => {});
+
+    let watchId;
+    if (navigator.geolocation) {
+      watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          setCurrentTechCoords({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracy: pos.coords.accuracy,
+            timestamp: pos.timestamp,
+          });
+          setGeoStatus("granted");
+          setGeoError(null);
+        },
+        () => {},
+        { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 },
+      );
+    }
+
+    return () => {
+      if (watchId && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+    };
+  }, [activeJobs]);
+
+  // Safe Navigation History Management (Preserves session, handles Back button like a native app)
+  const navigateToTab = (tab, subTab = null, replace = false) => {
+    // Dismiss any open modals
+    setSelectedJobForModal(null);
+    setNavigationJob(null);
+    setShowPayoutModal(false);
+    setShowBankModal(false);
+    setShowEditProfile(false);
+    setShowDocumentsModal(false);
+    setShowContactModal(false);
+    setShowSecurityModal(false);
+    setCompleteConfirmJob(null);
+    setDeclineConfirmJob(null);
+
+    let effectiveTab = tab;
+    let effectiveSubTab = subTab;
+    if (tab === "jobs") {
+      effectiveTab = subTab || mobileJobsTab || "active";
+      effectiveSubTab = effectiveTab;
+    }
+
+    setActiveTab(effectiveTab);
+    if (effectiveSubTab) {
+      setMobileJobsTab(effectiveSubTab);
+    }
+
+    const stateObj = {
+      tab: effectiveTab,
+      subTab: effectiveSubTab,
+      modal: null,
+      timestamp: Date.now(),
+    };
+
+    if (replace) {
+      window.history.replaceState(stateObj, "", portalPathForTab(effectiveTab));
+    } else {
+      window.history.pushState(stateObj, "", portalPathForTab(effectiveTab));
+    }
+  };
+
+  const openJobDetails = (job) => {
+    window.history.pushState(
+      {
+        tab: activeTab,
+        subTab: mobileJobsTab,
+        modal: "job-details",
+        jobId: job.id,
+      },
+      "",
+      portalPathForTab(activeTab),
+    );
+    setSelectedJobForModal(job);
+  };
+
+  const openMapNavigation = (job) => {
+    window.history.pushState(
+      {
+        tab: activeTab,
+        subTab: mobileJobsTab,
+        modal: "map-navigation",
+        jobId: job.id,
+      },
+      "",
+      portalPathForTab(activeTab),
+    );
+    setNavigationJob(job);
+  };
+
+  const openPayoutModal = () => {
+    window.history.pushState(
+      { tab: activeTab, modal: "payout" },
+      "",
+      portalPathForTab(activeTab),
+    );
+    setShowPayoutModal(true);
+  };
+
+  const openBankModal = () => {
+    window.history.pushState(
+      { tab: activeTab, modal: "bank" },
+      "",
+      portalPathForTab(activeTab),
+    );
+    setShowBankModal(true);
+  };
+
+  const openEditProfile = () => {
+    window.history.pushState(
+      { tab: activeTab, modal: "edit-profile" },
+      "",
+      portalPathForTab(activeTab),
+    );
+    setShowEditProfile(true);
+  };
+
+  const openCompleteConfirm = (job) => {
+    window.history.pushState(
+      { tab: activeTab, modal: "complete-confirm", jobId: job.id },
+      "",
+      portalPathForTab(activeTab),
+    );
+    setCompleteConfirmJob(job);
+  };
+
+  const openDeclineConfirm = (job) => {
+    window.history.pushState(
+      { tab: activeTab, modal: "decline-confirm", jobId: job.id },
+      "",
+      portalPathForTab(activeTab),
+    );
+    setDeclineConfirmJob(job);
+  };
+
+  // Handle browser Back button to preserve section history without logging out
+  useEffect(() => {
+    if (!window.history.state || !window.history.state.tab) {
+      window.history.replaceState(
+        { tab: tabForPortalPath(window.location.pathname), modal: null },
+        "",
+        portalPathForTab(tabForPortalPath(window.location.pathname)),
+      );
+    }
+
+    const handleDashboardPop = (e) => {
+      const state = e.state;
+
+      // 1. If currently a modal is open, but popped state has no modal, close modals!
+      if (!state?.modal) {
+        setSelectedJobForModal(null);
+        setNavigationJob(null);
+        setShowPayoutModal(false);
+        setShowBankModal(false);
+        setShowEditProfile(false);
+        setShowDocumentsModal(false);
+        setShowContactModal(false);
+        setShowSecurityModal(false);
+        setCompleteConfirmJob(null);
+        setDeclineConfirmJob(null);
+      } else {
+        if (state.modal === "job-details" && state.jobId) {
+          const found = [
+            ...activeJobs,
+            ...newRequests,
+            ...upcomingJobs,
+            ...completedJobs,
+          ].find((j) => j.id === state.jobId);
+          if (found) setSelectedJobForModal(found);
+        } else if (state.modal === "map-navigation" && state.jobId) {
+          const found = activeJobs.find((j) => j.id === state.jobId);
+          if (found) setNavigationJob(found);
+        } else if (state.modal === "payout") {
+          setShowPayoutModal(true);
+        } else if (state.modal === "bank") {
+          setShowBankModal(true);
+        } else if (state.modal === "edit-profile") {
+          setShowEditProfile(true);
+        }
+      }
+
+      // 2. Restore active tab from state history
+      if (state?.tab) {
+        setActiveTab(state.tab);
+        if (state.subTab) {
+          setMobileJobsTab(state.subTab);
+        }
+      } else {
+        // At the base of the dashboard: maintain overview and never exit or log out
+        const baseTab = tabForPortalPath(window.location.pathname);
+        setActiveTab(baseTab);
+        window.history.pushState(
+          { tab: baseTab, modal: null },
+          "",
+          portalPathForTab(baseTab),
+        );
+      }
+    };
+
+    window.addEventListener("popstate", handleDashboardPop);
+    return () => window.removeEventListener("popstate", handleDashboardPop);
+  }, [activeJobs, newRequests, upcomingJobs, completedJobs]);
+
   // Handle Availability Toggle (ONLINE / OFFLINE)
   const handleToggleOnline = async () => {
+    if (isOnline && hasActiveJob) {
+      showToast(
+        "Active job in progress — stay online until completion.",
+        "error",
+      );
+      return;
+    }
+
     if (!isOnline && techProfile?.status && techProfile.status !== "Approved") {
       showToast(
         `Cannot go ONLINE. Your account status is '${techProfile.status}'. Only Approved technicians can go online and receive customer jobs.`,
@@ -427,10 +763,11 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
 
     setActionLoadingId(jobId);
     try {
-      const res = await technicianStore.acceptJob(jobId);
+      await technicianStore.acceptJob(jobId);
       showToast("Job accepted! Moved to Active Jobs.", "success");
       setSelectedJobForModal(null);
       setActiveTab("active");
+      setMobileJobsTab("active");
       await loadDashboardData(true);
     } catch (err) {
       console.error("Accept job error:", err);
@@ -440,11 +777,157 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
     }
   };
 
-  // Reject a Job
+  // Start Trip (On The Way)
+  const handleStartTrip = async (jobId) => {
+    setActionLoadingId(jobId);
+    try {
+      await technicianStore.updateJobStatus(jobId, "ON_THE_WAY");
+      setActiveJobs((prev) =>
+        prev.map((j) => (j.id === jobId ? { ...j, status: "ON_THE_WAY" } : j)),
+      );
+      showToast(
+        "Trip started! You are on the way to customer location.",
+        "success",
+      );
+      // Immediately initiate GPS watch
+      getLiveTechnicianPosition().catch(() => {});
+      await loadDashboardData(true);
+    } catch (err) {
+      console.error("Start trip error:", err);
+      showToast(err.response?.data?.error || "Failed to start trip", "error");
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  // Mark Arrived at Customer Doorstep (Exact Location Validation)
+  const handleMarkArrived = async (jobId, providedCoords = null) => {
+    const job = activeJobs.find((j) => j.id === jobId);
+    if (!job) return;
+
+    setActionLoadingId(jobId);
+    try {
+      let verifiedCoords = providedCoords;
+      if (!verifiedCoords) {
+        try {
+          verifiedCoords = await getLiveTechnicianPosition();
+        } catch (e) {
+          if (currentTechCoords) {
+            verifiedCoords = currentTechCoords;
+          } else {
+            showToast(
+              "Location access is required to confirm arrival. Please enable GPS.",
+              "error",
+            );
+            setActionLoadingId(null);
+            return;
+          }
+        }
+      }
+
+      // Check distance against customer location
+      const destLat = Number(job.latitude || job.lat);
+      const destLng = Number(job.longitude || job.lng);
+
+      if (destLat && destLng) {
+        const dist = calculateDistanceMeters(
+          verifiedCoords.lat,
+          verifiedCoords.lng,
+          destLat,
+          destLng,
+        );
+
+        if (dist !== null && dist > ARRIVAL_RADIUS_METERS) {
+          showToast(
+            `You are ${dist >= 1000 ? `${(dist / 1000).toFixed(1)} km` : `${dist}m`} away from the customer doorstep. Arrival can only be marked within ${ARRIVAL_RADIUS_METERS} meters.`,
+            "error",
+          );
+          setActionLoadingId(null);
+          return;
+        }
+      }
+
+      // Send to backend with verified coordinates
+      await technicianStore.updateJobStatus(jobId, "ARRIVED", {
+        lat: verifiedCoords.lat,
+        lng: verifiedCoords.lng,
+      });
+
+      setActiveJobs((prev) =>
+        prev.map((j) => (j.id === jobId ? { ...j, status: "ARRIVED" } : j)),
+      );
+      showToast(
+        "Verified doorstep arrival! Status updated to Arrived.",
+        "success",
+      );
+      await loadDashboardData(true);
+    } catch (err) {
+      console.error("Mark arrived error:", err);
+      showToast(
+        err.response?.data?.error || "Failed to mark arrived at doorstep",
+        "error",
+      );
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  // Start Work
+  const handleStartWork = async (jobId) => {
+    setActionLoadingId(jobId);
+    try {
+      await technicianStore.updateJobStatus(jobId, "IN_PROGRESS");
+      setActiveJobs((prev) =>
+        prev.map((j) => (j.id === jobId ? { ...j, status: "IN_PROGRESS" } : j)),
+      );
+      showToast("Service started! Work is now in progress.", "success");
+      await loadDashboardData(true);
+    } catch (err) {
+      console.error("Start work error:", err);
+      showToast(err.response?.data?.error || "Failed to start work", "error");
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  // Open Decline Job Request Dialog
+  const handleDeclineJob = (jobOrId) => {
+    if (typeof jobOrId === "object" && jobOrId !== null) {
+      setDeclineConfirmJob(jobOrId);
+    } else {
+      const found = newRequests.find((r) => r.id === jobOrId);
+      setDeclineConfirmJob(found || { id: jobOrId });
+    }
+  };
+
+  // Confirm Decline and persist to backend
+  const handleConfirmDecline = async () => {
+    if (!declineConfirmJob) return;
+    const jobId = declineConfirmJob.id;
+    setActionLoadingId(jobId);
+    try {
+      await technicianStore.rejectJob(jobId, "Declined by technician");
+      setNewRequests((prev) => prev.filter((r) => r.id !== jobId));
+      showToast("Job request declined and removed.", "info");
+      setDeclineConfirmJob(null);
+      await loadDashboardData(true);
+    } catch (err) {
+      console.error("Decline job error:", err);
+      showToast(
+        err.response?.data?.error || "Failed to decline job request",
+        "error",
+      );
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  // Reject a Job directly (used by modals)
   const handleRejectJob = async (jobId, reason) => {
     setActionLoadingId(jobId);
     try {
       await technicianStore.rejectJob(jobId, reason);
+      setNewRequests((prev) => prev.filter((r) => r.id !== jobId));
       showToast("Job request declined.", "info");
       setSelectedJobForModal(null);
       await loadDashboardData(true);
@@ -458,6 +941,9 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
 
   // Progress Job Status (Sequential Flow)
   const handleStatusTransition = async (jobId, nextStatus, label) => {
+    if (nextStatus === "ARRIVED") {
+      return handleMarkArrived(jobId);
+    }
     setActionLoadingId(jobId);
     try {
       await technicianStore.updateJobStatus(jobId, nextStatus);
@@ -474,23 +960,37 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
     }
   };
 
-  // Confirm and Complete Job
+  // Confirm and Complete Job (Service Completed Workflow)
   const handleCompleteJob = async () => {
     if (!completeConfirmJob) return;
     const jobId = completeConfirmJob.id;
     setActionLoadingId(jobId);
     try {
       await technicianStore.completeJob(jobId);
+      setActiveJobs((prev) => prev.filter((j) => j.id !== jobId));
+      setCompletedJobs((prev) => [
+        {
+          ...completeConfirmJob,
+          status: "COMPLETED",
+          completed_at: new Date().toISOString(),
+        },
+        ...prev,
+      ]);
+
       showToast(
-        `Job #${jobId} completed successfully! Earnings logged.`,
+        `Job #${jobId} marked complete! Earnings logged and moved to History.`,
         "success",
       );
       setCompleteConfirmJob(null);
-      setActiveTab("completed");
+      setSelectedJobForModal(null);
+      navigateToTab("jobs", "completed");
       await loadDashboardData(true);
     } catch (err) {
       console.error("Complete job error:", err);
-      showToast("Failed to mark job as complete", "error");
+      showToast(
+        err.response?.data?.error || "Failed to mark job as complete",
+        "error",
+      );
     } finally {
       setActionLoadingId(null);
     }
@@ -506,13 +1006,117 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
     }
   };
 
+  const handleBottomNavClick = (targetTab) => {
+    // Silently re-fetch latest data from database
+    loadDashboardData(true);
+
+    if (targetTab === "overview") {
+      navigateToTab("overview");
+    } else if (targetTab === "jobs") {
+      const sub =
+        newRequests.length > 0 && activeJobs.length === 0
+          ? "requests"
+          : mobileJobsTab || "active";
+      navigateToTab("jobs", sub);
+    } else if (targetTab === "earnings") {
+      navigateToTab("earnings");
+    } else if (targetTab === "notifications") {
+      navigateToTab("notifications");
+    } else if (targetTab === "profile") {
+      navigateToTab("profile");
+    }
+  };
+
   const unreadNotificationsCount = (notifications || []).filter(
     (n) => n.unread === 1 || n.unread === true,
   ).length;
 
+  const techFirstName = techProfile?.name
+    ? techProfile.name.trim().split(" ")[0]
+    : "Professional";
+
+  const currentDateFormatted = new Date().toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+
+  // Filter items by search query
+  const filterBySearch = (
+    items = [],
+    fields = ["service_name", "category", "address", "customer_name", "id"],
+  ) => {
+    if (!searchQuery.trim()) return items;
+    const q = searchQuery.toLowerCase().trim();
+    return items.filter((item) =>
+      fields.some(
+        (field) => item[field] && String(item[field]).toLowerCase().includes(q),
+      ),
+    );
+  };
+
+  const filteredActiveJobs = filterBySearch(activeJobs);
+  const filteredNewRequests = filterBySearch(newRequests);
+  const filteredUpcomingJobs = filterBySearch(upcomingJobs);
+  const filteredCompletedJobs = filterBySearch(completedJobs);
+  const filteredCancelledJobs = filterBySearch(cancelledJobs);
+  const filteredNotifications = (notifications || []).filter((notif) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return (
+      (notif.title && notif.title.toLowerCase().includes(q)) ||
+      (notif.description && notif.description.toLowerCase().includes(q)) ||
+      (notif.message && notif.message.toLowerCase().includes(q))
+    );
+  });
+
+  // Persistent real data without fake fallbacks
+  const displayUpcomingJobs = upcomingJobs || [];
+
+  const recentActivities = [
+    ...(completedJobs || []).map((j) => ({
+      id: `act-job-${j.id}`,
+      icon: CheckCircle2,
+      iconBg: "bg-emerald-100 text-emerald-800",
+      title: "Job Completed",
+      subtitle: j.service_name || j.category || "Emergency Service",
+      tag: `+₹${j.total_paid || j.price || 499}`,
+      tagColor: "text-emerald-700",
+      time: j.updated_at
+        ? new Date(j.updated_at).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : "Recent",
+    })),
+    ...(payoutHistory || []).map((p) => ({
+      id: `act-pay-${p.id}`,
+      icon: DollarSign,
+      iconBg: "bg-teal-100 text-teal-800",
+      title: "Payment Received",
+      subtitle: `Payout transfer to bank ${p.bank_account_tail ? `•••${p.bank_account_tail}` : ""}`,
+      tag: `₹${p.amount}`,
+      tagColor: "text-slate-900",
+      time: p.created_at
+        ? new Date(p.created_at).toLocaleDateString()
+        : "Recent",
+    })),
+    ...(activeJobs || []).map((j) => ({
+      id: `act-active-${j.id}`,
+      icon: Wrench,
+      iconBg: "bg-sky-100 text-sky-800",
+      title: "Job In Progress",
+      subtitle: j.service_name || j.category || "Active Dispatch",
+      tag: j.status,
+      tagColor: "text-sky-700",
+      time: "Now",
+    })),
+  ].slice(0, 4);
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f6f7f3] flex flex-col items-center justify-center space-y-4">
+      <div className="min-h-screen bg-[#f6f7f3] flex flex-col items-center justify-center space-y-4 font-sans technician-dashboard">
         <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-bold shadow-xl animate-pulse">
           <Wrench className="w-6 h-6" />
         </div>
@@ -525,7 +1129,7 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#f6f7f3] text-slate-900 selection:bg-emerald-200">
+    <div className="min-h-screen bg-[#f6f7f3] text-slate-900 font-sans technician-dashboard selection:bg-emerald-200">
       {/* Toast Alert */}
       {toastMessage && (
         <div className="fixed top-5 right-5 z-50 animate-bounce">
@@ -548,899 +1152,789 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
         </div>
       )}
 
-      {/* Desktop Top Header Bar */}
-      <header className="hidden md:flex sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-8 py-3.5 items-center justify-between shadow-xs">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-700 to-green-600 text-white flex items-center justify-center font-black shadow-md shadow-emerald-700/20">
-            <Wrench className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-black text-slate-900 tracking-tight">
-                Argent Your
-              </span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                Partner
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-500 font-medium">
-              Technician Operations Portal
-            </p>
-          </div>
-        </div>
-
-        {/* Right Actions: Refresh, Home, Logout */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          <button
-            onClick={() => loadDashboardData(true)}
-            disabled={refreshing}
-            className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors cursor-pointer"
-            title="Refresh dashboard data"
-          >
-            <RefreshCw
-              className={`w-4 h-4 ${refreshing ? "animate-spin text-emerald-600" : ""}`}
-            />
-          </button>
-
-          {onBackToHome && (
-            <button
-              onClick={onBackToHome}
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 text-xs font-bold transition-colors cursor-pointer"
-            >
-              <span>Customer Home</span>
-            </button>
-          )}
-
-          <button
-            onClick={handleLogoutClick}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-red-50 hover:text-red-700 text-slate-700 text-xs font-bold transition-colors cursor-pointer"
-            title="Sign out of technician session"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Sign Out</span>
-          </button>
-        </div>
-      </header>
-
-      {/* Mobile Top Navbar (md:hidden) - Shows ONLY Argent Your logo + Argent Your name + Search bar */}
-      <header className="md:hidden sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-3.5 py-2.5 flex items-center justify-between gap-3 shadow-xs">
-        <div className="flex items-center gap-2 shrink-0">
+      {/* Top Navbar: ONLY Argent Your logo + company name on Left, Online/Offline status icon on Right */}
+      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-4 md:px-6 py-2.5 flex items-center justify-between shadow-xs">
+        {/* Left: Argent Your Logo + Name */}
+        <div className="flex items-center gap-2.5 shrink-0">
           <img
             src="/argent-logo.png"
             alt="Argent Your"
             className="h-8 w-8 rounded-xl object-contain shadow-xs"
           />
-          <span className="text-sm font-black text-slate-900 tracking-tight">
+          <span className="text-base font-black text-slate-900 tracking-tight">
             Argent Your
           </span>
         </div>
 
-        {/* Mobile Search Bar */}
-        <div className="relative flex-1 max-w-[210px]">
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search..."
-            className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200/80 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-emerald-600 focus:bg-white transition-all"
+        {/* Right: Online/Offline status icon ONLY (NO words "Online" or "Offline") */}
+        <button
+          type="button"
+          onClick={handleToggleOnline}
+          className={`flex items-center gap-2 px-2.5 py-1.5 rounded-full border transition-all cursor-pointer select-none ${
+            isOnline
+              ? "bg-emerald-50 border-emerald-300 text-emerald-900 shadow-2xs hover:bg-emerald-100/70"
+              : "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200/60"
+          }`}
+          title={
+            hasActiveJob
+              ? "Active job — stay online"
+              : isOnline
+                ? "Status: Online (Click to switch)"
+                : "Status: Offline (Click to switch)"
+          }
+          aria-label={isOnline ? "Online" : "Offline"}
+        >
+          <span
+            className={`w-2.5 h-2.5 rounded-full ${
+              isOnline ? "bg-emerald-500 animate-pulse" : "bg-slate-400"
+            }`}
           />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
-            >
-              <X className="w-3 h-3" />
-            </button>
-          )}
-        </div>
+          <div
+            className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+              isOnline ? "bg-emerald-600" : "bg-slate-300"
+            }`}
+          >
+            <span
+              className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition duration-200 ease-in-out ${
+                isOnline ? "translate-x-4" : "translate-x-0"
+              }`}
+            />
+          </div>
+        </button>
       </header>
 
-      {/* Main Content Area */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-6 pb-28 md:pb-8">
-        {/* ========================================================
-            DESKTOP VIEW (Visible on desktop: md:block hidden)
-           ======================================================== */}
-        <div className="hidden md:block space-y-6">
-          {/* Profile & Availability Card */}
-          <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
-            <div className="flex items-center gap-4">
-              <div className="relative">
-                <img
-                  src={
-                    techProfile?.avatar ||
-                    "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80"
-                  }
-                  alt={techProfile?.name || "Technician"}
-                  className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover border-2 border-emerald-500/40 shadow-md"
-                />
-                <span
-                  className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${
-                    isOnline ? "bg-emerald-500 animate-pulse" : "bg-slate-400"
-                  }`}
-                />
-              </div>
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="text-xl sm:text-2xl font-black text-slate-900">
-                    {techProfile?.name || "Certified Technician"}
-                  </h1>
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-50 text-emerald-800 border border-emerald-200">
-                    {techProfile?.category || "Plumbing"} Specialist
-                  </span>
-                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700">
-                    {techProfile?.experience_years || 3}+ Yrs Exp
-                  </span>
-                  {techProfile?.status === "Pending Verification" ? (
-                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-amber-700 animate-pulse" />
-                      <span>Pending Verification</span>
-                    </span>
-                  ) : techProfile?.status === "Approved" ? (
-                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-700" />
-                      <span>Approved Partner</span>
-                    </span>
-                  ) : techProfile?.status === "Rejected" ? (
-                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-red-100 text-red-800 border border-red-300">
-                      Application Rejected
-                    </span>
-                  ) : techProfile?.status === "Suspended" ? (
-                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-red-100 text-red-800 border border-red-300">
-                      Account Suspended
-                    </span>
-                  ) : null}
-                </div>
-                <p className="text-xs text-slate-500 font-medium mt-1">
-                  Phone: {techProfile?.phone || "+91 98101 11223"} • Email:{" "}
-                  {techProfile?.email || "partner@argentyour.com"} • Vehicle:{" "}
-                  {techProfile?.vehicle_type || "Rapid Response Van"}
-                </p>
-                <button
-                  type="button"
-                  onClick={handleOpenEditProfile}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all shadow-2xs mt-2 cursor-pointer"
-                >
-                  <Pencil className="w-3.5 h-3.5 text-emerald-700" />
-                  <span>Edit Profile</span>
-                </button>
-              </div>
-            </div>
-
-            {/* ONLINE / OFFLINE Switcher */}
-            <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-2xl border border-slate-200 w-full md:w-auto justify-between md:justify-end">
-              <div>
-                <p className="text-[10px] uppercase font-black text-slate-400 tracking-wider">
-                  Availability Status
-                </p>
-                <p
-                  className={`text-xs font-black ${
-                    techProfile?.status && techProfile.status !== "Approved"
-                      ? "text-amber-800"
-                      : isOnline
-                        ? "text-emerald-700"
-                        : "text-slate-500"
-                  }`}
-                >
-                  {techProfile?.status && techProfile.status !== "Approved"
-                    ? `LOCKED (${techProfile.status.toUpperCase()})`
-                    : isOnline
-                      ? "ONLINE — RECEIVING JOBS"
-                      : "OFFLINE — PAUSED"}
-                </p>
-              </div>
-
+      {/* ========================================================
+          DESKTOP VIEW (Visible on desktop: hidden md:flex)
+          Left Sidebar + Main Dashboard Content
+         ======================================================== */}
+      <div className="hidden md:flex min-h-[calc(100vh-57px)] bg-[#f8faf9]">
+        {/* Left Sidebar: ONLY Dashboard, Jobs, Earnings, Notifications, Profile + Need Help at bottom */}
+        <aside className="w-64 shrink-0 bg-white border-r border-slate-200/80 p-5 flex flex-col justify-between sticky top-[57px] h-[calc(100vh-57px)] overflow-y-auto">
+          <div className="space-y-6">
+            <div className="space-y-1.5">
+              {/* 1. Dashboard */}
               <button
-                onClick={handleToggleOnline}
-                disabled={
-                  !isOnline &&
-                  techProfile?.status &&
-                  techProfile.status !== "Approved"
-                }
-                className={`px-4 py-2.5 rounded-xl font-black text-xs transition-all shadow-sm flex items-center gap-2 ${
-                  techProfile?.status && techProfile.status !== "Approved"
-                    ? "bg-slate-200 text-slate-400 cursor-not-allowed"
-                    : isOnline
-                      ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20 cursor-pointer"
-                      : "bg-slate-200 hover:bg-slate-300 text-slate-700 cursor-pointer"
-                }`}
-                title={
-                  techProfile?.status && techProfile.status !== "Approved"
-                    ? `Cannot go ONLINE. Account status is '${techProfile.status}'`
-                    : isOnline
-                      ? "Go Offline"
-                      : "Go Online"
+                type="button"
+                onClick={() => handleBottomNavClick("overview")}
+                className={
+                  "w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer " +
+                  (activeTab === "overview"
+                    ? "bg-emerald-800 text-white shadow-sm shadow-emerald-800/20"
+                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900")
                 }
               >
-                <Power className="w-4 h-4" />
-                <span>
-                  {techProfile?.status && techProfile.status !== "Approved"
-                    ? "Pending Approval"
-                    : isOnline
-                      ? "Switch to Offline"
-                      : "Switch to Online"}
-                </span>
+                <LayoutDashboard className="w-4 h-4" />
+                <span>Dashboard</span>
+              </button>
+
+              {/* 2. Jobs */}
+              <button
+                type="button"
+                onClick={() => handleBottomNavClick("jobs")}
+                className={
+                  "w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer " +
+                  ([
+                    "jobs",
+                    "active",
+                    "requests",
+                    "upcoming",
+                    "completed",
+                  ].includes(activeTab)
+                    ? "bg-emerald-800 text-white shadow-sm shadow-emerald-800/20"
+                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900")
+                }
+              >
+                <div className="flex items-center gap-3">
+                  <Wrench className="w-4 h-4" />
+                  <span>Jobs</span>
+                </div>
+                {newRequests.length > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-red-500 text-white animate-pulse">
+                    {newRequests.length}
+                  </span>
+                )}
+              </button>
+
+              {/* 3. Earnings */}
+              <button
+                type="button"
+                onClick={() => handleBottomNavClick("earnings")}
+                className={
+                  "w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer " +
+                  (["earnings", "payout_setup"].includes(activeTab)
+                    ? "bg-emerald-800 text-white shadow-sm shadow-emerald-800/20"
+                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900")
+                }
+              >
+                <DollarSign className="w-4 h-4" />
+                <span>Earnings</span>
+              </button>
+
+              {/* 4. Notifications */}
+              <button
+                type="button"
+                onClick={() => handleBottomNavClick("notifications")}
+                className={
+                  "w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer " +
+                  (activeTab === "notifications"
+                    ? "bg-emerald-800 text-white shadow-sm shadow-emerald-800/20"
+                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900")
+                }
+              >
+                <div className="flex items-center gap-3">
+                  <Bell className="w-4 h-4" />
+                  <span>Notifications</span>
+                </div>
+                {unreadNotificationsCount > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-600 text-white">
+                    {unreadNotificationsCount}
+                  </span>
+                )}
+              </button>
+
+              {/* 5. Profile */}
+              <button
+                type="button"
+                onClick={() => handleBottomNavClick("profile")}
+                className={
+                  "w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer " +
+                  (activeTab === "profile"
+                    ? "bg-emerald-800 text-white shadow-sm shadow-emerald-800/20"
+                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900")
+                }
+              >
+                <User className="w-4 h-4" />
+                <span>Profile</span>
               </button>
             </div>
           </div>
 
-          {/* Verification Status Alert Banner */}
-          {techProfile?.status === "Pending Verification" && (
-            <div className="bg-amber-50 border border-amber-200 rounded-3xl p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fade-in">
-              <div className="flex items-start gap-3.5">
-                <div className="p-3 bg-amber-100 text-amber-800 rounded-2xl shrink-0 mt-0.5">
-                  <Clock className="w-6 h-6 animate-pulse" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-black text-amber-950 uppercase tracking-wide">
-                      Account Status: Pending Verification
-                    </h3>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-200 text-amber-900">
-                      Review In Progress
-                    </span>
-                  </div>
-                  <p className="text-xs text-amber-900/80 mt-1 max-w-2xl leading-relaxed">
-                    Your technician credentials and trade details are currently
-                    under review by our partner onboarding team. Only{" "}
-                    <strong>Approved</strong> professionals can switch{" "}
-                    <strong>ONLINE</strong> and receive real-time emergency
-                    customer bookings.
-                  </p>
-                </div>
+          {/* Need Help? Box at bottom of sidebar */}
+          <div className="pt-4 border-t border-slate-100">
+            <div className="bg-emerald-50/70 border border-emerald-100/90 rounded-2xl p-3.5 space-y-2 text-left">
+              <div className="flex items-center gap-2">
+                <HelpCircle className="w-4 h-4 text-emerald-700" />
+                <span className="text-xs font-bold text-emerald-950">
+                  Need Help?
+                </span>
               </div>
-              <button
-                onClick={handleSimulateAdminApproval}
-                className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm shrink-0 flex items-center gap-1.5 cursor-pointer"
-                title="Test evaluation: simulate approval to test online dispatch flow"
+              <p className="text-[11px] text-emerald-800 leading-snug">
+                Have questions about dispatches or payments? We're here 24/7.
+              </p>
+              <a
+                href="tel:+919810111223"
+                className="w-full mt-1.5 py-2 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 shadow-2xs block text-center cursor-pointer"
               >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Simulate Admin Approval</span>
-              </button>
-            </div>
-          )}
-
-          {techProfile?.status === "Rejected" && (
-            <div className="bg-red-50 border border-red-200 rounded-3xl p-5 shadow-xs flex items-center gap-3 text-red-900 text-xs animate-fade-in">
-              <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
-              <p>
-                <strong>Application Status: Rejected.</strong> Your partner
-                application was not approved. Please contact operations support
-                at <strong>+91 98101 11223</strong> for guidance.
-              </p>
-            </div>
-          )}
-
-          {techProfile?.status === "Suspended" && (
-            <div className="bg-red-50 border border-red-200 rounded-3xl p-5 shadow-xs flex items-center gap-3 text-red-900 text-xs animate-fade-in">
-              <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
-              <p>
-                <strong>Account Status: Suspended.</strong> Your technician
-                account has been temporarily suspended by operations dispatch.
-                Contact partner desk for reinstatement.
-              </p>
-            </div>
-          )}
-
-          {/* Real Metrics Cards: Today's Earnings, This Week's, Total, Completed Jobs, Pending Payments, Rating */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-            {/* 1. Today's Earnings */}
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-              <div className="flex items-center justify-between text-slate-400">
-                <span className="text-[10px] font-bold uppercase tracking-wider">
-                  Today's Earnings
-                </span>
-                <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
-              </div>
-              <p className="text-xl sm:text-2xl font-black text-emerald-700 mt-1.5">
-                {metrics.todayEarningsFormatted}
-              </p>
-              <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
-                Completed today
-              </p>
-            </div>
-
-            {/* 2. This Week's Earnings */}
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-              <div className="flex items-center justify-between text-slate-400">
-                <span className="text-[10px] font-bold uppercase tracking-wider">
-                  This Week's
-                </span>
-                <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
-              </div>
-              <p className="text-xl sm:text-2xl font-black text-slate-900 mt-1.5">
-                {metrics.weekEarningsFormatted || metrics.earningsFormatted}
-              </p>
-              <p className="text-[10px] text-emerald-700 font-semibold mt-0.5">
-                Last 7 days
-              </p>
-            </div>
-
-            {/* 3. Total Earnings */}
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-              <div className="flex items-center justify-between text-slate-400">
-                <span className="text-[10px] font-bold uppercase tracking-wider">
-                  Total Earnings
-                </span>
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              </div>
-              <p className="text-xl sm:text-2xl font-black text-slate-900 mt-1.5">
-                {metrics.earningsFormatted}
-              </p>
-              <p className="text-[10px] text-emerald-700 font-semibold mt-0.5">
-                All-time payouts
-              </p>
-            </div>
-
-            {/* 4. Completed Jobs */}
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-              <div className="flex items-center justify-between text-slate-400">
-                <span className="text-[10px] font-bold uppercase tracking-wider">
-                  Completed Jobs
-                </span>
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-              </div>
-              <p className="text-xl sm:text-2xl font-black text-slate-900 mt-1.5">
-                {metrics.completedCount || metrics.totalJobs}
-              </p>
-              <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
-                Verified orders
-              </p>
-            </div>
-
-            {/* 5. Pending Payments */}
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-              <div className="flex items-center justify-between text-slate-400">
-                <span className="text-[10px] font-bold uppercase tracking-wider">
-                  Pending Payments
-                </span>
-                <Clock className="w-3.5 h-3.5 text-amber-500" />
-              </div>
-              <p className="text-xl sm:text-2xl font-black text-amber-800 mt-1.5">
-                {metrics.pendingPaymentsFormatted || "₹0"}
-              </p>
-              <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
-                Active in transit
-              </p>
-            </div>
-
-            {/* 6. Customer Rating */}
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-              <div className="flex items-center justify-between text-slate-400">
-                <span className="text-[10px] font-bold uppercase tracking-wider">
-                  Rating
-                </span>
-                <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-              </div>
-              <p className="text-xl sm:text-2xl font-black text-slate-900 mt-1.5 flex items-center gap-1">
-                {metrics.rating}
-                <span className="text-xs text-slate-400 font-normal">
-                  / 5.0
-                </span>
-              </p>
-              <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
-                Customer score
-              </p>
+                <span>Contact Support</span>
+              </a>
             </div>
           </div>
+        </aside>
 
-          {/* Navigation Tabs */}
-          <div className="flex items-center gap-1.5 border-b border-slate-200 pb-2 overflow-x-auto no-scrollbar">
-            <button
-              onClick={() => setActiveTab("overview")}
-              className={`px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
-                activeTab === "overview"
-                  ? "bg-emerald-800 text-white shadow-sm"
-                  : "bg-white text-slate-600 hover:bg-slate-100"
-              }`}
-            >
-              <TrendingUp className="w-3.5 h-3.5" />
-              <span>Overview</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab("requests")}
-              className={`px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
-                activeTab === "requests"
-                  ? "bg-emerald-800 text-white shadow-sm"
-                  : "bg-white text-slate-600 hover:bg-slate-100"
-              }`}
-            >
-              <Clock className="w-3.5 h-3.5" />
-              <span>Job Requests</span>
-              {newRequests.length > 0 && (
-                <span
-                  className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
-                    activeTab === "requests"
-                      ? "bg-white text-emerald-900"
-                      : "bg-red-500 text-white animate-pulse"
-                  }`}
-                >
-                  {newRequests.length}
-                </span>
-              )}
-            </button>
-
-            <button
-              onClick={() => setActiveTab("active")}
-              className={`px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
-                activeTab === "active"
-                  ? "bg-emerald-800 text-white shadow-sm"
-                  : "bg-white text-slate-600 hover:bg-slate-100"
-              }`}
-            >
-              <Wrench className="w-3.5 h-3.5" />
-              <span>Active Jobs</span>
-              {activeJobs.length > 0 && (
-                <span
-                  className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
-                    activeTab === "active"
-                      ? "bg-white text-emerald-900"
-                      : "bg-emerald-100 text-emerald-800"
-                  }`}
-                >
-                  {activeJobs.length}
-                </span>
-              )}
-            </button>
-
-            <button
-              onClick={() => setActiveTab("upcoming")}
-              className={`px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
-                activeTab === "upcoming"
-                  ? "bg-emerald-800 text-white shadow-sm"
-                  : "bg-white text-slate-600 hover:bg-slate-100"
-              }`}
-            >
-              <Calendar className="w-3.5 h-3.5" />
-              <span>Upcoming</span>
-              {upcomingJobs.length > 0 && (
-                <span
-                  className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
-                    activeTab === "upcoming"
-                      ? "bg-white text-emerald-900"
-                      : "bg-slate-100 text-slate-700"
-                  }`}
-                >
-                  {upcomingJobs.length}
-                </span>
-              )}
-            </button>
-
-            <button
-              onClick={() => setActiveTab("completed")}
-              className={`px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
-                activeTab === "completed"
-                  ? "bg-emerald-800 text-white shadow-sm"
-                  : "bg-white text-slate-600 hover:bg-slate-100"
-              }`}
-            >
-              <History className="w-3.5 h-3.5" />
-              <span>History</span>
-              {(completedJobs.length > 0 || cancelledJobs.length > 0) && (
-                <span
-                  className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
-                    activeTab === "completed"
-                      ? "bg-white text-emerald-900"
-                      : "bg-slate-100 text-slate-700"
-                  }`}
-                >
-                  {completedJobs.length + cancelledJobs.length}
-                </span>
-              )}
-            </button>
-
-            <button
-              onClick={() => setActiveTab("earnings")}
-              className={`px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
-                activeTab === "earnings"
-                  ? "bg-emerald-800 text-white shadow-sm"
-                  : "bg-white text-slate-600 hover:bg-slate-100"
-              }`}
-            >
-              <DollarSign className="w-3.5 h-3.5" />
-              <span>Earnings & Payouts</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab("payout_setup")}
-              className={`px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
-                activeTab === "payout_setup"
-                  ? "bg-emerald-800 text-white shadow-sm"
-                  : "bg-white text-slate-600 hover:bg-slate-100"
-              }`}
-            >
-              <CreditCard className="w-3.5 h-3.5" />
-              <span>Bank & Payout Setup</span>
-              {!bankAccount.isConnected && (
-                <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
-              )}
-            </button>
-
-            <button
-              onClick={() => setActiveTab("notifications")}
-              className={`px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
-                activeTab === "notifications"
-                  ? "bg-emerald-800 text-white shadow-sm"
-                  : "bg-white text-slate-600 hover:bg-slate-100"
-              }`}
-            >
-              <Bell className="w-3.5 h-3.5" />
-              <span>Notifications</span>
-              {unreadNotificationsCount > 0 && (
-                <span
-                  className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
-                    activeTab === "notifications"
-                      ? "bg-white text-emerald-900"
-                      : "bg-red-500 text-white"
-                  }`}
-                >
-                  {unreadNotificationsCount}
-                </span>
-              )}
-            </button>
-
-            <button
-              onClick={() => setActiveTab("service_areas")}
-              className={`px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
-                activeTab === "service_areas"
-                  ? "bg-emerald-800 text-white shadow-sm"
-                  : "bg-white text-slate-600 hover:bg-slate-100"
-              }`}
-            >
-              <Globe className="w-3.5 h-3.5" />
-              <span>Service Areas</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab("reviews")}
-              className={`px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
-                activeTab === "reviews"
-                  ? "bg-emerald-800 text-white shadow-sm"
-                  : "bg-white text-slate-600 hover:bg-slate-100"
-              }`}
-            >
-              <Star className="w-3.5 h-3.5" />
-              <span>Reviews</span>
-              {reviews.length > 0 && (
-                <span className="text-[10px] text-amber-500 font-bold">
-                  ({reviews.length})
-                </span>
-              )}
-            </button>
-
-            <button
-              onClick={() => setActiveTab("profile")}
-              className={`px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
-                activeTab === "profile"
-                  ? "bg-emerald-800 text-white shadow-sm"
-                  : "bg-white text-slate-600 hover:bg-slate-100"
-              }`}
-            >
-              <User className="w-3.5 h-3.5" />
-              <span>Profile</span>
-            </button>
-          </div>
-
-          {/* TAB 0: OVERVIEW */}
+        {/* Desktop Main Content Area */}
+        <div className="flex-1 min-w-0 p-6 lg:p-8 space-y-6 overflow-y-auto">
+          {/* ========================================================
+              DASHBOARD OVERVIEW TAB (activeTab === "overview")
+             ======================================================== */}
           {activeTab === "overview" && (
-            <div className="space-y-6">
-              {/* Quick Summary Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Card 1: Dispatch Status */}
-                <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                      Dispatch Status
-                    </span>
-                    <span
-                      className={`w-2.5 h-2.5 rounded-full ${
-                        isOnline
-                          ? "bg-emerald-500 animate-pulse"
-                          : "bg-slate-300"
-                      }`}
-                    />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-black text-slate-900">
-                      {isOnline
-                        ? "Ready for Emergency Dispatches"
-                        : "Offline / On Break"}
-                    </h3>
-                    <p className="text-xs text-slate-500 mt-1">
-                      {isOnline
-                        ? `Receiving requests across ${techProfile?.service_areas || "Delhi NCR"}`
-                        : "Switch Online to begin receiving incoming customer jobs"}
-                    </p>
-                  </div>
-                  <div className="pt-2 flex items-center justify-between border-t border-slate-100">
-                    <span className="text-xs text-slate-600 font-semibold">
-                      {newRequests.length} Pending Request
-                      {newRequests.length === 1 ? "" : "s"}
-                    </span>
-                    <button
-                      onClick={() => setActiveTab("requests")}
-                      className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 cursor-pointer"
-                    >
-                      <span>View Requests</span>
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+            <div className="space-y-6 animate-fade-in">
+              {/* Header Greeting & Right Side Date + Location */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
+                <div>
+                  <h1 className="text-2xl lg:text-3xl font-black text-slate-900 tracking-tight">
+                    Good Morning, {techFirstName}! 👋
+                  </h1>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-1 font-medium">
+                    Here’s your overview for today. Keep going, you’re making a
+                    difference!
+                  </p>
                 </div>
 
-                {/* Card 2: Available Payout Balance */}
-                <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                      Available Balance
-                    </span>
-                    <DollarSign className="w-4 h-4 text-emerald-600" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-black text-emerald-700">
-                      {metrics.availableBalanceFormatted || "₹0"}
-                    </p>
-                    <p className="text-xs text-slate-500 mt-1">
-                      Pending In-Transit:{" "}
-                      {metrics.pendingBalanceFormatted || "₹0"}
-                    </p>
-                  </div>
-                  <div className="pt-2 flex items-center justify-between border-t border-slate-100">
-                    <span className="text-xs text-slate-500">
-                      {bankAccount.isConnected
-                        ? bankAccount.bankName
-                        : "No Bank Added"}
-                    </span>
-                    <button
-                      onClick={() => {
-                        if (!bankAccount.isConnected) {
-                          handleOpenBankModal();
-                        } else {
-                          setShowPayoutModal(true);
-                        }
-                      }}
-                      className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 cursor-pointer"
-                    >
-                      <span>
-                        {bankAccount.isConnected
-                          ? "Withdraw Payout"
-                          : "Setup Bank"}
-                      </span>
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Card 3: Account Verification & Type */}
-                <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                      Partner Classification
-                    </span>
-                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-base font-black text-slate-900">
-                        {techProfile?.account_type === "company"
-                          ? techProfile.company_name || "Service Company"
-                          : "Individual Partner"}
-                      </span>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800">
-                        {techProfile?.account_type === "company"
-                          ? "Business"
-                          : "Solo"}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500 mt-1">
-                      Coverage: {techProfile?.service_areas || "Delhi NCR"}
-                    </p>
-                  </div>
-                  <div className="pt-2 flex items-center justify-between border-t border-slate-100">
-                    <span className="text-xs font-semibold text-emerald-700">
-                      ★ {metrics.rating} Customer Rating
-                    </span>
-                    <button
-                      onClick={() => setActiveTab("profile")}
-                      className="text-xs font-bold text-slate-700 hover:text-slate-900 flex items-center gap-1 cursor-pointer"
-                    >
-                      <span>Full Profile</span>
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Active Job Alert Banner (if working on an order) */}
-              {activeJobs.length > 0 && (
-                <div className="bg-emerald-950 text-white rounded-3xl p-5 sm:p-6 shadow-md border border-emerald-900 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500 text-slate-950">
-                        Active In Progress
-                      </span>
-                      <span className="text-xs text-emerald-300 font-bold">
-                        Order #{activeJobs[0].id}
-                      </span>
-                    </div>
-                    <h4 className="text-base sm:text-lg font-black text-white">
-                      {activeJobs[0].service_name || activeJobs[0].category}
-                    </h4>
-                    <p className="text-xs text-slate-300 flex items-center gap-1">
-                      <MapPin className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      <span className="line-clamp-1">
-                        {activeJobs[0].address}
-                      </span>
-                    </p>
-                  </div>
-
+                <div className="flex items-center gap-3">
+                  {/* Availability quick switch */}
                   <button
-                    onClick={() => setActiveTab("active")}
-                    className="px-5 py-2.5 rounded-xl bg-white text-emerald-950 font-black text-xs hover:bg-emerald-50 transition-all shadow-md shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
+                    type="button"
+                    onClick={handleToggleOnline}
+                    className={
+                      "px-3 py-1.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 cursor-pointer border " +
+                      (isOnline
+                        ? "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
+                        : "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200")
+                    }
+                    title={isOnline ? "Switch to Offline" : "Switch to Online"}
                   >
-                    <span>Open Active Job ({activeJobs[0].status})</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    <span
+                      className={
+                        "w-2 h-2 rounded-full " +
+                        (isOnline
+                          ? "bg-emerald-500 animate-pulse"
+                          : "bg-slate-400")
+                      }
+                    />
+                    <span>{isOnline ? "Online" : "Offline"}</span>
                   </button>
+
+                  {/* Date & Service Location */}
+                  <div className="bg-white px-4 py-2 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center gap-3">
+                    <Calendar className="w-4 h-4 text-emerald-700 shrink-0" />
+                    <div className="text-left">
+                      <p className="text-xs font-bold text-slate-900 leading-tight">
+                        {currentDateFormatted}
+                      </p>
+                      <p className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
+                        <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                        <span className="truncate max-w-[150px]">
+                          {techProfile?.location ||
+                            techProfile?.address ||
+                            techProfile?.service_areas ||
+                            "Delhi NCR, India"}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              )}
-
-              {/* Quick Actions Shortcuts */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <button
-                  onClick={() => setActiveTab("requests")}
-                  className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-emerald-500 transition-all text-left shadow-2xs hover:shadow-xs cursor-pointer group"
-                >
-                  <Clock className="w-5 h-5 text-emerald-600 mb-2 group-hover:scale-110 transition-transform" />
-                  <h4 className="text-xs font-bold text-slate-900">
-                    Job Requests
-                  </h4>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    {newRequests.length} pending orders
-                  </p>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab("earnings")}
-                  className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-emerald-500 transition-all text-left shadow-2xs hover:shadow-xs cursor-pointer group"
-                >
-                  <DollarSign className="w-5 h-5 text-emerald-600 mb-2 group-hover:scale-110 transition-transform" />
-                  <h4 className="text-xs font-bold text-slate-900">
-                    Earnings & Payouts
-                  </h4>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    {metrics.availableBalanceFormatted} ready
-                  </p>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab("payout_setup")}
-                  className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-emerald-500 transition-all text-left shadow-2xs hover:shadow-xs cursor-pointer group"
-                >
-                  <CreditCard className="w-5 h-5 text-emerald-600 mb-2 group-hover:scale-110 transition-transform" />
-                  <h4 className="text-xs font-bold text-slate-900">
-                    Bank Setup
-                  </h4>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    {bankAccount.isConnected
-                      ? "Verified & Active"
-                      : "Connect account"}
-                  </p>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab("service_areas")}
-                  className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-emerald-500 transition-all text-left shadow-2xs hover:shadow-xs cursor-pointer group"
-                >
-                  <Globe className="w-5 h-5 text-emerald-600 mb-2 group-hover:scale-110 transition-transform" />
-                  <h4 className="text-xs font-bold text-slate-900">
-                    Service Areas
-                  </h4>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    Manage coverage zones
-                  </p>
-                </button>
               </div>
 
-              {/* Recent Notifications & Activity Preview */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Left: Latest Activity */}
-                <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-3">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
-                      <History className="w-3.5 h-3.5 text-emerald-700" />
-                      <span>Recent Completed Jobs</span>
-                    </h4>
-                    <button
-                      onClick={() => setActiveTab("completed")}
-                      className="text-[11px] font-bold text-emerald-700 hover:underline cursor-pointer"
-                    >
-                      View All
-                    </button>
+              {/* 4 Statistics Cards in One Horizontal Row (Pastel Card Style) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* 1. New Job Requests */}
+                <div className="bg-[#fffbeb] p-5 rounded-3xl border border-amber-200/80 shadow-xs flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wider text-amber-800/80">
+                      New Job Requests
+                    </p>
+                    <p className="text-3xl font-black text-amber-950 mt-1.5">
+                      {newRequests.length}
+                    </p>
+                    <p className="text-[11px] text-amber-700/80 font-medium mt-1 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                      <span>Awaiting response</span>
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center shadow-xs">
+                    <Clock className="w-6 h-6 text-amber-700" />
+                  </div>
+                </div>
+
+                {/* 2. Active Jobs */}
+                <div className="bg-[#f0f9ff] p-5 rounded-3xl border border-sky-200/80 shadow-xs flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wider text-sky-800/80">
+                      Active Jobs
+                    </p>
+                    <p className="text-3xl font-black text-sky-950 mt-1.5">
+                      {activeJobs.length}
+                    </p>
+                    <p className="text-[11px] text-sky-700/80 font-medium mt-1">
+                      Currently in progress
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 rounded-2xl bg-sky-100 text-sky-800 flex items-center justify-center shadow-xs">
+                    <Wrench className="w-6 h-6 text-sky-700" />
+                  </div>
+                </div>
+
+                {/* 3. Completed Jobs */}
+                <div className="bg-[#ecfdf5] p-5 rounded-3xl border border-emerald-200/80 shadow-xs flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wider text-emerald-800/80">
+                      Completed Jobs
+                    </p>
+                    <p className="text-3xl font-black text-emerald-950 mt-1.5">
+                      {metrics.completedCount || metrics.totalJobs || 0}
+                    </p>
+                    <p className="text-[11px] text-emerald-700/80 font-medium mt-1">
+                      Verified orders
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center shadow-xs">
+                    <CheckCircle2 className="w-6 h-6 text-emerald-700" />
+                  </div>
+                </div>
+
+                {/* 4. Total Earnings */}
+                <div className="bg-[#f0fdf4] p-5 rounded-3xl border border-teal-200/80 shadow-xs flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wider text-teal-800/80">
+                      Total Earnings
+                    </p>
+                    <p className="text-3xl font-black text-teal-950 mt-1.5">
+                      {metrics.earningsFormatted ||
+                        "₹" + (metrics.totalEarnings || 0).toLocaleString()}
+                    </p>
+                    <p className="text-[11px] text-teal-700/80 font-medium mt-1">
+                      Lifetime revenue
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 rounded-2xl bg-teal-100 text-teal-800 flex items-center justify-center shadow-xs">
+                    <DollarSign className="w-6 h-6 text-teal-700" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Main Content Grid: 2-Column Layout */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                {/* LEFT / MAIN COLUMN */}
+                <div className="lg:col-span-7 xl:col-span-8 space-y-6">
+                  {/* Promotional Banner */}
+                  <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-800 via-emerald-700 to-teal-800 text-white p-6 sm:p-7 shadow-sm flex items-center justify-between">
+                    <div className="relative z-10 max-w-md">
+                      <h2 className="text-2xl font-black tracking-tight leading-snug">
+                        More Jobs. More Income.
+                        <br />A Brighter Tomorrow.
+                      </h2>
+                      <p className="text-xs sm:text-sm text-emerald-100/90 mt-2 font-medium leading-relaxed">
+                        Deliver quality service, build your reputation, and grow
+                        with Argent Your.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("active")}
+                        className="mt-4 px-5 py-2.5 rounded-2xl bg-white hover:bg-emerald-50 text-emerald-950 font-black text-xs transition-all shadow-md inline-flex items-center gap-2 cursor-pointer"
+                      >
+                        <span>View Available Jobs</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="relative z-10 hidden sm:block shrink-0 ml-4">
+                      <div className="w-32 h-32 rounded-2xl overflow-hidden border-2 border-white/20 shadow-xl bg-emerald-900/40">
+                        <img
+                          src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=400&q=80"
+                          alt="Technician Partner"
+                          className="w-full h-full object-cover object-top"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Subtle Background Glow */}
+                    <div className="absolute -right-8 -bottom-8 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none" />
                   </div>
 
-                  {completedJobs.length === 0 ? (
-                    <p className="text-xs text-slate-400 py-4 text-center">
-                      No completed jobs yet. Fulfill dispatches to build job
-                      records.
-                    </p>
-                  ) : (
-                    <div className="space-y-2.5">
-                      {completedJobs.slice(0, 3).map((job) => (
-                        <div
-                          key={job.id}
-                          className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs"
-                        >
-                          <div>
-                            <p className="font-bold text-slate-900">
-                              {job.service_name || job.category}
+                  {/* Tasks from Admin */}
+                  <div className="bg-white rounded-3xl border border-slate-200/90 p-5 sm:p-6 shadow-xs space-y-4">
+                    <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse" />
+                        <h3 className="text-base font-black text-slate-900 tracking-tight">
+                          Tasks from Admin
+                        </h3>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("profile")}
+                        className="text-xs font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>View All</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      {/* Task 1: Upload ID Proof */}
+                      <div
+                        onClick={() => handleOpenEditProfile()}
+                        className="p-3.5 rounded-2xl bg-slate-50 hover:bg-emerald-50/40 border border-slate-200/80 hover:border-emerald-200 transition-all flex items-center justify-between gap-3 cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                            <FileText className="w-5 h-5 text-amber-700" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-black text-slate-900 group-hover:text-emerald-900 transition-colors">
+                              Upload ID Proof
                             </p>
-                            <p className="text-[11px] text-slate-500">
-                              {job.customer_name || "Customer"} •{" "}
-                              {job.address?.slice(0, 30)}...
+                            <p className="text-[11px] text-slate-500 mt-0.5 truncate">
+                              Submit verified government ID or trade certificate
                             </p>
                           </div>
-                          <span className="font-black text-emerald-700">
-                            {job.total_paid || job.price || "₹499"}
-                          </span>
                         </div>
-                      ))}
+                        <div className="flex items-center gap-2.5 shrink-0">
+                          <span
+                            className={
+                              "px-2.5 py-1 rounded-full text-[10px] font-bold " +
+                              (techProfile?.id_document_url
+                                ? "bg-emerald-100 text-emerald-800"
+                                : "bg-amber-100 text-amber-800")
+                            }
+                          >
+                            {techProfile?.id_document_url
+                              ? "Completed"
+                              : "Pending Action"}
+                          </span>
+                          <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-700 transition-colors" />
+                        </div>
+                      </div>
+
+                      {/* Task 2: Complete Training Module */}
+                      <div
+                        onClick={() => setActiveTab("overview")}
+                        className="p-3.5 rounded-2xl bg-slate-50 hover:bg-emerald-50/40 border border-slate-200/80 hover:border-emerald-200 transition-all flex items-center justify-between gap-3 cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
+                            <CheckCircle className="w-5 h-5 text-emerald-700" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-black text-slate-900 group-hover:text-emerald-900 transition-colors">
+                              Complete Training Module
+                            </p>
+                            <p className="text-[11px] text-slate-500 mt-0.5 truncate">
+                              Argent Your standard emergency safety and service
+                              protocols
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2.5 shrink-0">
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                            Completed
+                          </span>
+                          <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-700 transition-colors" />
+                        </div>
+                      </div>
+
+                      {/* Task 3: Update Service Location */}
+                      <div
+                        onClick={() => setActiveTab("service_areas")}
+                        className="p-3.5 rounded-2xl bg-slate-50 hover:bg-emerald-50/40 border border-slate-200/80 hover:border-emerald-200 transition-all flex items-center justify-between gap-3 cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center shrink-0">
+                            <MapPin className="w-5 h-5 text-blue-700" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-black text-slate-900 group-hover:text-emerald-900 transition-colors">
+                              Update Service Location
+                            </p>
+                            <p className="text-[11px] text-slate-500 mt-0.5 truncate">
+                              Confirm your primary coverage radius for rapid
+                              dispatch
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2.5 shrink-0">
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">
+                            In Progress
+                          </span>
+                          <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-700 transition-colors" />
+                        </div>
+                      </div>
                     </div>
-                  )}
+                  </div>
+
+                  {/* Upcoming Jobs */}
+                  <div className="bg-white rounded-3xl border border-slate-200/90 p-5 sm:p-6 shadow-xs space-y-4">
+                    <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-emerald-700" />
+                        <h3 className="text-base font-black text-slate-900 tracking-tight">
+                          Upcoming Jobs
+                        </h3>
+                      </div>
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200/70">
+                        {displayUpcomingJobs.length} scheduled
+                      </span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {displayUpcomingJobs.length === 0 ? (
+                        <div className="p-6 text-center rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
+                          <Calendar className="w-8 h-8 text-slate-300 mx-auto mb-1" />
+                          <p className="text-xs font-bold text-slate-700">
+                            No Upcoming Bookings
+                          </p>
+                          <p className="text-[11px] text-slate-400">
+                            Scheduled appointments for future dates will appear
+                            here.
+                          </p>
+                        </div>
+                      ) : (
+                        displayUpcomingJobs.map((job, idx) => (
+                          <div
+                            key={job.id || idx}
+                            className="p-4 rounded-2xl bg-slate-50 hover:bg-slate-100/70 border border-slate-200/80 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                          >
+                            <div className="space-y-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
+                                  {job.scheduled_date || "Today, 02:30 PM"}
+                                </span>
+                                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-200/80 text-slate-700">
+                                  {job.duration || "Est. 45 mins"}
+                                </span>
+                              </div>
+                              <h4 className="text-sm font-black text-slate-900">
+                                {job.service_name ||
+                                  job.category ||
+                                  "Emergency Service Inspection"}
+                              </h4>
+                              <p className="text-xs text-slate-500 flex items-center gap-1.5 truncate">
+                                <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                <span>
+                                  {job.address ||
+                                    "South Extension II, New Delhi"}
+                                </span>
+                              </p>
+                            </div>
+
+                            <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+                              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                {job.status === "in_progress"
+                                  ? "In Progress"
+                                  : job.status || "Confirmed"}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (job.id) {
+                                    openJobDetails(job);
+                                  } else if (activeJobs.length > 0) {
+                                    openJobDetails(activeJobs[0]);
+                                  } else {
+                                    navigateToTab("jobs", "active");
+                                  }
+                                }}
+                                className="px-3.5 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-emerald-500 text-slate-700 hover:text-emerald-800 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                              >
+                                View Details
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
                 </div>
 
-                {/* Right: Notifications Preview */}
-                <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-3">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
-                      <Bell className="w-3.5 h-3.5 text-emerald-700" />
-                      <span>Recent Notifications</span>
-                    </h4>
+                {/* RIGHT COLUMN */}
+                <div className="lg:col-span-5 xl:col-span-4 space-y-6">
+                  {/* Complete Your Profile */}
+                  <div className="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-xs text-center space-y-4">
+                    <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-600">
+                        Profile Completion
+                      </h3>
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                        Level 2 Verified
+                      </span>
+                    </div>
+
+                    {/* Circular Progress Ring */}
+                    <div className="relative w-28 h-28 mx-auto flex items-center justify-center my-2">
+                      <svg
+                        className="w-full h-full transform -rotate-90"
+                        viewBox="0 0 88 88"
+                      >
+                        <circle
+                          cx="44"
+                          cy="44"
+                          r="36"
+                          stroke="#e2e8f0"
+                          strokeWidth="8"
+                          fill="transparent"
+                        />
+                        <circle
+                          cx="44"
+                          cy="44"
+                          r="36"
+                          stroke="#047857"
+                          strokeWidth="8"
+                          strokeDasharray={226.2}
+                          strokeDashoffset={33.93}
+                          strokeLinecap="round"
+                          fill="transparent"
+                          className="transition-all duration-1000 ease-out"
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-xl font-black text-slate-900 leading-none">
+                          85%
+                        </span>
+                        <span className="text-[9px] font-bold uppercase text-slate-400 mt-0.5">
+                          Score
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="text-sm font-black text-slate-900">
+                        Almost there!
+                      </h4>
+                      <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                        Add your bank details and verified credentials to unlock
+                        high-priority emergency dispatches.
+                      </p>
+                    </div>
+
                     <button
-                      onClick={() => setActiveTab("notifications")}
-                      className="text-[11px] font-bold text-emerald-700 hover:underline cursor-pointer"
+                      type="button"
+                      onClick={() => setActiveTab("profile")}
+                      className="w-full py-2.5 px-4 rounded-2xl bg-emerald-50 hover:bg-emerald-100/80 text-emerald-800 font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                     >
-                      View All
+                      <span>View Profile</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
 
-                  {notifications.length === 0 ? (
-                    <p className="text-xs text-slate-400 py-4 text-center">
-                      No notifications at this time.
-                    </p>
-                  ) : (
-                    <div className="space-y-2.5">
-                      {notifications.slice(0, 3).map((n) => (
-                        <div
-                          key={n.id}
-                          className={`p-2.5 rounded-xl border text-xs ${
-                            n.unread
-                              ? "bg-emerald-50/60 border-emerald-200"
-                              : "bg-slate-50 border-slate-100"
-                          }`}
-                        >
-                          <p className="font-bold text-slate-900">{n.title}</p>
-                          <p className="text-[11px] text-slate-600 mt-0.5 line-clamp-1">
-                            {n.description || n.message}
+                  {/* Recent Activity */}
+                  <div className="bg-white rounded-3xl border border-slate-200/90 p-5 sm:p-6 shadow-xs space-y-4">
+                    <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <History className="w-4 h-4 text-emerald-700" />
+                        <h3 className="text-sm font-black text-slate-900 tracking-tight">
+                          Recent Activity
+                        </h3>
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-400">
+                        Live feed
+                      </span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {recentActivities.length === 0 ? (
+                        <div className="p-6 text-center rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
+                          <History className="w-8 h-8 text-slate-300 mx-auto mb-1" />
+                          <p className="text-xs font-bold text-slate-700">
+                            No Recent Activity
                           </p>
-                          <p className="text-[10px] text-slate-400 mt-1">
-                            {n.created_at
-                              ? new Date(n.created_at).toLocaleDateString(
-                                  "en-IN",
-                                  { hour: "2-digit", minute: "2-digit" },
-                                )
-                              : "Just now"}
+                          <p className="text-[11px] text-slate-400">
+                            Completed jobs, dispatches, and payouts will appear
+                            here in real time.
                           </p>
                         </div>
-                      ))}
+                      ) : (
+                        recentActivities.map((act) => {
+                          const IconComp = act.icon;
+                          return (
+                            <div
+                              key={act.id}
+                              className="flex items-start gap-3 p-3 rounded-2xl bg-slate-50/80 border border-slate-100"
+                            >
+                              <div
+                                className={`w-8 h-8 rounded-xl ${act.iconBg} flex items-center justify-center shrink-0 mt-0.5`}
+                              >
+                                <IconComp className="w-4 h-4" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center justify-between">
+                                  <p className="text-xs font-black text-slate-900">
+                                    {act.title}
+                                  </p>
+                                  <span
+                                    className={`text-[10px] font-bold ${act.tagColor}`}
+                                  >
+                                    {act.tag}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-slate-600 mt-0.5 truncate">
+                                  {act.subtitle}
+                                </p>
+                                <p className="text-[10px] text-slate-400 mt-1">
+                                  {act.time}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
                     </div>
-                  )}
+                  </div>
+
+                  {/* Need Support */}
+                  <div className="bg-emerald-950 text-white rounded-3xl p-5 shadow-sm space-y-3 relative overflow-hidden">
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-300">
+                        Need Support?
+                      </h3>
+                    </div>
+                    <p className="text-xs text-slate-200 leading-relaxed">
+                      Our dedicated partner dispatch desk is available 24/7 to
+                      assist with live routes, client coordination, or disputes.
+                    </p>
+                    <div className="pt-1 flex flex-col gap-2">
+                      <a
+                        href="tel:+919810111223"
+                        className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all flex items-center justify-center gap-2 text-center shadow-xs"
+                      >
+                        <Phone className="w-3.5 h-3.5" />
+                        <span>Call Support (+91 98101 11223)</span>
+                      </a>
+                    </div>
+                  </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Jobs sub-tabs when viewing any job-related section on desktop */}
+          {["jobs", "active", "requests", "upcoming", "completed"].includes(
+            activeTab,
+          ) && (
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div>
+                <h2 className="text-xl font-black text-slate-900 tracking-tight">
+                  Job Operations
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Manage incoming requests, active dispatches, and work history
+                </p>
+              </div>
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-2xl">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("active")}
+                  className={
+                    "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer " +
+                    (["jobs", "active"].includes(activeTab)
+                      ? "bg-white text-slate-900 shadow-2xs"
+                      : "text-slate-500 hover:text-slate-800")
+                  }
+                >
+                  Active ({activeJobs.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("requests")}
+                  className={
+                    "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer " +
+                    (activeTab === "requests"
+                      ? "bg-white text-slate-900 shadow-2xs"
+                      : "text-slate-500 hover:text-slate-800")
+                  }
+                >
+                  Requests ({newRequests.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("upcoming")}
+                  className={
+                    "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer " +
+                    (activeTab === "upcoming"
+                      ? "bg-white text-slate-900 shadow-2xs"
+                      : "text-slate-500 hover:text-slate-800")
+                  }
+                >
+                  Upcoming ({upcomingJobs.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("completed")}
+                  className={
+                    "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer " +
+                    (activeTab === "completed"
+                      ? "bg-white text-slate-900 shadow-2xs"
+                      : "text-slate-500 hover:text-slate-800")
+                  }
+                >
+                  History ({completedJobs.length})
+                </button>
               </div>
             </div>
           )}
 
           {/* TAB 1: ACTIVE JOBS */}
-          {activeTab === "active" && (
+          {["jobs", "active"].includes(activeTab) && (
             <div className="space-y-4">
               {activeJobs.length === 0 ? (
                 <div className="bg-white rounded-3xl p-10 text-center border border-slate-200 space-y-3 shadow-xs">
@@ -1554,15 +2048,14 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
                           </div>
 
                           <div className="grid grid-cols-3 gap-2 pt-2">
-                            <a
-                              href={mapsUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex flex-col items-center justify-center p-2.5 rounded-xl bg-white border border-slate-200 hover:border-emerald-500 text-slate-800 font-bold text-[11px] transition-all hover:bg-emerald-50 text-center"
+                            <button
+                              type="button"
+                              onClick={() => openMapNavigation(job)}
+                              className="flex flex-col items-center justify-center p-2.5 rounded-xl bg-white border border-slate-200 hover:border-emerald-500 text-slate-800 font-bold text-[11px] transition-all hover:bg-emerald-50 text-center cursor-pointer"
                             >
-                              <Navigation className="w-4 h-4 text-blue-600 mb-1" />
-                              <span>Open Maps</span>
-                            </a>
+                              <Navigation className="w-4 h-4 text-emerald-600 mb-1" />
+                              <span>Map Navigation</span>
+                            </button>
 
                             <a
                               href={telUrl}
@@ -1585,113 +2078,199 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
 
                       {/* Step-by-step Status Flow */}
                       <div className="pt-4 border-t border-slate-100 space-y-2">
-                        <p className="text-[11px] font-black uppercase text-slate-400 tracking-wider">
-                          Job Workflow Stage:
-                        </p>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                          {/* Step 1: Start Trip */}
-                          <button
-                            onClick={() =>
-                              handleStatusTransition(
-                                job.id,
-                                "ON_THE_WAY",
-                                "Technician On the Way",
-                              )
-                            }
-                            disabled={
-                              job.status !== "ACCEPTED" ||
-                              actionLoadingId === job.id
-                            }
-                            className={`py-3 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                              job.status === "ACCEPTED"
-                                ? "bg-amber-600 hover:bg-amber-700 text-white shadow-md animate-pulse"
-                                : [
+                        {(() => {
+                          const dist = getJobDistanceMeters(job);
+                          const isWithin =
+                            dist !== null && dist <= ARRIVAL_RADIUS_METERS;
+
+                          return (
+                            <>
+                              <div className="flex items-center justify-between">
+                                <p className="text-[11px] font-black uppercase text-slate-400 tracking-wider">
+                                  Job Workflow Stage:
+                                </p>
+                                {job.status === "ON_THE_WAY" && (
+                                  <div className="text-xs">
+                                    {geoStatus === "denied" ? (
+                                      <span className="text-red-600 font-bold flex items-center gap-1 text-[11px]">
+                                        <AlertCircle className="w-3.5 h-3.5" />{" "}
+                                        GPS access required
+                                      </span>
+                                    ) : isWithin ? (
+                                      <span className="text-emerald-700 font-bold flex items-center gap-1 text-[11px]">
+                                        <CheckCircle2 className="w-3.5 h-3.5" />{" "}
+                                        At service location (&lt;100m)
+                                      </span>
+                                    ) : (
+                                      <span className="text-amber-700 font-bold flex items-center gap-1 text-[11px]">
+                                        <MapPin className="w-3.5 h-3.5" />
+                                        {dist !== null
+                                          ? `${dist >= 1000 ? `${(dist / 1000).toFixed(1)} km` : `${dist}m`} away from doorstep`
+                                          : "Detecting distance..."}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+
+                              {job.status === "ON_THE_WAY" && (
+                                <div className="mb-2">
+                                  {geoStatus === "denied" ? (
+                                    <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
+                                      <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                                      <span>
+                                        Location access is required to confirm
+                                        arrival. Please enable GPS permissions.
+                                      </span>
+                                    </div>
+                                  ) : isWithin ? (
+                                    <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2">
+                                      <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                                      <span>
+                                        You are at the service location (within
+                                        100m). Ready to mark arrived.
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center justify-between gap-2">
+                                      <div className="flex items-center gap-2">
+                                        <MapPin className="w-4 h-4 shrink-0 text-amber-600" />
+                                        <span>
+                                          {dist !== null
+                                            ? `You are ${dist >= 1000 ? `${(dist / 1000).toFixed(1)} km` : `${dist}m`} away from the customer location. Move closer to mark arrived.`
+                                            : "Detecting distance to customer location..."}
+                                        </span>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          getLiveTechnicianPosition().catch(
+                                            () => {},
+                                          )
+                                        }
+                                        className="text-[10px] underline font-bold text-amber-900 shrink-0 cursor-pointer"
+                                      >
+                                        Update GPS
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                {/* Step 1: Start Trip */}
+                                <button
+                                  onClick={() =>
+                                    handleStatusTransition(
+                                      job.id,
                                       "ON_THE_WAY",
-                                      "ARRIVED",
-                                      "IN_PROGRESS",
-                                      "COMPLETED",
-                                    ].includes(job.status)
-                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                  : "bg-slate-100 text-slate-400 cursor-not-allowed"
-                            }`}
-                          >
-                            <Navigation className="w-3.5 h-3.5" />
-                            <span>1. Start Trip</span>
-                          </button>
-
-                          {/* Step 2: Mark Arrived */}
-                          <button
-                            onClick={() =>
-                              handleStatusTransition(
-                                job.id,
-                                "ARRIVED",
-                                "Technician Arrived",
-                              )
-                            }
-                            disabled={
-                              job.status !== "ON_THE_WAY" ||
-                              actionLoadingId === job.id
-                            }
-                            className={`py-3 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                              job.status === "ON_THE_WAY"
-                                ? "bg-sky-600 hover:bg-sky-700 text-white shadow-md animate-pulse"
-                                : [
-                                      "ARRIVED",
-                                      "IN_PROGRESS",
-                                      "COMPLETED",
-                                    ].includes(job.status)
-                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                  : "bg-slate-100 text-slate-400 cursor-not-allowed"
-                            }`}
-                          >
-                            <MapPin className="w-3.5 h-3.5" />
-                            <span>2. Mark Arrived</span>
-                          </button>
-
-                          {/* Step 3: Start Work */}
-                          <button
-                            onClick={() =>
-                              handleStatusTransition(
-                                job.id,
-                                "IN_PROGRESS",
-                                "Service In Progress",
-                              )
-                            }
-                            disabled={
-                              job.status !== "ARRIVED" ||
-                              actionLoadingId === job.id
-                            }
-                            className={`py-3 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                              job.status === "ARRIVED"
-                                ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-md animate-pulse"
-                                : ["IN_PROGRESS", "COMPLETED"].includes(
-                                      job.status,
+                                      "Technician On the Way",
                                     )
-                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                  : "bg-slate-100 text-slate-400 cursor-not-allowed"
-                            }`}
-                          >
-                            <Wrench className="w-3.5 h-3.5" />
-                            <span>3. Start Work</span>
-                          </button>
+                                  }
+                                  disabled={
+                                    job.status !== "ACCEPTED" ||
+                                    actionLoadingId === job.id
+                                  }
+                                  className={`py-3 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                                    job.status === "ACCEPTED"
+                                      ? "bg-amber-600 hover:bg-amber-700 text-white shadow-md animate-pulse"
+                                      : [
+                                            "ON_THE_WAY",
+                                            "ARRIVED",
+                                            "IN_PROGRESS",
+                                            "COMPLETED",
+                                          ].includes(job.status)
+                                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                        : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                                  }`}
+                                >
+                                  <Navigation className="w-3.5 h-3.5" />
+                                  <span>1. Start Trip</span>
+                                </button>
 
-                          {/* Step 4: Complete Job */}
-                          <button
-                            onClick={() => setCompleteConfirmJob(job)}
-                            disabled={
-                              job.status !== "IN_PROGRESS" ||
-                              actionLoadingId === job.id
-                            }
-                            className={`py-3 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                              job.status === "IN_PROGRESS"
-                                ? "bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-600/30 animate-pulse"
-                                : "bg-slate-100 text-slate-400 cursor-not-allowed"
-                            }`}
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>4. Complete Job</span>
-                          </button>
-                        </div>
+                                {/* Step 2: Mark Arrived */}
+                                <button
+                                  onClick={() => handleMarkArrived(job.id)}
+                                  disabled={
+                                    job.status !== "ON_THE_WAY" ||
+                                    actionLoadingId === job.id ||
+                                    !isWithin
+                                  }
+                                  className={`py-3 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                                    job.status === "ON_THE_WAY"
+                                      ? isWithin
+                                        ? "bg-amber-600 hover:bg-amber-700 text-white shadow-md animate-pulse cursor-pointer"
+                                        : "bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300"
+                                      : [
+                                            "ARRIVED",
+                                            "IN_PROGRESS",
+                                            "COMPLETED",
+                                          ].includes(job.status)
+                                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-pointer"
+                                        : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                                  }`}
+                                  title={
+                                    job.status === "ON_THE_WAY" && !isWithin
+                                      ? `Within 100m required (${dist !== null ? `${dist}m away` : "locating..."})`
+                                      : "Mark Arrived at Doorstep"
+                                  }
+                                >
+                                  <MapPin className="w-3.5 h-3.5" />
+                                  <span>
+                                    {actionLoadingId === job.id &&
+                                    job.status === "ON_THE_WAY"
+                                      ? "Verifying GPS..."
+                                      : "2. Mark Arrived"}
+                                  </span>
+                                </button>
+
+                                {/* Step 3: Start Work */}
+                                <button
+                                  onClick={() =>
+                                    handleStatusTransition(
+                                      job.id,
+                                      "IN_PROGRESS",
+                                      "Service In Progress",
+                                    )
+                                  }
+                                  disabled={
+                                    job.status !== "ARRIVED" ||
+                                    actionLoadingId === job.id
+                                  }
+                                  className={`py-3 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                                    job.status === "ARRIVED"
+                                      ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-md animate-pulse"
+                                      : ["IN_PROGRESS", "COMPLETED"].includes(
+                                            job.status,
+                                          )
+                                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                        : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                                  }`}
+                                >
+                                  <Wrench className="w-3.5 h-3.5" />
+                                  <span>3. Start Work</span>
+                                </button>
+
+                                {/* Step 4: Complete Job */}
+                                <button
+                                  onClick={() => openCompleteConfirm(job)}
+                                  disabled={
+                                    job.status !== "IN_PROGRESS" ||
+                                    actionLoadingId === job.id
+                                  }
+                                  className={`py-3 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                                    job.status === "IN_PROGRESS"
+                                      ? "bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-600/30 animate-pulse"
+                                      : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                                  }`}
+                                >
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  <span>4. Complete Job</span>
+                                </button>
+                              </div>
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
                   );
@@ -1786,7 +2365,7 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
 
                     <div className="flex flex-col sm:flex-row items-center gap-2.5 pt-2 border-t border-slate-100">
                       <button
-                        onClick={() => setSelectedJobForModal(req)}
+                        onClick={() => openJobDetails(req)}
                         className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold transition-colors cursor-pointer"
                       >
                         View Details
@@ -1804,9 +2383,8 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
                         </span>
                       </button>
                       <button
-                        onClick={() =>
-                          handleRejectJob(req.id, "Technician unavailable")
-                        }
+                        type="button"
+                        onClick={() => handleDeclineJob(req)}
                         disabled={actionLoadingId === req.id}
                         className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-red-50 hover:text-red-700 hover:border-red-200 text-xs font-bold transition-colors cursor-pointer"
                       >
@@ -1859,7 +2437,7 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
 
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => setSelectedJobForModal(job)}
+                        onClick={() => openJobDetails(job)}
                         className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold hover:bg-slate-50"
                       >
                         View Details
@@ -2128,7 +2706,7 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
                         if (!bankAccount.isConnected) {
                           handleOpenBankModal();
                         } else {
-                          setShowPayoutModal(true);
+                          openPayoutModal();
                         }
                       }}
                       className="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
@@ -2220,7 +2798,7 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
                   </button>
                   {bankAccount.isConnected && (
                     <button
-                      onClick={() => setShowPayoutModal(true)}
+                      onClick={() => openPayoutModal()}
                       className="px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
                     >
                       <ArrowDownToLine className="w-3.5 h-3.5" />
@@ -2973,12 +3551,15 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
               </div>
             </div>
           )}
-        </div>{" "}
-        {/* End of Desktop View (hidden md:block) */}
-        {/* ========================================================
-            MOBILE VIEW (Visible on mobile only: md:hidden block)
-           ======================================================== */}
-        <div className="md:hidden space-y-4">
+        </div>
+      </div>
+      {/* End of Desktop View (hidden md:flex) */}
+
+      {/* ========================================================
+          MOBILE VIEW (Visible on mobile only: md:hidden)
+         ======================================================== */}
+      <main className="md:hidden max-w-6xl mx-auto px-4 py-4 space-y-4 pb-28">
+        <div className="space-y-4">
           {/* TAB 1: DASHBOARD (activeTab === 'overview') */}
           {activeTab === "overview" && (
             <div className="space-y-3.5">
@@ -2992,19 +3573,9 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
                     Welcome back, {techProfile?.name || "Professional"}
                   </p>
                 </div>
-                <button
-                  onClick={() => loadDashboardData(true)}
-                  disabled={refreshing}
-                  className="p-2 rounded-xl bg-white border border-slate-200/90 text-slate-600 hover:text-emerald-700 text-xs shadow-2xs cursor-pointer"
-                  title="Refresh dashboard"
-                >
-                  <RefreshCw
-                    className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-emerald-600" : ""}`}
-                  />
-                </button>
               </div>
 
-              {/* 1. TASKS FROM ADMIN / ANNOUNCEMENTS (Appears near the top!) */}
+              {/* 1. TOP SECTION: TASKS FROM ADMIN / OFFICIAL UPDATES */}
               <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
@@ -3018,8 +3589,8 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
                   </span>
                 </div>
 
-                <div className="space-y-2">
-                  {/* Admin Announcement Banner */}
+                <div className="space-y-2.5">
+                  {/* Official Update / Notice */}
                   <div className="p-3 rounded-xl bg-emerald-50/80 border border-emerald-200/80 flex items-start gap-2.5">
                     <Sparkles className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
                     <div className="text-xs">
@@ -3028,73 +3599,13 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
                       </p>
                       <p className="text-emerald-800 text-[11px] mt-0.5 leading-relaxed">
                         High customer demand for emergency service dispatches in
-                        your zone. Maintain updated availability for direct job
+                        your zone. Keep your availability updated for direct
                         routing.
                       </p>
                     </div>
                   </div>
 
-                  {/* Task: Complete your profile */}
-                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-2.5 min-w-0">
-                      <CheckCircle2
-                        className={`w-4 h-4 shrink-0 mt-0.5 ${
-                          techProfile?.avatar && techProfile?.phone
-                            ? "text-emerald-600"
-                            : "text-amber-500"
-                        }`}
-                      />
-                      <div className="text-xs min-w-0">
-                        <p className="font-bold text-slate-900 truncate">
-                          Complete your profile
-                        </p>
-                        <p className="text-slate-500 text-[11px] mt-0.5 leading-tight">
-                          {techProfile?.avatar && techProfile?.phone
-                            ? "Personal info, contact & vehicle up to date"
-                            : "Upload photo, confirm contact and equipment"}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setActiveTab("profile")}
-                      className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 shrink-0 self-center cursor-pointer"
-                    >
-                      View
-                    </button>
-                  </div>
-
-                  {/* Task: Update service availability */}
-                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-2.5 min-w-0">
-                      <Power
-                        className={`w-4 h-4 shrink-0 mt-0.5 ${
-                          isOnline ? "text-emerald-600" : "text-slate-400"
-                        }`}
-                      />
-                      <div className="text-xs min-w-0">
-                        <p className="font-bold text-slate-900 truncate">
-                          Update service availability
-                        </p>
-                        <p className="text-slate-500 text-[11px] mt-0.5 leading-tight">
-                          {isOnline
-                            ? "ONLINE — receiving active dispatches"
-                            : "OFFLINE — bookings currently paused"}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={handleToggleOnline}
-                      className={`px-2.5 py-1 rounded-lg text-[10px] font-bold shrink-0 self-center transition-all cursor-pointer ${
-                        isOnline
-                          ? "bg-slate-200 text-slate-700"
-                          : "bg-emerald-600 text-white shadow-xs"
-                      }`}
-                    >
-                      {isOnline ? "Go Offline" : "Go Online"}
-                    </button>
-                  </div>
-
-                  {/* Task: Complete required verification / compliance */}
+                  {/* Partner Verification / Compliance Task */}
                   <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 flex items-start justify-between gap-3">
                     <div className="flex items-start gap-2.5 min-w-0">
                       <ShieldCheck
@@ -3106,226 +3617,371 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
                       />
                       <div className="text-xs min-w-0">
                         <p className="font-bold text-slate-900 truncate">
-                          Partner Verification & Code
+                          Partner Verification & Compliance
                         </p>
                         <p className="text-slate-500 text-[11px] mt-0.5 leading-tight">
-                          Status:{" "}
-                          {techProfile?.status || "Pending Verification"}
+                          {techProfile?.status === "Approved"
+                            ? "Identity and trade credentials verified (Level 2)"
+                            : "Upload required identity document for fast clearance"}
                         </p>
                       </div>
                     </div>
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 self-center ${
-                        techProfile?.status === "Approved"
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-amber-100 text-amber-900"
-                      }`}
+                    <button
+                      onClick={() => navigateToTab("profile")}
+                      className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 shrink-0 self-center cursor-pointer"
                     >
                       {techProfile?.status === "Approved"
                         ? "Verified"
-                        : "In Review"}
+                        : "Verify"}
+                    </button>
+                  </div>
+
+                  {/* Training / SOP Update */}
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-2.5 min-w-0">
+                      <FileText className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <div className="text-xs min-w-0">
+                        <p className="font-bold text-slate-900 truncate">
+                          Standard Operating Procedure (SOP)
+                        </p>
+                        <p className="text-slate-500 text-[11px] mt-0.5 leading-tight">
+                          Doorstep arrival verification (≤100m) & complete
+                          service signoff
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 shrink-0 self-center">
+                      Active
                     </span>
                   </div>
 
-                  {/* Task: Bank account connection (if needed) */}
-                  {!bankAccount.isConnected && (
-                    <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200/80 flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-2.5 min-w-0">
-                        <CreditCard className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                        <div className="text-xs min-w-0">
-                          <p className="font-bold text-amber-950 truncate">
-                            Connect Payout Bank Account
-                          </p>
-                          <p className="text-amber-800 text-[11px] mt-0.5 leading-tight">
-                            Add bank details to receive earnings payouts
-                          </p>
-                        </div>
+                  {/* Service Area / Policy Update */}
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-2.5 min-w-0">
+                      <Globe className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
+                      <div className="text-xs min-w-0">
+                        <p className="font-bold text-slate-900 truncate">
+                          Service Area & Response Policy
+                        </p>
+                        <p className="text-slate-500 text-[11px] mt-0.5 leading-tight">
+                          Assigned:{" "}
+                          {techProfile?.service_areas ||
+                            "Delhi NCR (All Zones)"}{" "}
+                          • Emergency arrival ETA: ≤30 mins
+                        </p>
                       </div>
-                      <button
-                        onClick={handleOpenBankModal}
-                        className="px-2.5 py-1 rounded-lg bg-emerald-700 text-white text-[10px] font-bold shrink-0 self-center cursor-pointer"
-                      >
-                        Setup
-                      </button>
                     </div>
-                  )}
+                    <button
+                      onClick={() => navigateToTab("profile")}
+                      className="text-[11px] font-bold text-sky-700 hover:text-sky-900 shrink-0 self-center cursor-pointer"
+                    >
+                      View
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              {/* 2. PROFESSIONAL STATUS */}
-              <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="relative shrink-0">
-                    <img
-                      src={
-                        techProfile?.avatar ||
-                        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80"
-                      }
-                      alt={techProfile?.name || "Technician"}
-                      className="w-13 h-13 rounded-2xl object-cover border-2 border-emerald-500/40 shadow-xs"
-                    />
-                    <span
-                      className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white ${
-                        isOnline
-                          ? "bg-emerald-500 animate-pulse"
-                          : "bg-slate-400"
-                      }`}
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <h3 className="text-sm font-black text-slate-900 truncate">
-                        {techProfile?.name || "Professional"}
-                      </h3>
-                      <span className="px-1.5 py-0.5 rounded-md text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200/60">
-                        {techProfile?.category || "Plumbing"}
+              {/* 2. BOTTOM / MAIN SECTION: PROFESSIONAL OVERVIEW */}
+              <div className="space-y-3.5">
+                {/* Overview Section Header */}
+                <div className="flex items-center justify-between pt-1">
+                  <h2 className="text-xs font-black uppercase tracking-wider text-slate-500">
+                    Professional Overview
+                  </h2>
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    Real-time statistics
+                  </span>
+                </div>
+
+                {/* 2.1 Job statistics & earnings summary (6 cards in 2 columns) */}
+                <div className="grid grid-cols-2 gap-2.5">
+                  {/* Today's Earnings */}
+                  <button
+                    onClick={() => navigateToTab("earnings")}
+                    className="bg-white p-3.5 rounded-2xl border border-slate-200/90 shadow-2xs text-left hover:border-emerald-300 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                        Today's Earnings
                       </span>
+                      <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
                     </div>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      {techProfile?.experience_years || 3}+ Yrs Exp •{" "}
-                      {techProfile?.service_areas || "Delhi NCR"}
+                    <p className="text-lg font-black text-emerald-700 mt-1">
+                      {metrics.todayEarningsFormatted}
+                    </p>
+                    <p className="text-[10px] text-slate-400 font-medium">
+                      Completed today
+                    </p>
+                  </button>
+
+                  {/* Total Earnings */}
+                  <button
+                    onClick={() => navigateToTab("earnings")}
+                    className="bg-white p-3.5 rounded-2xl border border-slate-200/90 shadow-2xs text-left hover:border-emerald-300 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                        Total Earnings
+                      </span>
+                      <TrendingUp className="w-3.5 h-3.5 text-slate-500" />
+                    </div>
+                    <p className="text-lg font-black text-slate-900 mt-1">
+                      {metrics.earningsFormatted}
+                    </p>
+                    <p className="text-[10px] text-emerald-700 font-medium">
+                      All-time revenue
+                    </p>
+                  </button>
+
+                  {/* Active Jobs */}
+                  <button
+                    onClick={() => navigateToTab("jobs", "active")}
+                    className="bg-white p-3.5 rounded-2xl border border-slate-200/90 shadow-2xs text-left hover:border-sky-300 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                        Active Jobs
+                      </span>
+                      <Wrench className="w-3.5 h-3.5 text-sky-600" />
+                    </div>
+                    <p className="text-lg font-black text-sky-800 mt-1">
+                      {activeJobs.length}
+                    </p>
+                    <p className="text-[10px] text-slate-400 font-medium">
+                      {activeJobs.length === 1
+                        ? "1 in progress"
+                        : `${activeJobs.length} in progress`}
+                    </p>
+                  </button>
+
+                  {/* Completed Jobs */}
+                  <button
+                    onClick={() => navigateToTab("jobs", "completed")}
+                    className="bg-white p-3.5 rounded-2xl border border-slate-200/90 shadow-2xs text-left hover:border-emerald-300 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                        Completed Jobs
+                      </span>
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    </div>
+                    <p className="text-lg font-black text-slate-900 mt-1">
+                      {metrics.completedCount || metrics.totalJobs}
+                    </p>
+                    <p className="text-[10px] text-slate-400 font-medium">
+                      Verified orders
+                    </p>
+                  </button>
+
+                  {/* Pending Requests */}
+                  <button
+                    onClick={() => navigateToTab("jobs", "requests")}
+                    className="bg-white p-3.5 rounded-2xl border border-slate-200/90 shadow-2xs text-left hover:border-amber-300 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                        Pending Requests
+                      </span>
+                      <Clock className="w-3.5 h-3.5 text-amber-600" />
+                    </div>
+                    <p className="text-lg font-black text-amber-700 mt-1">
+                      {newRequests.length}
+                    </p>
+                    <p className="text-[10px] text-amber-800 font-medium">
+                      Awaiting action
+                    </p>
+                  </button>
+
+                  {/* Customer Rating */}
+                  <div className="bg-white p-3.5 rounded-2xl border border-slate-200/90 shadow-2xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                        Customer Rating
+                      </span>
+                      <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
+                    </div>
+                    <p className="text-lg font-black text-slate-900 mt-1 flex items-center gap-1">
+                      ★ {metrics.rating}
+                      <span className="text-[11px] text-slate-400 font-normal">
+                        / 5.0
+                      </span>
+                    </p>
+                    <p className="text-[10px] text-slate-400 font-medium">
+                      Verified reviews
                     </p>
                   </div>
                 </div>
 
-                {/* Online / Offline Status Toggle Bar */}
-                <div className="flex items-center justify-between pt-2.5 border-t border-slate-100">
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                      Availability Status
-                    </span>
+                {/* 2.2 Availability Status Card */}
+                <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Power
+                        className={`w-4 h-4 ${isOnline ? "text-emerald-600" : "text-slate-400"}`}
+                      />
+                      <h3 className="text-xs font-black uppercase text-slate-900 tracking-wider">
+                        Current Availability Status
+                      </h3>
+                    </div>
                     <span
-                      className={`text-xs font-black ${
-                        isOnline ? "text-emerald-700" : "text-slate-500"
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        isOnline
+                          ? "bg-emerald-100 text-emerald-800"
+                          : "bg-slate-100 text-slate-600"
                       }`}
                     >
-                      {isOnline ? "ONLINE — Ready" : "OFFLINE — Paused"}
+                      {isOnline ? "ONLINE" : "OFFLINE"}
                     </span>
                   </div>
-                  <button
-                    onClick={handleToggleOnline}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs ${
-                      isOnline
-                        ? "bg-emerald-600 text-white"
-                        : "bg-slate-200 text-slate-700"
-                    }`}
-                  >
-                    <Power className="w-3.5 h-3.5" />
-                    <span>{isOnline ? "Go Offline" : "Go Online"}</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* 3. IMPORTANT JOB / SERVICE UPDATES */}
-              {activeJobs.length > 0 && (
-                <div className="bg-emerald-950 text-white rounded-2xl p-4 shadow-sm space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-emerald-500 text-slate-950">
-                      Active In Progress
-                    </span>
-                    <span className="text-[11px] text-emerald-300 font-bold">
-                      Order #{activeJobs[0].id}
-                    </span>
-                  </div>
-                  <h4 className="text-sm font-black text-white">
-                    {activeJobs[0].service_name || activeJobs[0].category}
-                  </h4>
-                  <p className="text-[11px] text-slate-300 flex items-center gap-1">
-                    <MapPin className="w-3 h-3 text-emerald-400 shrink-0" />
-                    <span className="line-clamp-1">
-                      {activeJobs[0].address}
-                    </span>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    {isOnline
+                      ? "You are Online and ready to receive emergency dispatch requests in your active service zone."
+                      : "You are currently Offline. Bookings and new emergency dispatches are paused."}
                   </p>
-                  <button
-                    onClick={() => {
-                      setActiveTab("active");
-                      setMobileJobsTab("active");
-                    }}
-                    className="w-full mt-1.5 py-2 rounded-xl bg-white text-emerald-950 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    <span>Open Active Job ({activeJobs[0].status})</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="pt-1 flex items-center justify-between">
+                    <span className="text-[11px] text-slate-400">
+                      {isOnline
+                        ? "Tap to pause incoming orders"
+                        : "Tap to start receiving orders"}
+                    </span>
+                    <button
+                      onClick={handleToggleOnline}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs ${
+                        isOnline
+                          ? "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                          : "bg-emerald-700 text-white hover:bg-emerald-800"
+                      }`}
+                    >
+                      <Power className="w-3.5 h-3.5" />
+                      <span>{isOnline ? "Go Offline" : "Go Online"}</span>
+                    </button>
+                  </div>
                 </div>
-              )}
 
-              {newRequests.length > 0 && (
-                <div className="bg-amber-50 border border-amber-200/90 rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-2xs">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <Clock className="w-4 h-4 text-amber-700 shrink-0 animate-pulse" />
-                    <div className="text-xs min-w-0">
-                      <p className="font-bold text-amber-950 truncate">
-                        {newRequests.length} Emergency Job Request
-                        {newRequests.length > 1 ? "s" : ""}
+                {/* 2.3 Upcoming Job */}
+                <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-emerald-700" />
+                      <h3 className="text-xs font-black uppercase text-slate-900 tracking-wider">
+                        Upcoming Job
+                      </h3>
+                    </div>
+                    {displayUpcomingJobs.length > 0 && (
+                      <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60">
+                        {displayUpcomingJobs.length} Scheduled
+                      </span>
+                    )}
+                  </div>
+
+                  {displayUpcomingJobs.length > 0 ? (
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-slate-900 truncate">
+                            {displayUpcomingJobs[0].service_name ||
+                              displayUpcomingJobs[0].category ||
+                              "Emergency Service"}
+                          </p>
+                          <p className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1">
+                            <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                            <span className="truncate">
+                              {displayUpcomingJobs[0].address ||
+                                "Customer Location"}
+                            </span>
+                          </p>
+                        </div>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 shrink-0">
+                          {displayUpcomingJobs[0].scheduled_time || "Scheduled"}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => navigateToTab("jobs", "upcoming")}
+                        className="w-full py-1.5 text-center text-xs font-bold text-emerald-700 hover:text-emerald-900 flex items-center justify-center gap-1 cursor-pointer pt-1"
+                      >
+                        <span>View in Jobs</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-center py-3 text-xs text-slate-400 space-y-1">
+                      <p className="font-semibold text-slate-600">
+                        No upcoming jobs scheduled
                       </p>
-                      <p className="text-amber-800 text-[11px]">
-                        Waiting for technician response
+                      <p className="text-[11px]">
+                        When new appointments are scheduled, they will appear
+                        here.
                       </p>
                     </div>
+                  )}
+                </div>
+
+                {/* 2.4 Recent Activity */}
+                <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <History className="w-4 h-4 text-emerald-700" />
+                      <h3 className="text-xs font-black uppercase text-slate-900 tracking-wider">
+                        Recent Activity
+                      </h3>
+                    </div>
+                    <button
+                      onClick={() => navigateToTab("jobs", "completed")}
+                      className="text-[10px] font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-0.5 cursor-pointer"
+                    >
+                      <span>View All</span>
+                      <ChevronRight className="w-3 h-3" />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => {
-                      setActiveTab("requests");
-                      setMobileJobsTab("requests");
-                    }}
-                    className="px-3 py-1.5 rounded-xl bg-emerald-700 text-white text-xs font-bold shrink-0 cursor-pointer shadow-2xs"
-                  >
-                    View
-                  </button>
-                </div>
-              )}
 
-              {/* 4. RELEVANT PROFESSIONAL INFORMATION (Summary Cards) */}
-              <div className="grid grid-cols-2 gap-2.5">
-                <div className="bg-white p-3.5 rounded-2xl border border-slate-200/90 shadow-2xs">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                    Today's Earnings
-                  </span>
-                  <p className="text-lg font-black text-emerald-700 mt-1">
-                    {metrics.todayEarningsFormatted}
-                  </p>
-                  <p className="text-[10px] text-slate-400 font-medium">
-                    Completed today
-                  </p>
-                </div>
-
-                <div className="bg-white p-3.5 rounded-2xl border border-slate-200/90 shadow-2xs">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                    Total Earnings
-                  </span>
-                  <p className="text-lg font-black text-slate-900 mt-1">
-                    {metrics.earningsFormatted}
-                  </p>
-                  <p className="text-[10px] text-emerald-700 font-medium">
-                    All-time revenue
-                  </p>
-                </div>
-
-                <div className="bg-white p-3.5 rounded-2xl border border-slate-200/90 shadow-2xs">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                    Completed Jobs
-                  </span>
-                  <p className="text-lg font-black text-slate-900 mt-1">
-                    {metrics.completedCount || metrics.totalJobs}
-                  </p>
-                  <p className="text-[10px] text-slate-400 font-medium">
-                    Verified orders
-                  </p>
-                </div>
-
-                <div className="bg-white p-3.5 rounded-2xl border border-slate-200/90 shadow-2xs">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                    Customer Rating
-                  </span>
-                  <p className="text-lg font-black text-slate-900 mt-1 flex items-center gap-1">
-                    ★ {metrics.rating}
-                    <span className="text-[11px] text-slate-400 font-normal">
-                      / 5.0
-                    </span>
-                  </p>
-                  <p className="text-[10px] text-slate-400 font-medium">
-                    Verified reviews
-                  </p>
+                  {recentActivities.length === 0 ? (
+                    <div className="text-center py-3 text-xs text-slate-400 space-y-1">
+                      <p className="font-semibold text-slate-600">
+                        No recent activity
+                      </p>
+                      <p className="text-[11px]">
+                        Completed jobs and dispatch updates will appear here.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {recentActivities.slice(0, 3).map((act) => {
+                        const IconComp = act.icon;
+                        return (
+                          <div
+                            key={act.id}
+                            className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200/60 text-xs"
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div
+                                className={`w-7 h-7 rounded-lg ${act.iconBg} flex items-center justify-center shrink-0`}
+                              >
+                                <IconComp className="w-3.5 h-3.5" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-bold text-slate-900 truncate">
+                                  {act.title}
+                                </p>
+                                <p className="text-[10px] text-slate-500 truncate">
+                                  {act.subtitle}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0 ml-2">
+                              <p
+                                className={`font-black text-xs ${act.tagColor}`}
+                              >
+                                {act.tag}
+                              </p>
+                              <p className="text-[10px] text-slate-400">
+                                {act.time}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -3391,14 +4047,14 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setMobileJobsTab("history")}
+                  onClick={() => setMobileJobsTab("completed")}
                   className={`py-2 px-1 rounded-xl text-center transition-all cursor-pointer ${
-                    mobileJobsTab === "history"
+                    ["history", "completed"].includes(mobileJobsTab)
                       ? "bg-white text-emerald-900 shadow-xs font-black"
                       : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
-                  History
+                  Completed ({completedJobs.length})
                 </button>
               </div>
 
@@ -3424,8 +4080,15 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
                       >
                         <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                           <div>
-                            <span className="text-[10px] font-black uppercase text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
-                              {job.status}
+                            <span className="text-[10px] font-black uppercase text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md flex items-center gap-1">
+                              {job.status === "ON_THE_WAY" && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                              )}
+                              <span>
+                                {job.status === "ON_THE_WAY"
+                                  ? "On The Way"
+                                  : job.status}
+                              </span>
                             </span>
                             <span className="text-xs text-slate-400 font-bold ml-2">
                               #{job.id}
@@ -3451,17 +4114,14 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
 
                         {/* Navigation & Contact Bar */}
                         <div className="flex items-center gap-2 pt-1">
-                          <a
-                            href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
-                              job.address,
-                            )}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="flex-1 py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                          <button
+                            type="button"
+                            onClick={() => openMapNavigation(job)}
+                            className="flex-1 py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                           >
                             <Navigation className="w-3.5 h-3.5 text-emerald-700" />
                             <span>Map Navigation</span>
-                          </a>
+                          </button>
 
                           {job.customer_phone && (
                             <a
@@ -3475,7 +4135,7 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
 
                           <button
                             type="button"
-                            onClick={() => setSelectedJobForModal(job)}
+                            onClick={() => openJobDetails(job)}
                             className="py-2 px-3 rounded-xl border border-slate-200 text-slate-700 text-xs font-bold"
                           >
                             Details
@@ -3486,25 +4146,103 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
                         <div className="pt-1">
                           {["ACCEPTED", "ASSIGNED"].includes(job.status) && (
                             <button
+                              type="button"
                               onClick={() => handleStartTrip(job.id)}
                               disabled={actionLoadingId === job.id}
-                              className="w-full py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                              className="w-full py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors"
                             >
                               <Navigation className="w-3.5 h-3.5" />
-                              <span>Start Trip (On The Way)</span>
+                              <span>
+                                {actionLoadingId === job.id
+                                  ? "Starting Trip..."
+                                  : "Start Trip (On The Way)"}
+                              </span>
                             </button>
                           )}
 
-                          {job.status === "ON_THE_WAY" && (
-                            <button
-                              onClick={() => handleMarkArrived(job.id)}
-                              disabled={actionLoadingId === job.id}
-                              className="w-full py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
-                            >
-                              <MapPin className="w-3.5 h-3.5" />
-                              <span>Mark Arrived at Doorstep</span>
-                            </button>
-                          )}
+                          {job.status === "ON_THE_WAY" &&
+                            (() => {
+                              const dist = getJobDistanceMeters(job);
+                              const isWithin =
+                                dist !== null && dist <= ARRIVAL_RADIUS_METERS;
+
+                              return (
+                                <div className="space-y-2">
+                                  <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold">
+                                    <span className="flex items-center gap-1.5">
+                                      <Navigation className="w-3.5 h-3.5 text-emerald-700 animate-pulse" />
+                                      <span>Trip Started / On The Way</span>
+                                    </span>
+                                    <span className="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-black uppercase">
+                                      En Route
+                                    </span>
+                                  </div>
+
+                                  {/* Proximity Indicator */}
+                                  {geoStatus === "denied" ? (
+                                    <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
+                                      <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                                      <span>
+                                        Location access is required to confirm
+                                        arrival. Please enable GPS permissions.
+                                      </span>
+                                    </div>
+                                  ) : isWithin ? (
+                                    <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2">
+                                      <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                                      <span>
+                                        You are at the service location (within
+                                        100m).
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center justify-between gap-2">
+                                      <div className="flex items-center gap-2">
+                                        <MapPin className="w-4 h-4 shrink-0 text-amber-600" />
+                                        <span>
+                                          {dist !== null
+                                            ? `You are ${dist >= 1000 ? `${(dist / 1000).toFixed(1)} km` : `${dist}m`} away from the customer location. Move closer to mark arrived.`
+                                            : "Detecting distance to customer location..."}
+                                        </span>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          getLiveTechnicianPosition().catch(
+                                            () => {},
+                                          )
+                                        }
+                                        className="text-[10px] underline font-bold text-amber-900 shrink-0 cursor-pointer"
+                                      >
+                                        Refresh GPS
+                                      </button>
+                                    </div>
+                                  )}
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMarkArrived(job.id)}
+                                    disabled={
+                                      actionLoadingId === job.id || !isWithin
+                                    }
+                                    className={`w-full py-2.5 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors ${
+                                      isWithin
+                                        ? "bg-amber-600 hover:bg-amber-700 text-white cursor-pointer"
+                                        : "bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300"
+                                    }`}
+                                  >
+                                    <MapPin className="w-3.5 h-3.5" />
+                                    <span>
+                                      {actionLoadingId === job.id
+                                        ? "Verifying GPS..."
+                                        : isWithin
+                                          ? "Mark Arrived at Doorstep"
+                                          : "Reach Doorstep (<100m) to Mark Arrived"}
+                                    </span>
+                                  </button>
+                                </div>
+                              );
+                            })()}
 
                           {job.status === "ARRIVED" && (
                             <button
@@ -3519,7 +4257,7 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
 
                           {job.status === "IN_PROGRESS" && (
                             <button
-                              onClick={() => setCompleteConfirmJob(job)}
+                              onClick={() => openCompleteConfirm(job)}
                               disabled={actionLoadingId === job.id}
                               className="w-full py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                             >
@@ -3579,16 +4317,20 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
 
                         <div className="grid grid-cols-2 gap-2 pt-1">
                           <button
+                            type="button"
                             onClick={() => handleAcceptJob(req.id)}
                             disabled={actionLoadingId === req.id}
-                            className="py-2.5 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs cursor-pointer shadow-xs text-center"
+                            className="py-2.5 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs cursor-pointer shadow-xs text-center transition-colors"
                           >
-                            Accept Job
+                            {actionLoadingId === req.id
+                              ? "Accepting..."
+                              : "Accept Job"}
                           </button>
                           <button
-                            onClick={() => handleDeclineJob(req.id)}
+                            type="button"
+                            onClick={() => handleDeclineJob(req)}
                             disabled={actionLoadingId === req.id}
-                            className="py-2.5 px-3 rounded-xl border border-slate-200 hover:bg-red-50 hover:text-red-700 text-slate-700 font-bold text-xs cursor-pointer text-center"
+                            className="py-2.5 px-3 rounded-xl border border-slate-200 hover:bg-red-50 hover:text-red-700 text-slate-700 font-bold text-xs cursor-pointer text-center transition-colors"
                           >
                             Decline
                           </button>
@@ -3637,7 +4379,7 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
                           {job.address}
                         </p>
                         <button
-                          onClick={() => setSelectedJobForModal(job)}
+                          onClick={() => openJobDetails(job)}
                           className="w-full py-1.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
                         >
                           View Booking Details
@@ -3648,8 +4390,8 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
                 </div>
               )}
 
-              {/* Sub-tab: HISTORY */}
-              {mobileJobsTab === "history" && (
+              {/* Sub-tab: HISTORY / COMPLETED */}
+              {["history", "completed"].includes(mobileJobsTab) && (
                 <div className="space-y-3">
                   {filteredCompletedJobs.length === 0 &&
                   filteredCancelledJobs.length === 0 ? (
@@ -3747,7 +4489,7 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
                     if (!bankAccount.isConnected) {
                       handleOpenBankModal();
                     } else {
-                      setShowPayoutModal(true);
+                      openPayoutModal();
                     }
                   }}
                   className="w-full py-2.5 rounded-xl bg-white text-emerald-950 font-black text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-sm mt-1"
@@ -3976,9 +4718,15 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
                     <p className="text-xs text-emerald-800 font-bold">
                       {techProfile?.category || "Plumbing"} Specialist
                     </p>
-                    <p className="text-[11px] text-slate-400">
-                      Partner ID: #{techProfile?.id || "TECH-101"}
-                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-black bg-amber-50 text-amber-900 border border-amber-200/60">
+                        <Star className="w-3 h-3 fill-amber-500 text-amber-600" />
+                        <span>{techProfile?.rating || "4.9"}</span>
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        Partner ID: #{techProfile?.id || "TECH-101"}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -4019,13 +4767,13 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
                 </button>
               </div>
 
-              {/* Verification & ID Badge Card */}
-              <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs space-y-2">
-                <div className="flex items-center justify-between">
+              {/* Verification & Documents Card */}
+              <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="w-4 h-4 text-emerald-700" />
                     <h3 className="text-xs font-black uppercase text-slate-900 tracking-wider">
-                      Verification Status
+                      Verification & Documents
                     </h3>
                   </div>
                   <span
@@ -4038,23 +4786,180 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
                     {techProfile?.status || "Pending Verification"}
                   </span>
                 </div>
+
+                <div className="space-y-2">
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2.5">
+                      <FileText className="w-4 h-4 text-emerald-700 shrink-0" />
+                      <div>
+                        <p className="font-bold text-slate-900">
+                          Government ID & Trade Proof
+                        </p>
+                        <p className="text-[11px] text-slate-500">
+                          {techProfile?.id_document_url
+                            ? "Verified Government Trade ID Document"
+                            : "Trade credentials verified on file"}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-full">
+                      Level 2 Verified
+                    </span>
+                  </div>
+                </div>
+
                 <p className="text-[11px] text-slate-500 leading-relaxed">
                   Verified background and trade credentials by Argent Your
                   Operations.
                 </p>
               </div>
 
-              {/* Operating Zones Card */}
-              <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs space-y-2">
-                <div className="flex items-center gap-2">
+              {/* Service & Trade Information Card */}
+              <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs space-y-2.5">
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
                   <Globe className="w-4 h-4 text-emerald-700" />
                   <h3 className="text-xs font-black uppercase text-slate-900 tracking-wider">
-                    Service Areas
+                    Service Information
                   </h3>
                 </div>
-                <p className="text-xs font-semibold text-slate-700 bg-slate-50 p-2.5 rounded-xl border border-slate-200/60">
-                  {techProfile?.service_areas || "Delhi NCR (All Zones)"}
-                </p>
+
+                <div className="space-y-2 text-xs">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase text-slate-400">
+                      Trade Skills:
+                    </span>
+                    <p className="font-bold text-slate-900 mt-0.5">
+                      {techProfile?.skills ||
+                        "General Emergency Service, Rapid Diagnostics, Safety Protocols"}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase text-slate-400">
+                      Operating Zones:
+                    </span>
+                    <p className="font-semibold text-slate-700 bg-slate-50 p-2.5 rounded-xl border border-slate-200/60 mt-0.5">
+                      {techProfile?.service_areas || "Delhi NCR (All Zones)"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bank & Payouts Card */}
+              <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-emerald-700" />
+                    <h3 className="text-xs font-black uppercase text-slate-900 tracking-wider">
+                      Bank & Payouts
+                    </h3>
+                  </div>
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      bankAccount.isConnected
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-amber-100 text-amber-800"
+                    }`}
+                  >
+                    {bankAccount.isConnected ? "Connected" : "Action Needed"}
+                  </span>
+                </div>
+
+                <div className="space-y-1.5 text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-200/60">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Bank Name:</span>
+                    <span className="font-bold text-slate-900">
+                      {bankAccount.bankName || "HDFC Bank (Primary)"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Account:</span>
+                    <span className="font-bold text-slate-900">
+                      {bankAccount.accountNumberMasked || "•••• •••• 8821"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">IFSC Code:</span>
+                    <span className="font-bold text-slate-900">
+                      {bankAccount.ifsc || "HDFC0001234"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Payout Status:</span>
+                    <span className="font-bold text-emerald-700">
+                      {bankAccount.payoutStatus || "Active (Direct Transfer)"}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleOpenBankModal}
+                  className="w-full py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-800 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <CreditCard className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>
+                    {bankAccount.isConnected
+                      ? "Update Bank Details"
+                      : "Setup Bank Account"}
+                  </span>
+                </button>
+              </div>
+
+              {/* Account Settings Card */}
+              <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs space-y-3">
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                  <Settings className="w-4 h-4 text-emerald-700" />
+                  <h3 className="text-xs font-black uppercase text-slate-900 tracking-wider">
+                    Account Settings
+                  </h3>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60 flex items-center justify-between text-xs">
+                    <div>
+                      <p className="font-bold text-slate-900">
+                        Emergency Dispatch Alerts
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        Audio and push alerts for leads
+                      </p>
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                      Enabled
+                    </span>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60 flex items-center justify-between text-xs">
+                    <div>
+                      <p className="font-bold text-slate-900">
+                        Password & Security
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        Direct password login enabled
+                      </p>
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-500">
+                      Active
+                    </span>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60 flex items-center justify-between text-xs">
+                    <div>
+                      <p className="font-bold text-slate-900">
+                        Partner Help Desk
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        24/7 dedicated support
+                      </p>
+                    </div>
+                    <a
+                      href="tel:+919810111223"
+                      className="text-xs font-bold text-emerald-700 hover:text-emerald-800"
+                    >
+                      Call Support
+                    </a>
+                  </div>
+                </div>
               </div>
 
               {/* Sign Out Button */}
@@ -4078,7 +4983,7 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
         {/* 1. Dashboard */}
         <button
           type="button"
-          onClick={() => setActiveTab("overview")}
+          onClick={() => handleBottomNavClick("overview")}
           className={`flex flex-col items-center justify-center gap-1 py-1 px-3 rounded-xl transition-all cursor-pointer ${
             activeTab === "overview"
               ? "text-emerald-700 font-black"
@@ -4096,10 +5001,7 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
         {/* 2. Jobs */}
         <button
           type="button"
-          onClick={() => {
-            setActiveTab("active");
-            setMobileJobsTab("active");
-          }}
+          onClick={() => handleBottomNavClick("jobs")}
           className={`flex flex-col items-center justify-center gap-1 py-1 px-3 rounded-xl transition-all cursor-pointer relative ${
             ["jobs", "active", "requests", "upcoming", "completed"].includes(
               activeTab,
@@ -4134,7 +5036,7 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
         {/* 3. Earnings */}
         <button
           type="button"
-          onClick={() => setActiveTab("earnings")}
+          onClick={() => handleBottomNavClick("earnings")}
           className={`flex flex-col items-center justify-center gap-1 py-1 px-3 rounded-xl transition-all cursor-pointer ${
             ["earnings", "payout_setup"].includes(activeTab)
               ? "text-emerald-700 font-black"
@@ -4154,7 +5056,7 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
         {/* 4. Notifications */}
         <button
           type="button"
-          onClick={() => setActiveTab("notifications")}
+          onClick={() => handleBottomNavClick("notifications")}
           className={`flex flex-col items-center justify-center gap-1 py-1 px-3 rounded-xl transition-all cursor-pointer relative ${
             activeTab === "notifications"
               ? "text-emerald-700 font-black"
@@ -4181,7 +5083,7 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
         {/* 5. Profile */}
         <button
           type="button"
-          onClick={() => setActiveTab("profile")}
+          onClick={() => handleBottomNavClick("profile")}
           className={`flex flex-col items-center justify-center gap-1 py-1 px-3 rounded-xl transition-all cursor-pointer ${
             activeTab === "profile"
               ? "text-emerald-700 font-black"
@@ -4227,7 +5129,13 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
 
             <div className="flex gap-3 pt-2">
               <button
-                onClick={() => setCompleteConfirmJob(null)}
+                onClick={() => {
+                  if (window.history.state?.modal) {
+                    window.history.back();
+                  } else {
+                    setCompleteConfirmJob(null);
+                  }
+                }}
                 className="flex-1 py-3 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 Cancel
@@ -4246,13 +5154,95 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
         </div>
       )}
 
+      {/* Decline Job Request Confirmation Dialog */}
+      {declineConfirmJob && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-fade-in">
+          <div className="relative w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl border border-slate-200 text-center space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center mx-auto border border-red-200">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-black text-slate-900">
+                Decline this job request?
+              </h3>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                Are you sure you want to decline order #{declineConfirmJob.id} (
+                {declineConfirmJob.service_name ||
+                  declineConfirmJob.category ||
+                  "Service"}
+                )? This request will be removed and assigned to other available
+                professionals.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.history.state?.modal) {
+                    window.history.back();
+                  } else {
+                    setDeclineConfirmJob(null);
+                  }
+                }}
+                className="py-2.5 px-4 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDecline}
+                disabled={actionLoadingId === declineConfirmJob.id}
+                className="py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white font-black text-xs transition-colors cursor-pointer shadow-xs"
+              >
+                {actionLoadingId === declineConfirmJob.id
+                  ? "Declining..."
+                  : "Decline Request"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* In-App Map Navigation Bottom Sheet / Modal */}
+      {navigationJob && (
+        <InAppMapNavigationSheet
+          job={navigationJob}
+          technicianCoords={currentTechCoords}
+          onClose={() => {
+            if (window.history.state?.modal) {
+              window.history.back();
+            } else {
+              setNavigationJob(null);
+            }
+          }}
+          onStatusUpdate={async (jobId, newStatus, label, coords = null) => {
+            if (newStatus === "ARRIVED") {
+              await handleMarkArrived(jobId, coords);
+            } else {
+              await handleStatusTransition(jobId, newStatus, label);
+            }
+            setNavigationJob((prev) =>
+              prev ? { ...prev, status: newStatus } : null,
+            );
+          }}
+          actionLoading={actionLoadingId === navigationJob.id}
+        />
+      )}
+
       {/* View Job Details Modal */}
       {selectedJobForModal && (
         <TechnicianJobDetailsModal
           job={selectedJobForModal}
-          onClose={() => setSelectedJobForModal(null)}
+          onClose={() => {
+            if (window.history.state?.modal) {
+              window.history.back();
+            } else {
+              setSelectedJobForModal(null);
+            }
+          }}
           onAccept={handleAcceptJob}
           onReject={handleRejectJob}
+          onOpenMapNavigation={(j) => openMapNavigation(j)}
           isAccepting={actionLoadingId === selectedJobForModal.id}
           isRejecting={actionLoadingId === selectedJobForModal.id}
         />
@@ -4278,7 +5268,13 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
               </div>
               <button
                 type="button"
-                onClick={() => setShowEditProfile(false)}
+                onClick={() => {
+                  if (window.history.state?.modal) {
+                    window.history.back();
+                  } else {
+                    setShowEditProfile(false);
+                  }
+                }}
                 className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
@@ -4442,7 +5438,13 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
               <div className="flex items-center gap-3 pt-3 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setShowEditProfile(false)}
+                  onClick={() => {
+                    if (window.history.state?.modal) {
+                      window.history.back();
+                    } else {
+                      setShowEditProfile(false);
+                    }
+                  }}
                   className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs transition-colors cursor-pointer"
                 >
                   Cancel
@@ -4482,7 +5484,13 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
               </div>
               <button
                 type="button"
-                onClick={() => setShowBankModal(false)}
+                onClick={() => {
+                  if (window.history.state?.modal) {
+                    window.history.back();
+                  } else {
+                    setShowBankModal(false);
+                  }
+                }}
                 className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
@@ -4573,7 +5581,13 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
               <div className="flex items-center gap-3 pt-3 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setShowBankModal(false)}
+                  onClick={() => {
+                    if (window.history.state?.modal) {
+                      window.history.back();
+                    } else {
+                      setShowBankModal(false);
+                    }
+                  }}
                   className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs transition-colors cursor-pointer"
                 >
                   Cancel
@@ -4613,7 +5627,13 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
               </div>
               <button
                 type="button"
-                onClick={() => setShowPayoutModal(false)}
+                onClick={() => {
+                  if (window.history.state?.modal) {
+                    window.history.back();
+                  } else {
+                    setShowPayoutModal(false);
+                  }
+                }}
                 className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
@@ -4681,7 +5701,13 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
               <div className="flex items-center gap-3 pt-3 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setShowPayoutModal(false)}
+                  onClick={() => {
+                    if (window.history.state?.modal) {
+                      window.history.back();
+                    } else {
+                      setShowPayoutModal(false);
+                    }
+                  }}
                   className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs transition-colors cursor-pointer"
                 >
                   Cancel

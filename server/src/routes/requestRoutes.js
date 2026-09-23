@@ -172,11 +172,11 @@ export default function createRequestRouter(io) {
           technician: tech
             ? {
                 id: tech.id,
-                name: tech.name || "Rajesh Kumar",
-                phone: tech.phone || "+91 98101 11223",
-                rating: String(tech.rating || "4.9"),
-                reviews: String(tech.total_jobs || "142"),
-                experience: "7 years",
+                name: tech.name || "Assigned Professional",
+                phone: tech.phone || "",
+                rating: String(tech.rating || "0.0"),
+                reviews: String(tech.total_jobs || "0"),
+                experience: tech.experience_years ? `${tech.experience_years} years` : "Verified Partner",
                 avatar:
                   tech.avatar ||
                   "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80",
@@ -257,11 +257,11 @@ export default function createRequestRouter(io) {
             technician: sr.technician_id
               ? {
                   id: sr.technician_id,
-                  name: sr.technician_name || "Rajesh Kumar",
-                  phone: sr.technician_phone || "+91 98101 11223",
-                  rating: String(sr.technician_rating || "4.9"),
-                  reviews: String(sr.technician_jobs || "142"),
-                  experience: "7 years",
+                  name: sr.technician_name || "Assigned Professional",
+                  phone: sr.technician_phone || "",
+                  rating: String(sr.technician_rating || "0.0"),
+                  reviews: String(sr.technician_jobs || "0"),
+                  experience: sr.technician_experience ? `${sr.technician_experience} years` : "Verified Partner",
                   avatar:
                     sr.technician_avatar ||
                     "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80",

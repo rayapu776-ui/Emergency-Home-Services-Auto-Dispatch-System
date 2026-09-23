@@ -67,6 +67,7 @@ export async function initDb() {
     { col: "price", type: "TEXT" },
     { col: "total_paid", type: "TEXT" },
     { col: "payment_method", type: "TEXT" },
+    { col: "completed_at", type: "TEXT" },
   ];
 
   for (const { col, type } of columnsToAdd) {
@@ -163,9 +164,31 @@ export async function initDb() {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (technician_id) REFERENCES technicians(id) ON DELETE CASCADE
       );
+
+      CREATE INDEX IF NOT EXISTS idx_user_notif_user ON user_notifications (user_id, unread);
+      CREATE INDEX IF NOT EXISTS idx_tech_payouts_tech ON technician_payouts (technician_id);
     `);
   } catch (err) {
     console.error("Error creating tables:", err);
+  }
+
+  // Safely clean up demo technician accounts while strictly preserving real user-created accounts
+  try {
+    const demoTechUsers = await query.all(
+      `SELECT id FROM users WHERE role = 'technician' AND (email LIKE '%@demo.com' OR email = 'technician@example.com')`
+    );
+    for (const u of demoTechUsers) {
+      const tech = await query.get(`SELECT id FROM technicians WHERE user_id = ?`, [u.id]);
+      if (tech) {
+        await query.run(`DELETE FROM technician_payouts WHERE technician_id = ?`, [tech.id]);
+        await query.run(`DELETE FROM service_requests WHERE technician_id = ?`, [tech.id]);
+        await query.run(`DELETE FROM technicians WHERE id = ?`, [tech.id]);
+      }
+      await query.run(`DELETE FROM user_notifications WHERE user_id = ?`, [u.id]);
+      await query.run(`DELETE FROM users WHERE id = ?`, [u.id]);
+    }
+  } catch (cleanErr) {
+    console.warn("Demo technician cleanup note:", cleanErr);
   }
 
   console.log("Database tables verified / initialized successfully.");

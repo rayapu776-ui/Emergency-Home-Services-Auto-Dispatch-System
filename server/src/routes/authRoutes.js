@@ -746,15 +746,10 @@ router.post("/demo-login", async (req, res) => {
     if (role === "admin") {
       targetEmail = "admin@demo.com";
     } else if (role === "technician") {
-      const emailMap = {
-        Plumbing: "tech.plumber@demo.com",
-        Electrical: "tech.electric@demo.com",
-        HVAC: "tech.hvac@demo.com",
-        Appliance: "tech.appliance@demo.com",
-        Locksmith: "tech.locksmith@demo.com",
-        "Gas Leak": "tech.gas@demo.com",
-      };
-      targetEmail = emailMap[category] || "tech.plumber@demo.com";
+      return res.status(403).json({
+        error:
+          "Demo technician accounts have been permanently removed. Please sign in with your registered professional account.",
+      });
     }
 
     const user = await query.get("SELECT * FROM users WHERE email = ?", [

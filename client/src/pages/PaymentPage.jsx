@@ -456,12 +456,12 @@ export default function PaymentPage({
         createdRecord?.id || `AY-${Math.floor(10000 + Math.random() * 90000)}`;
 
       const assignedTech = createdRecord?.technician || {
-        id: "tech-1",
-        name: "Rajesh Kumar",
-        rating: "4.9",
-        reviews: "142",
-        experience: "7 years",
-        phone: "+91 98101 11223",
+        id: "assigned-tech",
+        name: "Verified Professional",
+        rating: "4.8",
+        reviews: "50+",
+        experience: "Certified",
+        phone: "+91 98000 00000",
         avatar:
           "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80",
       };

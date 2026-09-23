@@ -13,6 +13,8 @@ import {
   XCircle,
   ExternalLink,
   ShieldCheck,
+  Navigation,
+  Wrench,
 } from "lucide-react";
 
 export default function TechnicianJobDetailsModal({
@@ -20,6 +22,11 @@ export default function TechnicianJobDetailsModal({
   onClose,
   onAccept,
   onReject,
+  onOpenMapNavigation,
+  onStartTrip,
+  onMarkArrived,
+  onStartWork,
+  onComplete,
   isAccepting = false,
   isRejecting = false,
 }) {
@@ -137,15 +144,29 @@ export default function TechnicianJobDetailsModal({
                 <p className="text-xs font-semibold text-slate-800 leading-relaxed">
                   {job.address}
                 </p>
-                <a
-                  href={mapsUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 mt-1 text-emerald-700 hover:text-emerald-800 font-bold hover:underline"
-                >
-                  <span>Open in Google Maps</span>
-                  <ExternalLink className="h-3 w-3" />
-                </a>
+                {onOpenMapNavigation ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onOpenMapNavigation(job);
+                    }}
+                    className="inline-flex items-center gap-1.5 mt-1 text-emerald-700 hover:text-emerald-800 font-bold hover:underline cursor-pointer"
+                  >
+                    <Navigation className="h-3 w-3" />
+                    <span>Open In-App Navigation</span>
+                  </button>
+                ) : (
+                  <a
+                    href={mapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 mt-1 text-emerald-700 hover:text-emerald-800 font-bold hover:underline"
+                  >
+                    <span>Open in Google Maps</span>
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                )}
               </div>
             </div>
 
@@ -238,22 +259,97 @@ export default function TechnicianJobDetailsModal({
         {/* Modal Actions */}
         {!showRejectConfirm && (
           <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row gap-3">
-            <button
-              type="button"
-              onClick={() => onAccept(job.id)}
-              disabled={isAccepting}
-              className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 text-sm transition-all shadow-lg shadow-emerald-600/20 cursor-pointer"
-            >
-              <CheckCircle2 className="h-4 w-4" />
-              <span>{isAccepting ? "Accepting Job..." : "Accept Job"}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowRejectConfirm(true)}
-              className="rounded-2xl border border-slate-200 bg-white hover:bg-red-50 hover:text-red-700 hover:border-red-200 px-5 py-3 text-sm font-bold text-slate-700 transition-colors cursor-pointer"
-            >
-              Reject Job
-            </button>
+            {["REQUESTED", "ASSIGNED"].includes(job.status) && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onAccept(job.id)}
+                  disabled={isAccepting}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 text-sm transition-all shadow-lg shadow-emerald-600/20 cursor-pointer"
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>{isAccepting ? "Accepting Job..." : "Accept Job"}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowRejectConfirm(true)}
+                  className="rounded-2xl border border-slate-200 bg-white hover:bg-red-50 hover:text-red-700 hover:border-red-200 px-5 py-3 text-sm font-bold text-slate-700 transition-colors cursor-pointer"
+                >
+                  Reject Job
+                </button>
+              </>
+            )}
+
+            {job.status === "ACCEPTED" && onStartTrip && (
+              <button
+                type="button"
+                onClick={() => onStartTrip(job.id)}
+                className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-3 text-sm transition-all shadow-md cursor-pointer"
+              >
+                <Navigation className="h-4 w-4" />
+                <span>Start Trip (On The Way)</span>
+              </button>
+            )}
+
+            {job.status === "ON_THE_WAY" && (
+              <div className="flex-1 flex gap-2">
+                {onOpenMapNavigation && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onOpenMapNavigation(job);
+                    }}
+                    className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 text-xs transition-all cursor-pointer"
+                  >
+                    <Navigation className="h-4 w-4 text-emerald-400" />
+                    <span>Open Navigation</span>
+                  </button>
+                )}
+                {onMarkArrived && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onMarkArrived(job.id);
+                    }}
+                    className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 text-xs transition-all cursor-pointer"
+                  >
+                    <MapPin className="h-4 w-4" />
+                    <span>Mark Arrived</span>
+                  </button>
+                )}
+              </div>
+            )}
+
+            {job.status === "ARRIVED" && onStartWork && (
+              <button
+                type="button"
+                onClick={() => onStartWork(job.id)}
+                className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 text-sm transition-all shadow-md cursor-pointer"
+              >
+                <Wrench className="h-4 w-4" />
+                <span>Start Work</span>
+              </button>
+            )}
+
+            {job.status === "IN_PROGRESS" && onComplete && (
+              <button
+                type="button"
+                onClick={() => onComplete(job)}
+                className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-3 text-sm transition-all shadow-md cursor-pointer animate-pulse"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                <span>Mark Complete</span>
+              </button>
+            )}
+
+            {job.status === "COMPLETED" && (
+              <div className="flex-1 py-3 px-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold text-xs flex items-center justify-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                <span>Service Completed &amp; Closed</span>
+              </div>
+            )}
           </div>
         )}
       </div>

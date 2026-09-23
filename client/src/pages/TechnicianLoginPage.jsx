@@ -125,7 +125,8 @@ export default function TechnicianLoginPage({ onLoginSuccess, onBackToHome }) {
               Professional Login
             </h1>
             <p className="text-xs text-slate-400 max-w-xs mx-auto">
-              Sign in with your registered number or email to access the professional operations dashboard.
+              Sign in with your registered number or email to access the
+              professional operations dashboard.
             </p>
           </div>
 

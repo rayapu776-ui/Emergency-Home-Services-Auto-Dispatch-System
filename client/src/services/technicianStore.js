@@ -79,6 +79,12 @@ class TechnicianStore {
   logout() {
     localStorage.removeItem(TECH_TOKEN_KEY);
     localStorage.removeItem(TECH_USER_KEY);
+    localStorage.removeItem(TECH_ONLINE_KEY);
+    try {
+      sessionStorage.clear();
+    } catch {
+      // Ignore if sessionStorage is disabled
+    }
   }
 
   async login(identifier, password) {
@@ -153,14 +159,10 @@ class TechnicianStore {
     return res.data;
   }
 
-  async demoLogin(category = "Plumbing") {
-    const res = await techApi.post("/auth/demo-login", {
-      role: "technician",
-      category,
-    });
-    if (res.data.token && res.data.user) {
-      this.saveSession(res.data.token, res.data.user);
-    }
+  async markNotificationRead(notificationId) {
+    const res = await techApi.put(
+      `/technicians/notifications/${notificationId}/read`,
+    );
     return res.data;
   }
 
@@ -181,9 +183,10 @@ class TechnicianStore {
     return res.data;
   }
 
-  async updateJobStatus(jobId, newStatus) {
+  async updateJobStatus(jobId, newStatus, coords = {}) {
     const res = await techApi.post(`/technicians/jobs/${jobId}/status`, {
       newStatus,
+      ...coords,
     });
     return res.data;
   }
