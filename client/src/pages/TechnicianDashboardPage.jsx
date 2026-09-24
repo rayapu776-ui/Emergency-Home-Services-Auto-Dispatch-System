@@ -1622,8 +1622,8 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
                     </div>
                   </div>
 
-                  {/* Upcoming Jobs */}
-                  <div className="bg-white rounded-3xl border border-slate-200/90 p-5 sm:p-6 shadow-xs space-y-4">
+                  {/* Jobs are intentionally kept in the Jobs portal section. */}
+                  {false && <div className="bg-white rounded-3xl border border-slate-200/90 p-5 sm:p-6 shadow-xs space-y-4">
                     <div className="flex items-center justify-between pb-1 border-b border-slate-100">
                       <div className="flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-emerald-700" />
@@ -1703,7 +1703,7 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
                         ))
                       )}
                     </div>
-                  </div>
+                  </div>}
                 </div>
 
                 {/* RIGHT COLUMN */}
@@ -1776,8 +1776,8 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
                     </button>
                   </div>
 
-                  {/* Recent Activity */}
-                  <div className="bg-white rounded-3xl border border-slate-200/90 p-5 sm:p-6 shadow-xs space-y-4">
+                  {/* Activity is intentionally kept in its dedicated portal sections. */}
+                  {false && <div className="bg-white rounded-3xl border border-slate-200/90 p-5 sm:p-6 shadow-xs space-y-4">
                     <div className="flex items-center justify-between pb-1 border-b border-slate-100">
                       <div className="flex items-center gap-2">
                         <History className="w-4 h-4 text-emerald-700" />
@@ -1838,7 +1838,7 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
                         })
                       )}
                     </div>
-                  </div>
+                  </div>}
 
                   {/* Need Support */}
                   <div className="bg-emerald-950 text-white rounded-3xl p-5 shadow-sm space-y-3 relative overflow-hidden">
@@ -3812,177 +3812,6 @@ export default function TechnicianDashboardPage({ onLogout, onBackToHome }) {
                   </div>
                 </div>
 
-                {/* 2.2 Availability Status Card */}
-                <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Power
-                        className={`w-4 h-4 ${isOnline ? "text-emerald-600" : "text-slate-400"}`}
-                      />
-                      <h3 className="text-xs font-black uppercase text-slate-900 tracking-wider">
-                        Current Availability Status
-                      </h3>
-                    </div>
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        isOnline
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-slate-100 text-slate-600"
-                      }`}
-                    >
-                      {isOnline ? "ONLINE" : "OFFLINE"}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 leading-relaxed">
-                    {isOnline
-                      ? "You are Online and ready to receive emergency dispatch requests in your active service zone."
-                      : "You are currently Offline. Bookings and new emergency dispatches are paused."}
-                  </p>
-                  <div className="pt-1 flex items-center justify-between">
-                    <span className="text-[11px] text-slate-400">
-                      {isOnline
-                        ? "Tap to pause incoming orders"
-                        : "Tap to start receiving orders"}
-                    </span>
-                    <button
-                      onClick={handleToggleOnline}
-                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs ${
-                        isOnline
-                          ? "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                          : "bg-emerald-700 text-white hover:bg-emerald-800"
-                      }`}
-                    >
-                      <Power className="w-3.5 h-3.5" />
-                      <span>{isOnline ? "Go Offline" : "Go Online"}</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* 2.3 Upcoming Job */}
-                <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs space-y-3">
-                  <div className="flex items-center justify-between pb-1 border-b border-slate-100">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-emerald-700" />
-                      <h3 className="text-xs font-black uppercase text-slate-900 tracking-wider">
-                        Upcoming Job
-                      </h3>
-                    </div>
-                    {displayUpcomingJobs.length > 0 && (
-                      <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60">
-                        {displayUpcomingJobs.length} Scheduled
-                      </span>
-                    )}
-                  </div>
-
-                  {displayUpcomingJobs.length > 0 ? (
-                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 space-y-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="text-xs font-bold text-slate-900 truncate">
-                            {displayUpcomingJobs[0].service_name ||
-                              displayUpcomingJobs[0].category ||
-                              "Emergency Service"}
-                          </p>
-                          <p className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1">
-                            <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                            <span className="truncate">
-                              {displayUpcomingJobs[0].address ||
-                                "Customer Location"}
-                            </span>
-                          </p>
-                        </div>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 shrink-0">
-                          {displayUpcomingJobs[0].scheduled_time || "Scheduled"}
-                        </span>
-                      </div>
-                      <button
-                        onClick={() => navigateToTab("jobs", "upcoming")}
-                        className="w-full py-1.5 text-center text-xs font-bold text-emerald-700 hover:text-emerald-900 flex items-center justify-center gap-1 cursor-pointer pt-1"
-                      >
-                        <span>View in Jobs</span>
-                        <ArrowRight className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="text-center py-3 text-xs text-slate-400 space-y-1">
-                      <p className="font-semibold text-slate-600">
-                        No upcoming jobs scheduled
-                      </p>
-                      <p className="text-[11px]">
-                        When new appointments are scheduled, they will appear
-                        here.
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* 2.4 Recent Activity */}
-                <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs space-y-3">
-                  <div className="flex items-center justify-between pb-1 border-b border-slate-100">
-                    <div className="flex items-center gap-2">
-                      <History className="w-4 h-4 text-emerald-700" />
-                      <h3 className="text-xs font-black uppercase text-slate-900 tracking-wider">
-                        Recent Activity
-                      </h3>
-                    </div>
-                    <button
-                      onClick={() => navigateToTab("jobs", "completed")}
-                      className="text-[10px] font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-0.5 cursor-pointer"
-                    >
-                      <span>View All</span>
-                      <ChevronRight className="w-3 h-3" />
-                    </button>
-                  </div>
-
-                  {recentActivities.length === 0 ? (
-                    <div className="text-center py-3 text-xs text-slate-400 space-y-1">
-                      <p className="font-semibold text-slate-600">
-                        No recent activity
-                      </p>
-                      <p className="text-[11px]">
-                        Completed jobs and dispatch updates will appear here.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {recentActivities.slice(0, 3).map((act) => {
-                        const IconComp = act.icon;
-                        return (
-                          <div
-                            key={act.id}
-                            className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200/60 text-xs"
-                          >
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <div
-                                className={`w-7 h-7 rounded-lg ${act.iconBg} flex items-center justify-center shrink-0`}
-                              >
-                                <IconComp className="w-3.5 h-3.5" />
-                              </div>
-                              <div className="min-w-0">
-                                <p className="font-bold text-slate-900 truncate">
-                                  {act.title}
-                                </p>
-                                <p className="text-[10px] text-slate-500 truncate">
-                                  {act.subtitle}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="text-right shrink-0 ml-2">
-                              <p
-                                className={`font-black text-xs ${act.tagColor}`}
-                              >
-                                {act.tag}
-                              </p>
-                              <p className="text-[10px] text-slate-400">
-                                {act.time}
-                              </p>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
               </div>
             </div>
           )}

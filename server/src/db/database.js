@@ -175,16 +175,27 @@ export async function initDb() {
   // Safely clean up demo technician accounts while strictly preserving real user-created accounts
   try {
     const demoTechUsers = await query.all(
-      `SELECT id FROM users WHERE role = 'technician' AND (email LIKE '%@demo.com' OR email = 'technician@example.com')`
+      `SELECT id FROM users WHERE role = 'technician' AND (email LIKE '%@demo.com' OR email = 'technician@example.com')`,
     );
     for (const u of demoTechUsers) {
-      const tech = await query.get(`SELECT id FROM technicians WHERE user_id = ?`, [u.id]);
+      const tech = await query.get(
+        `SELECT id FROM technicians WHERE user_id = ?`,
+        [u.id],
+      );
       if (tech) {
-        await query.run(`DELETE FROM technician_payouts WHERE technician_id = ?`, [tech.id]);
-        await query.run(`DELETE FROM service_requests WHERE technician_id = ?`, [tech.id]);
+        await query.run(
+          `DELETE FROM technician_payouts WHERE technician_id = ?`,
+          [tech.id],
+        );
+        await query.run(
+          `DELETE FROM service_requests WHERE technician_id = ?`,
+          [tech.id],
+        );
         await query.run(`DELETE FROM technicians WHERE id = ?`, [tech.id]);
       }
-      await query.run(`DELETE FROM user_notifications WHERE user_id = ?`, [u.id]);
+      await query.run(`DELETE FROM user_notifications WHERE user_id = ?`, [
+        u.id,
+      ]);
       await query.run(`DELETE FROM users WHERE id = ?`, [u.id]);
     }
   } catch (cleanErr) {

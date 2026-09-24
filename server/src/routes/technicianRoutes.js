@@ -15,13 +15,18 @@ export default function createTechnicianRouter(io) {
   };
 
   // Helper to create technician notification & emit realtime event
-  const notifyTechnician = async (userId, title, description, type = "dispatch") => {
+  const notifyTechnician = async (
+    userId,
+    title,
+    description,
+    type = "dispatch",
+  ) => {
     try {
       const notifId = uuidv4();
       await query.run(
         `INSERT INTO user_notifications (id, user_id, title, description, type, unread)
          VALUES (?, ?, ?, ?, ?, 1)`,
-        [notifId, userId, title, description, type]
+        [notifId, userId, title, description, type],
       );
       if (io) {
         io.to(`user_${userId}`).emit("technician_notification", {
@@ -450,7 +455,7 @@ export default function createTechnicianRouter(io) {
         req.user.id,
         "Profile Updated",
         "Your professional profile details and avatar were successfully updated.",
-        "system"
+        "system",
       );
     } catch (err) {
       console.error("Update profile error:", err);
@@ -593,7 +598,7 @@ export default function createTechnicianRouter(io) {
         req.user.id,
         "Payout Processed",
         `Payout of ₹${numAmount.toLocaleString("en-IN")} was processed successfully to account ending in •••${bankTail}. Ref: ${refId}`,
-        "payout"
+        "payout",
       );
 
       res.json({
@@ -791,7 +796,7 @@ export default function createTechnicianRouter(io) {
         req.user.id,
         "Job Accepted",
         `You accepted booking #${req.params.id} for ${request.service_name || request.category}. Address: ${request.address || "Customer Location"}.`,
-        "dispatch"
+        "dispatch",
       );
 
       // Realtime websocket notifications
@@ -875,7 +880,7 @@ export default function createTechnicianRouter(io) {
         req.user.id,
         "Job Request Declined",
         `You declined booking #${req.params.id}. ${reason ? `Reason: ${reason}` : ""}`,
-        "system"
+        "system",
       );
 
       res.json({
@@ -1197,7 +1202,7 @@ export default function createTechnicianRouter(io) {
         req.user.id,
         "Service Completed",
         `Job #${req.params.id} marked complete. ₹${parseAmount(request.total_paid || request.price || 0).toLocaleString("en-IN")} credited to your balance.`,
-        "completed"
+        "completed",
       );
 
       io.to(`request_${req.params.id}`).emit("request_updated", {

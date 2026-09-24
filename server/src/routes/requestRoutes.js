@@ -176,7 +176,9 @@ export default function createRequestRouter(io) {
                 phone: tech.phone || "",
                 rating: String(tech.rating || "0.0"),
                 reviews: String(tech.total_jobs || "0"),
-                experience: tech.experience_years ? `${tech.experience_years} years` : "Verified Partner",
+                experience: tech.experience_years
+                  ? `${tech.experience_years} years`
+                  : "Verified Partner",
                 avatar:
                   tech.avatar ||
                   "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80",
@@ -261,7 +263,9 @@ export default function createRequestRouter(io) {
                   phone: sr.technician_phone || "",
                   rating: String(sr.technician_rating || "0.0"),
                   reviews: String(sr.technician_jobs || "0"),
-                  experience: sr.technician_experience ? `${sr.technician_experience} years` : "Verified Partner",
+                  experience: sr.technician_experience
+                    ? `${sr.technician_experience} years`
+                    : "Verified Partner",
                   avatar:
                     sr.technician_avatar ||
                     "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80",
