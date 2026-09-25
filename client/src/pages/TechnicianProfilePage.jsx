@@ -59,9 +59,6 @@ export default function TechnicianProfilePage() {
   // Overview | Personal Info | Service Areas | Verification | Work Proof | Bank & Payout | Security
   const [activeSection, setActiveSection] = useState("overview");
 
-  // State to trigger the full original registration form for editing
-  const [isEditingRegistrationForm, setIsEditingRegistrationForm] = useState(false);
-
   // Photo change & crop/preview modal state
   const [showPhotoOptionsModal, setShowPhotoOptionsModal] = useState(false);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState(null);
@@ -375,17 +372,52 @@ export default function TechnicianProfilePage() {
     setShowPhotoOptionsModal(false);
   };
 
-  // Save confirmed photo
+  // Save confirmed photo — bake into 512×512 square canvas to prevent face clipping
   const handleSaveCroppedPhoto = async () => {
     if (!photoPreviewUrl) return;
     setIsSavingPhoto(true);
     try {
-      await updateAvatar(photoPreviewUrl);
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.src = photoPreviewUrl;
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+      });
+
+      const canvas = document.createElement("canvas");
+      canvas.width = 512;
+      canvas.height = 512;
+      const ctx = canvas.getContext("2d");
+
+      ctx.save();
+      ctx.translate(256, 256);
+      ctx.rotate((rotationDegrees * Math.PI) / 180);
+      ctx.scale(zoomLevel, zoomLevel);
+
+      const imgAspect = img.width / img.height;
+      let drawW, drawH;
+      if (imgAspect > 1) {
+        drawH = 512;
+        drawW = 512 * imgAspect;
+      } else {
+        drawW = 512;
+        drawH = 512 / imgAspect;
+      }
+      ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+      ctx.restore();
+
+      const bakedDataUrl = canvas.toDataURL("image/jpeg", 0.92);
+      await updateAvatar(bakedDataUrl);
       showToast("Profile photo updated successfully!", "success");
       setPhotoPreviewUrl(null);
       setShowPhotoOptionsModal(false);
     } catch {
-      showToast("Failed to save profile picture", "error");
+      // Fallback: save original if canvas fails
+      await updateAvatar(photoPreviewUrl);
+      showToast("Profile photo updated successfully!", "success");
+      setPhotoPreviewUrl(null);
+      setShowPhotoOptionsModal(false);
     } finally {
       setIsSavingPhoto(false);
     }
@@ -672,7 +704,7 @@ export default function TechnicianProfilePage() {
                 type="button"
                 onClick={() => {
                   setActiveSection(tab.id);
-                  setIsEditingRegistrationForm(false);
+                  setIsEditingPersonalInfo(false);
                 }}
                 className={`py-2 px-3.5 sm:px-4 rounded-2xl text-xs font-bold transition-all cursor-pointer shrink-0 select-none relative ${
                   isActive
@@ -777,23 +809,235 @@ export default function TechnicianProfilePage() {
       )}
 
       {/* --------------------------------------------------------
-          SECTION 2: PERSONAL INFO
-          When editing, renders the official ProfessionalRegisterForm!
+          SECTION 2: PERSONAL INFO — Dedicated Edit Form (NOT Registration)
          -------------------------------------------------------- */}
       {activeSection === "personal" && (
         <>
-          {isEditingRegistrationForm ? (
-            /* Open the SAME registration form used during account creation */
-            <div className="animate-fade-in">
-              <ProfessionalRegisterForm
-                editMode={true}
-                initialData={techProfile}
-                onSave={handleSaveRegistrationForm}
-                onCancel={() => setIsEditingRegistrationForm(false)}
-              />
-            </div>
+          {isEditingPersonalInfo ? (
+            /* ============ DEDICATED PERSONAL INFORMATION EDIT FORM ============ */
+            <form
+              onSubmit={handleSavePersonalInfo}
+              className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm space-y-5 animate-fade-in"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center">
+                    <User className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm sm:text-base font-black text-slate-900">
+                      Edit Personal Information
+                    </h2>
+                    <p className="text-[11px] text-slate-400">
+                      Update your contact details and professional credentials
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsEditingPersonalInfo(false)}
+                  className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 cursor-pointer"
+                  title="Close"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                {/* Full Legal Name */}
+                <div>
+                  <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+                    Full Legal Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={personalFormData.name}
+                    onChange={(e) =>
+                      setPersonalFormData((p) => ({ ...p, name: e.target.value }))
+                    }
+                    placeholder="Your full name"
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 p-3 text-xs font-semibold text-slate-900 focus:border-emerald-600 focus:bg-white outline-none transition-all"
+                  />
+                </div>
+
+                {/* Mobile Phone Number */}
+                <div>
+                  <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+                    Mobile Phone Number <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={personalFormData.phone}
+                    onChange={(e) =>
+                      setPersonalFormData((p) => ({ ...p, phone: e.target.value }))
+                    }
+                    placeholder="+91 98765 43210"
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 p-3 text-xs font-semibold text-slate-900 focus:border-emerald-600 focus:bg-white outline-none transition-all"
+                  />
+                </div>
+
+                {/* Email Address */}
+                <div>
+                  <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+                    Email Address <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={personalFormData.email}
+                    onChange={(e) =>
+                      setPersonalFormData((p) => ({ ...p, email: e.target.value }))
+                    }
+                    placeholder="partner@argentyour.com"
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 p-3 text-xs font-semibold text-slate-900 focus:border-emerald-600 focus:bg-white outline-none transition-all"
+                  />
+                </div>
+
+                {/* Service Category */}
+                <div>
+                  <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+                    Service Category
+                  </label>
+                  <select
+                    value={personalFormData.category}
+                    onChange={(e) =>
+                      setPersonalFormData((p) => ({ ...p, category: e.target.value }))
+                    }
+                    className="w-full rounded-2xl border border-slate-200 bg-white p-3 text-xs font-semibold text-slate-900 focus:border-emerald-600 outline-none transition-all"
+                  >
+                    <option value="Plumbing">Plumbing</option>
+                    <option value="Electrical">Electrical</option>
+                    <option value="HVAC">HVAC</option>
+                    <option value="Home Cleaning">Home Cleaning</option>
+                    <option value="Pest Control">Pest Control</option>
+                    <option value="Carpentry">Carpentry</option>
+                    <option value="Painting">Painting</option>
+                    <option value="Appliance Repair">Appliance Repair</option>
+                    <option value="Security Systems">Security Systems</option>
+                    <option value="General">General</option>
+                  </select>
+                </div>
+
+                {/* Experience in Years */}
+                <div>
+                  <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+                    Experience in Years
+                  </label>
+                  <select
+                    value={personalFormData.experience_years}
+                    onChange={(e) =>
+                      setPersonalFormData((p) => ({
+                        ...p,
+                        experience_years: Number(e.target.value),
+                      }))
+                    }
+                    className="w-full rounded-2xl border border-slate-200 bg-white p-3 text-xs font-semibold text-slate-900 focus:border-emerald-600 outline-none transition-all"
+                  >
+                    {[1,2,3,4,5,6,7,8,9,10,12,15,20,25,30].map((yr) => (
+                      <option key={yr} value={yr}>{yr} {yr === 30 ? "+" : ""} Year{yr !== 1 ? "s" : ""}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Operational Vehicle Type */}
+                <div>
+                  <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+                    Operational Vehicle Type
+                  </label>
+                  <select
+                    value={personalFormData.vehicle_type}
+                    onChange={(e) =>
+                      setPersonalFormData((p) => ({ ...p, vehicle_type: e.target.value }))
+                    }
+                    className="w-full rounded-2xl border border-slate-200 bg-white p-3 text-xs font-semibold text-slate-900 focus:border-emerald-600 outline-none transition-all"
+                  >
+                    <option value="Rapid Response Van">Rapid Response Van</option>
+                    <option value="Motorcycle / Two-Wheeler">Motorcycle / Two-Wheeler</option>
+                    <option value="Utility Truck">Utility Truck</option>
+                    <option value="Car / Hatchback">Car / Hatchback</option>
+                    <option value="Emergency Service Vehicle">Emergency Service Vehicle</option>
+                    <option value="None">None</option>
+                  </select>
+                </div>
+
+                {/* Skills & Specializations */}
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+                    Skills &amp; Specializations
+                  </label>
+                  <input
+                    type="text"
+                    value={personalFormData.skills}
+                    onChange={(e) =>
+                      setPersonalFormData((p) => ({ ...p, skills: e.target.value }))
+                    }
+                    placeholder="e.g. Emergency Diagnostics, Rapid Repair, OEM Installation"
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 p-3 text-xs font-semibold text-slate-900 focus:border-emerald-600 focus:bg-white outline-none transition-all"
+                  />
+                </div>
+
+                {/* Operating / Base Address */}
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+                    Operating / Base Address
+                  </label>
+                  <input
+                    type="text"
+                    value={personalFormData.address}
+                    onChange={(e) =>
+                      setPersonalFormData((p) => ({ ...p, address: e.target.value }))
+                    }
+                    placeholder="e.g. Connaught Place, Central Delhi, 110001"
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 p-3 text-xs font-semibold text-slate-900 focus:border-emerald-600 focus:bg-white outline-none transition-all"
+                  />
+                </div>
+
+                {/* Professional Bio */}
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+                    Professional Bio &amp; Work Summary
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={personalFormData.bio}
+                    onChange={(e) =>
+                      setPersonalFormData((p) => ({ ...p, bio: e.target.value }))
+                    }
+                    placeholder="Brief description of your expertise, certifications, and service dedication..."
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 p-3 text-xs font-semibold text-slate-900 focus:border-emerald-600 focus:bg-white outline-none transition-all resize-none"
+                  />
+                </div>
+              </div>
+
+              {/* Form Actions */}
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsEditingPersonalInfo(false)}
+                  className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingPersonalInfo}
+                  className="px-6 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 text-white font-black text-xs transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+                >
+                  {isSavingPersonalInfo ? (
+                    <span>Saving...</span>
+                  ) : (
+                    <>
+                      <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      <span>Save Changes</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           ) : (
-            /* View Mode: Displays all registered personal & trade details with ONE clean Edit button */
+            /* ============ VIEW MODE: displays current personal info with compact Edit button ============ */
             <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm space-y-4 animate-fade-in">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-2.5">
@@ -802,20 +1046,22 @@ export default function TechnicianProfilePage() {
                   </div>
                   <div>
                     <h2 className="text-sm sm:text-base font-black text-slate-900">
-                      Personal & Professional Information
+                      Personal &amp; Professional Information
                     </h2>
                     <p className="text-[11px] text-slate-400">
                       Account registration details and certified credentials
                     </p>
                   </div>
                 </div>
-                {/* ONE single Edit button that opens the registration form */}
+
+                {/* ONE compact, non-wrapping Edit button with Pencil icon */}
                 <button
                   type="button"
-                  onClick={() => setIsEditingRegistrationForm(true)}
-                  className="px-3.5 py-1.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                  onClick={handleOpenEditPersonalInfo}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 active:scale-95 text-white font-bold text-xs transition-all cursor-pointer whitespace-nowrap shadow-xs min-w-[80px] shrink-0 select-none"
+                  title="Edit Personal Information"
                 >
-                  <Edit3 className="w-3.5 h-3.5" />
+                  <Pencil className="w-3.5 h-3.5 shrink-0" />
                   <span>Edit</span>
                 </button>
               </div>
@@ -834,7 +1080,7 @@ export default function TechnicianProfilePage() {
                     <span className="font-bold text-slate-800 truncate max-w-[180px] sm:max-w-none">
                       {techProfile?.email || "partner@argentyour.com"}
                     </span>
-                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
                       Verified
                     </span>
                   </div>
@@ -847,7 +1093,7 @@ export default function TechnicianProfilePage() {
                     <span className="font-bold text-slate-800">
                       {techProfile?.phone || "+91 98765 43210"}
                     </span>
-                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
                       Verified
                     </span>
                   </div>
@@ -877,13 +1123,13 @@ export default function TechnicianProfilePage() {
 
                 {/* Skills / Specializations */}
                 <div className="flex items-center justify-between py-1 border-b border-slate-50">
-                  <span className="text-slate-400 font-medium">Skills & Specializations</span>
-                  <span className="font-bold text-slate-800 text-right">
+                  <span className="text-slate-400 font-medium">Skills &amp; Specializations</span>
+                  <span className="font-bold text-slate-800 text-right max-w-[55%]">
                     {techProfile?.skills || "Emergency Diagnostics, Rapid Repair, OEM Installation"}
                   </span>
                 </div>
 
-                {/* Service Location */}
+                {/* Primary Service Location */}
                 <div className="flex items-center justify-between py-1 border-b border-slate-50">
                   <span className="text-slate-400 font-medium">Primary Service Location</span>
                   <span className="font-bold text-slate-800">
@@ -891,11 +1137,11 @@ export default function TechnicianProfilePage() {
                   </span>
                 </div>
 
-                {/* Residential / Operating Address */}
+                {/* Operating Address */}
                 <div className="flex items-center justify-between py-1 border-b border-slate-50">
                   <span className="text-slate-400 font-medium">Address</span>
-                  <span className="font-bold text-slate-800 text-right max-w-[200px] truncate">
-                    {techProfile?.address || "Connaught Place, Central Delhi, 110001"}
+                  <span className="font-bold text-slate-800 text-right max-w-[55%] truncate">
+                    {techProfile?.address || techProfile?.technician_address || "—"}
                   </span>
                 </div>
 
