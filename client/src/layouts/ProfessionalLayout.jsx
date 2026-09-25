@@ -155,6 +155,7 @@ function ProfessionalLayoutContent() {
       )}
 
       {/* Shared Professional Top Navbar */}
+      {/* Shared Professional Top Navbar */}
       <header className="sticky top-0 z-40 bg-[#0c1311] text-white px-4 md:px-6 py-2.5 flex items-center justify-between border-b border-emerald-950/60 shadow-md">
         {/* Company Name & Brand */}
         <div className="flex items-center gap-3">
@@ -165,11 +166,11 @@ function ProfessionalLayoutContent() {
             <img
               src="/argent-logo.png"
               alt="Argent Your"
-              className="w-9 h-9 rounded-xl object-contain shadow-md shadow-emerald-950/40 group-hover:scale-105 transition-transform"
+              className="w-8 h-8 rounded-xl object-contain shadow-md group-hover:scale-105 transition-transform"
             />
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-black text-base tracking-tight text-white group-hover:text-emerald-300 transition-colors">
+                <span className="font-black text-sm sm:text-base tracking-tight text-white">
                   Argent Your
                 </span>
                 <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
@@ -183,39 +184,48 @@ function ProfessionalLayoutContent() {
           </NavLink>
         </div>
 
-        {/* Online / Offline Toggle (Proper Logo without words) */}
+        {/* Global Online / Offline Toggle: Proper logo only, NO words */}
         <button
           type="button"
           onClick={handleToggleOnline}
-          aria-label={isOnline ? "Currently Online. Click to switch Offline" : "Currently Offline. Click to switch Online"}
+          aria-label={isOnline ? "Status: Online" : "Status: Offline"}
           title={
             hasActiveJob && isOnline
               ? "Cannot switch offline while a service order is active"
               : isOnline
-              ? "Online (Click to go Offline)"
-              : "Offline (Click to go Online)"
+              ? "Status: Online (Click to go offline)"
+              : "Status: Offline (Click to go online)"
           }
-          className={`relative p-2.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-center group ${
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all cursor-pointer ${
             isOnline
-              ? "bg-emerald-950/80 border-emerald-500/60 hover:bg-emerald-900/90 shadow-md shadow-emerald-950/50"
-              : "bg-slate-900/90 border-slate-700/80 hover:bg-slate-800 shadow-md shadow-slate-950/40"
+              ? "bg-emerald-950/90 border-emerald-500/60 text-emerald-300 hover:bg-emerald-900/90 shadow-sm shadow-emerald-500/20"
+              : "bg-slate-900/90 border-slate-700/80 text-slate-400 hover:bg-slate-800"
           }`}
         >
+          {/* Online/Offline Proper Logo */}
           {isOnline ? (
             <div className="relative flex items-center justify-center">
-              {/* Pulsing signal beacon dot */}
-              <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400" />
-              </span>
-              <Wifi className="w-5 h-5 text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.8)] group-hover:scale-110 transition-transform" />
+              <span className="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-emerald-400 opacity-60"></span>
+              <Wifi className="w-4 h-4 text-emerald-400 relative z-10" />
             </div>
           ) : (
-            <div className="relative flex items-center justify-center">
-              <span className="absolute -top-1 -right-1 inline-flex rounded-full h-2.5 w-2.5 bg-slate-500" />
-              <WifiOff className="w-5 h-5 text-slate-400 group-hover:scale-110 transition-transform" />
+            <div className="flex items-center justify-center">
+              <WifiOff className="w-4 h-4 text-slate-400" />
             </div>
           )}
+
+          {/* Switch toggle slider */}
+          <div
+            className={`w-7 h-4 rounded-full p-0.5 transition-colors ${
+              isOnline ? "bg-emerald-500" : "bg-slate-700"
+            }`}
+          >
+            <div
+              className={`w-3 h-3 rounded-full bg-white transition-transform ${
+                isOnline ? "translate-x-3" : "translate-x-0"
+              }`}
+            />
+          </div>
         </button>
       </header>
 
