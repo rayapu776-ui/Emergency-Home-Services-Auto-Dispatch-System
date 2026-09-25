@@ -1,22 +1,37 @@
 import React, { useState, useEffect } from "react";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+  useLocation,
+} from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { SocketProvider } from "./context/SocketContext";
 import Navbar from "./components/common/Navbar";
 import TechnicianOfferModal from "./components/common/TechnicianOfferModal";
+import Footer from "./components/common/Footer";
 
+// Customer & Admin Pages
 import LoginPage from "./pages/LoginPage";
 import CustomerRequestPage from "./pages/CustomerRequestPage";
 import LiveTrackingPage from "./pages/LiveTrackingPage";
-import TechnicianDashboardPage from "./pages/TechnicianDashboardPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import AdminWorkforcePage from "./pages/AdminWorkforcePage";
 import ServiceHistoryPage from "./pages/ServiceHistoryPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import ProfilePage from "./pages/ProfilePage";
 import InfoPage from "./pages/InfoPage";
-import Footer from "./components/common/Footer";
 
+// Technician Portal Pages & Layout
+import ProfessionalLayout from "./layouts/ProfessionalLayout";
 import TechnicianLoginPage from "./pages/TechnicianLoginPage";
+import TechnicianDashboardPage from "./pages/TechnicianDashboardPage";
+import TechnicianJobsPage from "./pages/TechnicianJobsPage";
+import TechnicianEarningsPage from "./pages/TechnicianEarningsPage";
+import TechnicianNotificationsPage from "./pages/TechnicianNotificationsPage";
+import TechnicianProfilePage from "./pages/TechnicianProfilePage";
 import technicianStore from "./services/technicianStore";
 
 const infoRoutePrefixes = [
@@ -45,76 +60,70 @@ const infoRoutePrefixes = [
   "/app/",
 ];
 
-const professionalPortalPaths = new Set([
-  "/technician/dashboard",
-  "/technician/jobs",
-  "/technician/earnings",
-  "/technician/notifications",
-  "/technician/profile",
-]);
+// Protected route wrapper for professional portal
+function TechnicianProtectedRoute() {
+  const isLogged = technicianStore.isLoggedIn();
+  const location = useLocation();
+  const navigate = useNavigate();
 
-const isProfessionalPortalPath = (path) =>
-  professionalPortalPaths.has(path) || path === "/technician";
+  if (!isLogged) {
+    return <Navigate to="/technician/login" state={{ from: location }} replace />;
+  }
 
-function MainApp() {
-  const { user, isAuthenticated, loading } = useAuth();
+  return (
+    <ProfessionalLayout
+      onLogout={() => {
+        technicianStore.logout();
+        navigate("/technician/login", { replace: true });
+      }}
+    />
+  );
+}
 
-  const getInitialPage = () => {
-    // Keep an authenticated professional inside the portal, while preserving the
-    // exact section the browser is currently showing.
-    if (technicianStore.isLoggedIn()) {
-      if (!isProfessionalPortalPath(window.location.pathname)) {
-        window.history.replaceState({}, "", "/technician/dashboard");
-      }
-      return "technician-dashboard";
-    }
+// Dedicated login page for professionals
+function TechnicianLoginRoute() {
+  const navigate = useNavigate();
+  const location = useLocation();
 
-    const path = window.location.pathname;
-    if (
-      path === "/technician/dashboard" ||
-      path === "/technician/login" ||
-      path === "/technician"
-    ) {
-      return "technician-login";
-    }
-    return "argent-home";
-  };
+  if (technicianStore.isLoggedIn()) {
+    return <Navigate to="/technician/dashboard" replace />;
+  }
 
-  const [activePage, setActivePage] = useState(getInitialPage);
+  const from = location.state?.from?.pathname || "/technician/dashboard";
+
+  return (
+    <TechnicianLoginPage
+      onLoginSuccess={() => {
+        navigate(from, { replace: true });
+      }}
+      onBackToHome={() => {
+        navigate("/");
+      }}
+    />
+  );
+}
+
+// Customer and Admin application views
+function CustomerAndAdminApp() {
+  const { isAuthenticated, loading } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const [activePage, setActivePage] = useState("argent-home");
   const [activeTrackingId, setActiveTrackingId] = useState(null);
   const [selectedCity, setSelectedCity] = useState("Delhi NCR");
 
   useEffect(() => {
-    const handlePopState = () => {
-      // Browser history stays within the authenticated professional portal.
-      if (technicianStore.isLoggedIn()) {
-        if (!isProfessionalPortalPath(window.location.pathname)) {
-          window.history.replaceState(null, "", "/technician/dashboard");
-        }
-        setActivePage("technician-dashboard");
-        return;
-      }
-
-      const path = window.location.pathname;
-      if (
-        path === "/technician/dashboard" ||
-        path === "/technician/login" ||
-        path === "/technician"
-      ) {
-        setActivePage("technician-login");
-      } else if (
-        path === "/" ||
-        path === "/services" ||
-        path === "/checkout" ||
-        path === "/bookings" ||
-        path === "/profile"
-      ) {
-        setActivePage("argent-home");
-      }
-    };
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
-  }, []);
+    if (
+      location.pathname === "/" ||
+      location.pathname === "/services" ||
+      location.pathname === "/checkout" ||
+      location.pathname === "/bookings" ||
+      location.pathname === "/profile"
+    ) {
+      setActivePage("argent-home");
+    }
+  }, [location.pathname]);
 
   if (loading) {
     return (
@@ -132,83 +141,35 @@ function MainApp() {
     );
   }
 
-  // 1. Dedicated Technician Portal Pages
-  if (activePage === "technician-login") {
-    return (
-      <TechnicianLoginPage
-        onLoginSuccess={() => {
-          window.history.pushState({}, "", "/technician/dashboard");
-          setActivePage("technician-dashboard");
-        }}
-        onBackToHome={() => {
-          window.history.pushState({}, "", "/");
-          setActivePage("argent-home");
-        }}
-      />
-    );
-  }
-
-  if (activePage === "technician-dashboard") {
-    return (
-      <TechnicianDashboardPage
-        onLogout={() => {
-          technicianStore.logout();
-          window.history.pushState({}, "", "/technician/login");
-          setActivePage("technician-login");
-        }}
-        onBackToHome={() => {
-          window.history.pushState({}, "", "/");
-          setActivePage("argent-home");
-        }}
-      />
-    );
-  }
-
-  // 2. Argent Your customer website (Home, Services, Bookings, Profile, Checkout)
+  // Argent Your customer website
   if (activePage === "argent-home" || !isAuthenticated) {
     return (
       <LoginPage
         onNavigateAdmin={() => setActivePage("admin-dashboard")}
         onNavigateTechnician={(path) => {
-          const isDash =
-            path === "/technician/dashboard" || technicianStore.isLoggedIn();
-          const target = isDash ? "technician-dashboard" : "technician-login";
-          window.history.pushState(
-            {},
-            "",
-            isDash ? "/technician/dashboard" : "/technician/login",
-          );
-          setActivePage(target);
+          navigate(path || "/technician/dashboard");
         }}
       />
     );
   }
 
+  // Info pages
   if (
     infoRoutePrefixes.some(
       (prefix) =>
-        window.location.pathname === prefix ||
-        window.location.pathname.startsWith(`${prefix}/`),
+        location.pathname === prefix || location.pathname.startsWith(`${prefix}/`)
     )
   ) {
     return (
       <InfoPage
-        path={window.location.pathname}
-        onHome={() => window.location.assign("/")}
+        path={location.pathname}
+        onHome={() => navigate("/")}
         onNavigate={(path) => {
           if (path.startsWith("/technician")) {
-            const isDash =
-              path === "/technician/dashboard" || technicianStore.isLoggedIn();
-            const target = isDash ? "technician-dashboard" : "technician-login";
-            window.history.pushState(
-              {},
-              "",
-              isDash ? "/technician/dashboard" : "/technician/login",
-            );
-            setActivePage(target);
+            navigate(path);
             return;
           }
-          window.location.assign(path);
+          navigate(path);
         }}
       />
     );
@@ -221,7 +182,7 @@ function MainApp() {
 
   const handleJobAccepted = (requestId) => {
     setActiveTrackingId(requestId);
-    setActivePage("technician-dashboard");
+    navigate("/technician/dashboard");
   };
 
   const handleInspectRequest = (requestId) => {
@@ -238,7 +199,6 @@ function MainApp() {
         setSelectedCity={setSelectedCity}
       />
 
-      {/* Technician Global Dispatch Alert Modal */}
       <TechnicianOfferModal onJobAccepted={handleJobAccepted} />
 
       <main className="flex-1 pb-12">
@@ -250,13 +210,6 @@ function MainApp() {
           <LiveTrackingPage
             requestId={activeTrackingId}
             onNavigateRequest={() => setActivePage("customer-request")}
-          />
-        )}
-
-        {activePage === "technician-dashboard" && (
-          <TechnicianDashboardPage
-            activeRequestId={activeTrackingId}
-            onNavigateHistory={() => setActivePage("history")}
           />
         )}
 
@@ -283,7 +236,26 @@ export default function App() {
   return (
     <AuthProvider>
       <SocketProvider>
-        <MainApp />
+        <BrowserRouter>
+          <Routes>
+            {/* 1. Dedicated Professional Portal Login */}
+            <Route path="/technician/login" element={<TechnicianLoginRoute />} />
+
+            {/* 2. Professional Portal Layout & Nested Routes */}
+            <Route path="/technician" element={<TechnicianProtectedRoute />}>
+              <Route index element={<Navigate to="/technician/dashboard" replace />} />
+              <Route path="dashboard" element={<TechnicianDashboardPage />} />
+              <Route path="jobs" element={<TechnicianJobsPage />} />
+              <Route path="earnings" element={<TechnicianEarningsPage />} />
+              <Route path="notifications" element={<TechnicianNotificationsPage />} />
+              <Route path="profile" element={<TechnicianProfilePage />} />
+              <Route path="*" element={<Navigate to="/technician/dashboard" replace />} />
+            </Route>
+
+            {/* 3. Customer & Admin Portal Routes */}
+            <Route path="*" element={<CustomerAndAdminApp />} />
+          </Routes>
+        </BrowserRouter>
       </SocketProvider>
     </AuthProvider>
   );
