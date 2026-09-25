@@ -153,7 +153,7 @@ function ProfessionalLayoutContent() {
             ) : (
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
             )}
-            <span>{toastMessage.message}</span>
+            <span>{toastMessage.message || toastMessage.text}</span>
           </div>
         </div>
       )}
@@ -221,7 +221,7 @@ function ProfessionalLayoutContent() {
 
           {/* Explicit Status Label */}
           <span className="text-[10px] sm:text-[11px] font-black tracking-wide uppercase whitespace-nowrap">
-            {isOnline ? "ONLINE" : "YOU ARE OFFLINE"}
+            {isOnline ? "ONLINE" : "OFFLINE"}
           </span>
 
           {/* Switch toggle slider */}

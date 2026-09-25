@@ -11,6 +11,7 @@ import {
   Camera,
   Image as ImageIcon,
   Edit3,
+  Pencil,
   CreditCard,
   LogOut,
   Car,
@@ -41,7 +42,6 @@ import {
 } from "lucide-react";
 import { useTechnician } from "../context/TechnicianContext";
 import technicianStore from "../services/technicianStore";
-import ProfessionalRegisterForm from "../components/common/ProfessionalRegisterForm";
 
 export default function TechnicianProfilePage() {
   const {
@@ -392,20 +392,109 @@ export default function TechnicianProfilePage() {
   };
 
   // ========================================================
-  // 4. REGISTRATION FORM SAVE HANDLER (Edit Personal Info)
+  // 4. DEDICATED PERSONAL INFORMATION EDIT FORM (NOT Registration)
   // ========================================================
-  const handleSaveRegistrationForm = async (payload) => {
+  const [isEditingPersonalInfo, setIsEditingPersonalInfo] = useState(false);
+  const [isSavingPersonalInfo, setIsSavingPersonalInfo] = useState(false);
+  const [personalFormData, setPersonalFormData] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    category: "Plumbing",
+    experience_years: 3,
+    skills: "",
+    vehicle_type: "Rapid Response Van",
+    address: "",
+    bio: "",
+  });
+
+  const handleOpenEditPersonalInfo = () => {
+    setPersonalFormData({
+      name: techProfile?.name || "",
+      phone: techProfile?.phone || "",
+      email: techProfile?.email || "",
+      category: techProfile?.category || "Plumbing",
+      experience_years: techProfile?.experience_years || 3,
+      skills: techProfile?.skills || "",
+      vehicle_type: techProfile?.vehicle_type || "Rapid Response Van",
+      address: techProfile?.address || techProfile?.technician_address || "",
+      bio: techProfile?.experience_description || techProfile?.bio || "",
+    });
+    setIsEditingPersonalInfo(true);
+  };
+
+  const handleSavePersonalInfo = async (e) => {
+    e.preventDefault();
+    if (!personalFormData.name.trim()) {
+      showToast("Full Legal Name is required", "error");
+      return;
+    }
+    if (!personalFormData.phone.trim()) {
+      showToast("Mobile Phone Number is required", "error");
+      return;
+    }
+    if (!personalFormData.email.trim()) {
+      showToast("Email Address is required", "error");
+      return;
+    }
+
+    setIsSavingPersonalInfo(true);
     try {
+      const payload = {
+        name: personalFormData.name.trim(),
+        phone: personalFormData.phone.trim(),
+        email: personalFormData.email.trim(),
+        category: personalFormData.category,
+        experience_years: Number(personalFormData.experience_years) || 1,
+        skills: personalFormData.skills.trim(),
+        vehicle_type: personalFormData.vehicle_type,
+        address: personalFormData.address.trim(),
+        bio: personalFormData.bio.trim(),
+      };
+
       await technicianStore.updateProfile(payload);
+
+      // Update context state immediately
       if (setTechProfile) {
-        setTechProfile((prev) => ({ ...prev, ...payload }));
-      } else if (techProfile) {
-        Object.assign(techProfile, payload);
+        setTechProfile((prev) => ({
+          ...prev,
+          ...payload,
+          experience_description: payload.bio,
+        }));
       }
-      showToast("Personal registration details updated successfully", "success");
-      setIsEditingRegistrationForm(false);
-    } catch {
-      showToast("Failed to update registration information", "error");
+
+      // Persist to localStorage so data survives refresh and navigation
+      try {
+        const existingProfile = JSON.parse(
+          localStorage.getItem("argent_technician_profile") || "{}"
+        );
+        const updatedProfile = { ...existingProfile, ...payload, experience_description: payload.bio };
+        localStorage.setItem("argent_technician_profile", JSON.stringify(updatedProfile));
+
+        const storedUser = JSON.parse(localStorage.getItem("argent_technician_user") || "{}");
+        const updatedUser = {
+          ...storedUser,
+          name: payload.name,
+          phone: payload.phone,
+          email: payload.email,
+          technician: {
+            ...(storedUser.technician || {}),
+            ...payload,
+            experience_description: payload.bio,
+          },
+        };
+        localStorage.setItem("argent_technician_user", JSON.stringify(updatedUser));
+      } catch (storageErr) {
+        console.warn("Storage warning:", storageErr);
+      }
+
+      showToast("Personal information updated successfully!", "success");
+      setIsEditingPersonalInfo(false);
+    } catch (err) {
+      console.error("Save personal info error:", err);
+      showToast("Failed to save personal information", "error");
+    } finally {
+      setIsSavingPersonalInfo(false);
     }
   };
 

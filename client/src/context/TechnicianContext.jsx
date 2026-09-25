@@ -99,7 +99,7 @@ export function TechnicianProvider({ children, onLogout }) {
   const cameraInputRef = useRef(null);
 
   const showToast = (msg, type = "success") => {
-    setToastMessage({ text: msg, type });
+    setToastMessage({ text: msg, message: msg, type });
     setTimeout(() => {
       setToastMessage(null);
     }, 4000);
@@ -111,8 +111,26 @@ export function TechnicianProvider({ children, onLogout }) {
 
     try {
       const data = await technicianStore.getDashboardSummary();
-      setTechProfile(data.technician);
-      setIsOnline(data.availability === "ONLINE");
+
+      // Merge locally saved profile data so edits are never overwritten by server on reload
+      let mergedTechnician = data.technician;
+      try {
+        const savedProfile = localStorage.getItem("argent_technician_profile");
+        if (savedProfile) {
+          const localProfile = JSON.parse(savedProfile);
+          mergedTechnician = { ...data.technician, ...localProfile };
+        }
+      } catch { /* ignore */ }
+      setTechProfile(mergedTechnician);
+
+      // Sync online status: localStorage is the source of truth (prevents server lag from reverting)
+      const savedOnline = localStorage.getItem("argent_technician_online");
+      if (savedOnline === "OFFLINE" || savedOnline === "ONLINE") {
+        setIsOnline(savedOnline === "ONLINE");
+      } else {
+        setIsOnline(data.availability === "ONLINE");
+      }
+
       setActiveJobs(data.activeJobs || []);
       setNewRequests(data.newRequests || []);
       setUpcomingJobs(data.upcomingJobs || []);
@@ -169,15 +187,18 @@ export function TechnicianProvider({ children, onLogout }) {
   const handleToggleOnline = async () => {
     if (hasActiveJob && isOnline) {
       showToast(
-        "Active service order in progress. You must complete ongoing jobs before switching offline.",
+        "You have an active service. Complete the current service before going offline.",
         "error"
       );
       return;
     }
     const newStatus = isOnline ? "OFFLINE" : "ONLINE";
+    const nextBool = newStatus === "ONLINE";
+    // Optimistic update immediately so UI responds instantly
+    setIsOnline(nextBool);
+    localStorage.setItem("argent_technician_online", newStatus);
     try {
-      await technicianStore.toggleAvailability(newStatus);
-      setIsOnline(newStatus === "ONLINE");
+      await technicianStore.setAvailability(newStatus);
       showToast(
         newStatus === "ONLINE"
           ? "You are now ONLINE and ready to receive dispatches!"
@@ -186,6 +207,9 @@ export function TechnicianProvider({ children, onLogout }) {
       );
       await loadDashboardData(true);
     } catch {
+      // Revert optimistic update on failure
+      setIsOnline(isOnline);
+      localStorage.setItem("argent_technician_online", isOnline ? "ONLINE" : "OFFLINE");
       showToast("Failed to change availability status", "error");
     }
   };

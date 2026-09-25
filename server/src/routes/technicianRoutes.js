@@ -629,12 +629,7 @@ export default function createTechnicianRouter(io) {
       );
       if (!tech) return res.status(404).json({ error: "Technician not found" });
 
-      if (is_online && tech.status && tech.status !== "Approved") {
-        return res.status(403).json({
-          error: `Cannot go ONLINE. Your account status is '${tech.status}'. Only Approved technicians can go online and receive customer jobs.`,
-          status: tech.status,
-        });
-      }
+      const newOnlineStatus = is_online ? 1 : 0;
 
       if (!is_online) {
         const activeJob = await query.get(
@@ -646,12 +641,11 @@ export default function createTechnicianRouter(io) {
         if (activeJob) {
           return res.status(400).json({
             error:
-              "Cannot go OFFLINE while an active job is assigned. Please complete the job first.",
+              "You have an active service. Complete the current service before going offline.",
           });
         }
       }
 
-      const newOnlineStatus = is_online ? 1 : 0;
       await query.run("UPDATE technicians SET is_online = ? WHERE id = ?", [
         newOnlineStatus,
         tech.id,
@@ -1232,6 +1226,18 @@ export default function createTechnicianRouter(io) {
 
       await query.run(
         "UPDATE technicians SET latitude = ?, longitude = ? WHERE id = ?",
+        [latitude, longitude, tech.id],
+      );
+
+      res.json({ success: true, latitude, longitude });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to update coordinates" });
+    }
+  });
+
+  return router;
+}
+de = ?, longitude = ? WHERE id = ?",
         [latitude, longitude, tech.id],
       );
 

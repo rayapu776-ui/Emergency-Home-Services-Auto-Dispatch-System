@@ -65,6 +65,11 @@ class TechnicianStore {
     return isOnline ? "ONLINE" : "OFFLINE";
   }
 
+  // Alias for setAvailability — both names work
+  async toggleAvailability(status) {
+    return this.setAvailability(status);
+  }
+
   saveSession(token, user) {
     localStorage.setItem(TECH_TOKEN_KEY, token);
     localStorage.setItem(TECH_USER_KEY, JSON.stringify(user));
