@@ -14,6 +14,8 @@ import {
   CreditCard,
   Pencil,
   ArrowDownToLine,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 import { useTechnician, TechnicianProvider } from "../context/TechnicianContext";
 import TechnicianJobDetailsModal from "../components/common/TechnicianJobDetailsModal";
@@ -110,7 +112,7 @@ function ProfessionalLayoutContent() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#f6f7f3] text-slate-900 font-comic technician-dashboard selection:bg-emerald-200 flex flex-col">
+    <div className="min-h-screen bg-[#f6f7f3] text-slate-900 font-sans technician-dashboard selection:bg-emerald-200 flex flex-col">
       {/* Hidden file & camera inputs for Profile photo capture */}
       <input
         type="file"
@@ -154,68 +156,66 @@ function ProfessionalLayoutContent() {
 
       {/* Shared Professional Top Navbar */}
       <header className="sticky top-0 z-40 bg-[#0c1311] text-white px-4 md:px-6 py-2.5 flex items-center justify-between border-b border-emerald-950/60 shadow-md">
-        {/* Brand / Title */}
+        {/* Company Name & Brand */}
         <div className="flex items-center gap-3">
           <NavLink
             to="/technician/dashboard"
             className="flex items-center gap-2.5 group cursor-pointer"
           >
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center shadow-md shadow-emerald-900/30 group-hover:scale-105 transition-transform">
-              <Wrench className="w-4 h-4 text-white" />
-            </div>
+            <img
+              src="/argent-logo.png"
+              alt="Argent Your"
+              className="w-9 h-9 rounded-xl object-contain shadow-md shadow-emerald-950/40 group-hover:scale-105 transition-transform"
+            />
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-black text-sm tracking-tight text-white">
-                  ARGENT
+                <span className="font-black text-base tracking-tight text-white group-hover:text-emerald-300 transition-colors">
+                  Argent Your
                 </span>
                 <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                   PRO
                 </span>
               </div>
               <p className="text-[10px] text-slate-400 font-medium">
-                Field Technician Portal
+                Field Partner Portal
               </p>
             </div>
           </NavLink>
         </div>
 
-        {/* Global Online / Offline Toggle Switch */}
+        {/* Online / Offline Toggle (Proper Logo without words) */}
         <button
           type="button"
           onClick={handleToggleOnline}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-bold transition-all cursor-pointer ${
-            isOnline
-              ? "bg-emerald-950/80 border-emerald-500/50 text-emerald-300 hover:bg-emerald-900/80"
-              : "bg-slate-900/80 border-slate-700 text-slate-400 hover:bg-slate-800"
-          }`}
+          aria-label={isOnline ? "Currently Online. Click to switch Offline" : "Currently Offline. Click to switch Online"}
           title={
             hasActiveJob && isOnline
               ? "Cannot switch offline while a service order is active"
               : isOnline
-              ? "Click to go Offline"
-              : "Click to go Online"
+              ? "Online (Click to go Offline)"
+              : "Offline (Click to go Online)"
           }
+          className={`relative p-2.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-center group ${
+            isOnline
+              ? "bg-emerald-950/80 border-emerald-500/60 hover:bg-emerald-900/90 shadow-md shadow-emerald-950/50"
+              : "bg-slate-900/90 border-slate-700/80 hover:bg-slate-800 shadow-md shadow-slate-950/40"
+          }`}
         >
-          <span
-            className={`w-2 h-2 rounded-full ${
-              isOnline ? "bg-emerald-400 animate-pulse" : "bg-slate-500"
-            }`}
-          />
-          <span className="hidden sm:inline">
-            {isOnline ? "Online & Ready" : "Offline"}
-          </span>
-          <span className="sm:hidden">{isOnline ? "Online" : "Off"}</span>
-          <div
-            className={`w-7 h-4 rounded-full p-0.5 transition-colors ${
-              isOnline ? "bg-emerald-500" : "bg-slate-700"
-            }`}
-          >
-            <div
-              className={`w-3 h-3 rounded-full bg-white transition-transform ${
-                isOnline ? "translate-x-3" : "translate-x-0"
-              }`}
-            />
-          </div>
+          {isOnline ? (
+            <div className="relative flex items-center justify-center">
+              {/* Pulsing signal beacon dot */}
+              <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400" />
+              </span>
+              <Wifi className="w-5 h-5 text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.8)] group-hover:scale-110 transition-transform" />
+            </div>
+          ) : (
+            <div className="relative flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 inline-flex rounded-full h-2.5 w-2.5 bg-slate-500" />
+              <WifiOff className="w-5 h-5 text-slate-400 group-hover:scale-110 transition-transform" />
+            </div>
+          )}
         </button>
       </header>
 
