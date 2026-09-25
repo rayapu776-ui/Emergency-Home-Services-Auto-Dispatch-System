@@ -30,6 +30,7 @@ export default {
         "ping-slow": "ping 2s cubic-bezier(0, 0, 0.2, 1) infinite",
       },
       fontFamily: {
+        comic: ['"Comic Neue"', "cursive", "sans-serif"],
         sans: [
           '"Google Sans"',
           '"Google Sans Text"',

@@ -69,12 +69,16 @@ function ProfessionalLayoutContent() {
 
   const navItems = [
     {
+      id: "dashboard",
       to: "/technician/dashboard",
       label: "Dashboard",
       icon: LayoutDashboard,
-      isActive: location.pathname === "/technician/dashboard" || location.pathname === "/technician",
+      isActive:
+        location.pathname === "/technician/dashboard" ||
+        location.pathname === "/technician",
     },
     {
+      id: "jobs",
       to: "/technician/jobs",
       label: "Jobs",
       icon: Wrench,
@@ -82,12 +86,14 @@ function ProfessionalLayoutContent() {
       isActive: location.pathname.startsWith("/technician/jobs"),
     },
     {
+      id: "earnings",
       to: "/technician/earnings",
       label: "Earnings",
       icon: DollarSign,
       isActive: location.pathname.startsWith("/technician/earnings"),
     },
     {
+      id: "notifications",
       to: "/technician/notifications",
       label: "Notifications",
       icon: Bell,
@@ -95,6 +101,7 @@ function ProfessionalLayoutContent() {
       isActive: location.pathname.startsWith("/technician/notifications"),
     },
     {
+      id: "profile",
       to: "/technician/profile",
       label: "Profile",
       icon: User,
@@ -103,7 +110,7 @@ function ProfessionalLayoutContent() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#f6f7f3] text-slate-900 font-sans technician-dashboard selection:bg-emerald-200 flex flex-col">
+    <div className="min-h-screen bg-[#f6f7f3] text-slate-900 font-comic technician-dashboard selection:bg-emerald-200 flex flex-col">
       {/* Hidden file & camera inputs for Profile photo capture */}
       <input
         type="file"
@@ -121,72 +128,91 @@ function ProfessionalLayoutContent() {
         onChange={handlePhotoFileChange}
       />
 
-      {/* Toast Alert */}
+      {/* Floating Global Toast Notification */}
       {toastMessage && (
-        <div className="fixed top-5 right-5 z-50 animate-bounce">
+        <div className="fixed top-4 right-4 z-50 animate-bounce">
           <div
-            className={`px-4 py-3 rounded-2xl shadow-xl flex items-center gap-3 text-xs font-bold ${
+            className={`px-4 py-3 rounded-2xl shadow-xl flex items-center gap-3 text-xs font-bold border ${
               toastMessage.type === "error"
-                ? "bg-red-600 text-white"
+                ? "bg-red-50 text-red-900 border-red-200"
                 : toastMessage.type === "info"
-                  ? "bg-slate-800 text-white"
-                  : "bg-emerald-700 text-white"
+                ? "bg-blue-50 text-blue-900 border-blue-200"
+                : "bg-emerald-50 text-emerald-900 border-emerald-200"
             }`}
           >
             {toastMessage.type === "error" ? (
-              <XCircle className="w-4 h-4" />
+              <XCircle className="w-4 h-4 text-red-600 shrink-0" />
+            ) : toastMessage.type === "info" ? (
+              <AlertTriangle className="w-4 h-4 text-blue-600 shrink-0" />
             ) : (
-              <CheckCircle2 className="w-4 h-4" />
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
             )}
-            <span>{toastMessage.text}</span>
+            <span>{toastMessage.message}</span>
           </div>
         </div>
       )}
 
-      {/* Top Navbar: Argent Your logo + name on Left, Online/Offline status switch on Right */}
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-4 md:px-6 py-2.5 flex items-center justify-between shadow-xs">
-        <div className="flex items-center gap-2.5 shrink-0">
-          <img
-            src="/argent-logo.png"
-            alt="Argent Your"
-            className="h-8 w-8 rounded-xl object-contain shadow-xs"
-          />
-          <span className="text-base font-black text-slate-900 tracking-tight">
-            Argent Your
-          </span>
+      {/* Shared Professional Top Navbar */}
+      <header className="sticky top-0 z-40 bg-[#0c1311] text-white px-4 md:px-6 py-2.5 flex items-center justify-between border-b border-emerald-950/60 shadow-md">
+        {/* Brand / Title */}
+        <div className="flex items-center gap-3">
+          <NavLink
+            to="/technician/dashboard"
+            className="flex items-center gap-2.5 group cursor-pointer"
+          >
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center shadow-md shadow-emerald-900/30 group-hover:scale-105 transition-transform">
+              <Wrench className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-black text-sm tracking-tight text-white">
+                  ARGENT
+                </span>
+                <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  PRO
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-400 font-medium">
+                Field Technician Portal
+              </p>
+            </div>
+          </NavLink>
         </div>
 
-        {/* Online/Offline status switch */}
+        {/* Global Online / Offline Toggle Switch */}
         <button
           type="button"
           onClick={handleToggleOnline}
-          className={`flex items-center gap-2 px-2.5 py-1.5 rounded-full border transition-all cursor-pointer select-none ${
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-bold transition-all cursor-pointer ${
             isOnline
-              ? "bg-emerald-50 border-emerald-300 text-emerald-900 shadow-2xs hover:bg-emerald-100/70"
-              : "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200/60"
+              ? "bg-emerald-950/80 border-emerald-500/50 text-emerald-300 hover:bg-emerald-900/80"
+              : "bg-slate-900/80 border-slate-700 text-slate-400 hover:bg-slate-800"
           }`}
           title={
-            hasActiveJob
-              ? "Active job — stay online"
+            hasActiveJob && isOnline
+              ? "Cannot switch offline while a service order is active"
               : isOnline
-                ? "Status: Online (Click to switch)"
-                : "Status: Offline (Click to switch)"
+              ? "Click to go Offline"
+              : "Click to go Online"
           }
-          aria-label={isOnline ? "Online" : "Offline"}
         >
           <span
-            className={`w-2.5 h-2.5 rounded-full ${
-              isOnline ? "bg-emerald-500 animate-pulse" : "bg-slate-400"
+            className={`w-2 h-2 rounded-full ${
+              isOnline ? "bg-emerald-400 animate-pulse" : "bg-slate-500"
             }`}
           />
+          <span className="hidden sm:inline">
+            {isOnline ? "Online & Ready" : "Offline"}
+          </span>
+          <span className="sm:hidden">{isOnline ? "Online" : "Off"}</span>
           <div
-            className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-              isOnline ? "bg-emerald-600" : "bg-slate-300"
+            className={`w-7 h-4 rounded-full p-0.5 transition-colors ${
+              isOnline ? "bg-emerald-500" : "bg-slate-700"
             }`}
           >
-            <span
-              className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition duration-200 ease-in-out ${
-                isOnline ? "translate-x-4" : "translate-x-0"
+            <div
+              className={`w-3 h-3 rounded-full bg-white transition-transform ${
+                isOnline ? "translate-x-3" : "translate-x-0"
               }`}
             />
           </div>
@@ -195,7 +221,7 @@ function ProfessionalLayoutContent() {
 
       {/* Main Body: Desktop Sidebar + Single Responsive Content Container */}
       <div className="flex-1 flex overflow-hidden min-h-[calc(100vh-57px)]">
-        {/* Left Sidebar on Desktop (hidden on mobile) */}
+        {/* Left Sidebar on Desktop */}
         <aside className="hidden md:flex flex-col justify-between w-64 shrink-0 bg-white border-r border-slate-200/80 p-5 sticky top-[57px] h-[calc(100vh-57px)] overflow-y-auto">
           <div className="space-y-6">
             <div className="space-y-1.5">
@@ -204,6 +230,8 @@ function ProfessionalLayoutContent() {
                 return (
                   <NavLink
                     key={item.to}
+                    id={`sidebar-nav-${item.id}`}
+                    data-testid={`sidebar-nav-${item.id}`}
                     to={item.to}
                     className={
                       "w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer " +
@@ -250,20 +278,25 @@ function ProfessionalLayoutContent() {
         </aside>
 
         {/* Page Content Area: Single Outlet for selected child route */}
-        <main className="flex-1 min-w-0 p-4 md:p-6 lg:p-8 space-y-6 overflow-y-auto pb-28 md:pb-8">
+        <main className="flex-1 min-w-0 p-4 md:p-6 lg:p-8 space-y-6 overflow-y-auto pb-28 md:pb-28">
           <Outlet />
         </main>
       </div>
 
-      {/* Mobile Bottom Fixed Navigation (hidden on desktop) */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 py-2 px-3 flex items-center justify-around shadow-lg">
+      {/* Professional Portal Bottom Navigation (Always accessible on all screen sizes) */}
+      <nav
+        aria-label="Professional Navigation"
+        className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 py-2 px-3 flex items-center justify-around shadow-lg"
+      >
         {navItems.map((item) => {
           const Icon = item.icon;
           return (
             <NavLink
               key={item.to}
+              id={`bottom-nav-${item.id}`}
+              data-testid={`bottom-nav-${item.id}`}
               to={item.to}
-              className={`flex flex-col items-center justify-center gap-1 py-1 px-3 rounded-xl transition-all cursor-pointer relative ${
+              className={`flex flex-col items-center justify-center gap-1 py-1 px-3 sm:px-5 rounded-xl transition-all cursor-pointer relative ${
                 item.isActive
                   ? "text-emerald-700 font-black"
                   : "text-slate-400 hover:text-slate-600 font-semibold"
@@ -293,33 +326,30 @@ function ProfessionalLayoutContent() {
           <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-slate-200 space-y-4">
             <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
               <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
-                <CheckCircle2 className="w-5 h-5 text-emerald-700" />
+                <CheckCircle2 className="w-5 h-5" />
               </div>
               <div>
                 <h3 className="text-base font-black text-slate-900">
-                  Complete Service Job #{completeConfirmJob.id}?
+                  Complete Service
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Confirm service completion and signoff
+                  Confirm resolution and mark order completed
                 </p>
               </div>
             </div>
 
-            <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
-              By completing this job, you confirm that the service for{" "}
-              <strong>
-                {completeConfirmJob.service_name || completeConfirmJob.category}
-              </strong>{" "}
-              at <strong>{completeConfirmJob.address}</strong> has been
-              thoroughly executed. The customer will be notified and invited to
-              rate your service.
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Are you sure the emergency service for{" "}
+              <strong>{completeConfirmJob.customer_name || "Customer"}</strong>{" "}
+              is complete? This will generate the final invoice and credit
+              earnings to your account.
             </p>
 
-            <div className="flex gap-3 pt-2">
+            <div className="flex items-center gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => setCompleteConfirmJob(null)}
-                className="flex-1 py-3 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50 transition-colors"
               >
                 Cancel
               </button>
@@ -327,119 +357,115 @@ function ProfessionalLayoutContent() {
                 type="button"
                 onClick={() => handleCompleteJob(completeConfirmJob.id)}
                 disabled={actionLoadingId === completeConfirmJob.id}
-                className="flex-[2] py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white text-xs font-black transition-all shadow-lg shadow-green-600/20 cursor-pointer"
+                className="flex-1 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs transition-colors flex items-center justify-center gap-1.5"
               >
-                {actionLoadingId === completeConfirmJob.id
-                  ? "Marking Complete..."
-                  : "Yes, Mark Job Completed"}
+                {actionLoadingId === completeConfirmJob.id ? (
+                  <span>Saving...</span>
+                ) : (
+                  <span>Mark Complete</span>
+                )}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Decline Job Request Confirmation Dialog */}
+      {/* Decline Job Confirmation Dialog */}
       {declineConfirmJob && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-fade-in">
-          <div className="relative w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl border border-slate-200 text-center space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center mx-auto border border-red-200">
-              <AlertTriangle className="w-6 h-6" />
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
+              <div className="w-10 h-10 rounded-2xl bg-red-100 text-red-800 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-red-700" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900">
+                  Decline Dispatch Request
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Release job back to emergency partner network
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-base font-black text-slate-900">
-                Decline this job request?
-              </h3>
-              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                Are you sure you want to decline order #{declineConfirmJob.id} (
-                {declineConfirmJob.service_name ||
-                  declineConfirmJob.category ||
-                  "Service"}
-                )? This request will be removed and assigned to other available
-                professionals.
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-2 pt-2">
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Decline emergency dispatch for{" "}
+              <strong>{declineConfirmJob.service_name || "Service"}</strong>?
+              This will reassign the customer to the next closest available
+              technician.
+            </p>
+
+            <div className="flex items-center gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => setDeclineConfirmJob(null)}
-                className="py-2.5 px-4 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50 transition-colors"
               >
-                Cancel
+                Keep Job
               </button>
               <button
                 type="button"
                 onClick={() => handleDeclineJob(declineConfirmJob.id)}
                 disabled={actionLoadingId === declineConfirmJob.id}
-                className="py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white font-black text-xs transition-colors cursor-pointer shadow-xs"
+                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-black text-xs transition-colors flex items-center justify-center gap-1.5"
               >
-                {actionLoadingId === declineConfirmJob.id
-                  ? "Declining..."
-                  : "Decline Request"}
+                {actionLoadingId === declineConfirmJob.id ? (
+                  <span>Declining...</span>
+                ) : (
+                  <span>Decline Job</span>
+                )}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* In-App Map Navigation Bottom Sheet / Modal */}
-      {navigationJob && (
-        <InAppMapNavigationSheet
-          job={navigationJob}
-          onClose={closeMap}
-          onStatusUpdate={async (jobId, newStatus) => {
-            if (newStatus === "ARRIVED") {
-              await handleArriveDoorstep(jobId);
-            } else if (newStatus === "ON_THE_WAY") {
-              await handleStartTrip(jobId);
-            } else if (newStatus === "IN_PROGRESS") {
-              await handleStartService(jobId);
-            } else if (newStatus === "COMPLETED") {
-              await handleCompleteJob(jobId);
-            }
-          }}
-        />
-      )}
-
-      {/* Job Details Modal */}
+      {/* Modals & Navigation Sheets */}
       {selectedJobForModal && (
         <TechnicianJobDetailsModal
           job={selectedJobForModal}
+          isOpen={Boolean(selectedJobForModal)}
           onClose={closeJobDetails}
-          onStartTrip={async (jobId) => {
-            await handleStartTrip(jobId);
-            closeJobDetails();
-          }}
-          onArrive={async (jobId) => {
-            await handleArriveDoorstep(jobId);
-            closeJobDetails();
-          }}
-          onStartService={async (jobId) => {
-            await handleStartService(jobId);
-            closeJobDetails();
-          }}
-          onComplete={async (job) => {
-            closeJobDetails();
-            setCompleteConfirmJob(job);
-          }}
-          actionLoadingId={actionLoadingId}
+          onStartTrip={handleStartTrip}
+          onArrived={handleArriveDoorstep}
+          onStartService={handleStartService}
+          onComplete={(job) => setCompleteConfirmJob(job)}
+          onDecline={(job) => setDeclineConfirmJob(job)}
         />
       )}
 
-      {/* Bank Account Setup Modal */}
+      {navigationJob && (
+        <InAppMapNavigationSheet
+          job={navigationJob}
+          isOpen={Boolean(navigationJob)}
+          onClose={closeMap}
+          onStartTrip={handleStartTrip}
+          onArrivedDoorstep={handleArriveDoorstep}
+        />
+      )}
+
+      {/* Bank Account Connection Modal */}
       {showBankModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-fade-in">
           <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-slate-200 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-emerald-700" />
-                <h3 className="text-base font-black text-slate-900">
-                  Setup Direct Bank Transfer
-                </h3>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
+                  <CreditCard className="w-5 h-5 text-emerald-700" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">
+                    Bank Account Setup
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Direct IMPS/NEFT daily settlement account
+                  </p>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => setShowBankModal(false)}
-                className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600"
+                className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -453,12 +479,12 @@ function ProfessionalLayoutContent() {
                 <input
                   type="text"
                   required
+                  placeholder="As registered on bank passbook"
                   value={bankFormData.holder_name}
                   onChange={(e) =>
                     setBankFormData({ ...bankFormData, holder_name: e.target.value })
                   }
-                  placeholder="As per bank records"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-600 focus:outline-hidden"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:border-emerald-600 text-slate-800"
                 />
               </div>
 
@@ -469,22 +495,23 @@ function ProfessionalLayoutContent() {
                 <input
                   type="text"
                   required
+                  placeholder="e.g. HDFC Bank, ICICI Bank, SBI"
                   value={bankFormData.bank_name}
                   onChange={(e) =>
                     setBankFormData({ ...bankFormData, bank_name: e.target.value })
                   }
-                  placeholder="e.g. HDFC Bank, SBI, ICICI"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-600 focus:outline-hidden"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:border-emerald-600 text-slate-800"
                 />
               </div>
 
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
-                  Bank Account Number
+                  Account Number
                 </label>
                 <input
-                  type="password"
+                  type="text"
                   required
+                  placeholder="Enter complete bank account number"
                   value={bankFormData.account_number}
                   onChange={(e) =>
                     setBankFormData({
@@ -492,8 +519,7 @@ function ProfessionalLayoutContent() {
                       account_number: e.target.value,
                     })
                   }
-                  placeholder="•••• •••• ••••"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-600 focus:outline-hidden font-mono"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:border-emerald-600 text-slate-800 font-mono"
                 />
               </div>
 
@@ -504,6 +530,7 @@ function ProfessionalLayoutContent() {
                 <input
                   type="text"
                   required
+                  placeholder="e.g. HDFC0001234"
                   value={bankFormData.ifsc}
                   onChange={(e) =>
                     setBankFormData({
@@ -511,12 +538,11 @@ function ProfessionalLayoutContent() {
                       ifsc: e.target.value.toUpperCase(),
                     })
                   }
-                  placeholder="e.g. HDFC0001234"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-600 focus:outline-hidden uppercase font-mono"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:border-emerald-600 text-slate-800 font-mono uppercase"
                 />
               </div>
 
-              <div className="pt-2 flex gap-2">
+              <div className="flex items-center gap-3 pt-3">
                 <button
                   type="button"
                   onClick={() => setShowBankModal(false)}
@@ -529,7 +555,7 @@ function ProfessionalLayoutContent() {
                   disabled={isSavingBank}
                   className="flex-1 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black transition-colors"
                 >
-                  {isSavingBank ? "Verifying..." : "Save & Verify Account"}
+                  {isSavingBank ? "Verifying..." : "Save Account"}
                 </button>
               </div>
             </form>
@@ -537,27 +563,34 @@ function ProfessionalLayoutContent() {
         </div>
       )}
 
-      {/* Payout Request Modal */}
+      {/* Payout Withdrawal Modal */}
       {showPayoutModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-fade-in">
-          <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl border border-slate-200 space-y-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-slate-200 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <ArrowDownToLine className="w-5 h-5 text-emerald-700" />
-                <h3 className="text-base font-black text-slate-900">
-                  Withdraw Balance
-                </h3>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
+                  <ArrowDownToLine className="w-5 h-5 text-emerald-700" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">
+                    Withdraw Balance
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Instant transfer to your linked bank account
+                  </p>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => setShowPayoutModal(false)}
-                className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600"
+                className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleRequestPayout} className="space-y-3.5 text-xs">
+            <form onSubmit={handleRequestPayout} className="space-y-4 text-xs">
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
                   Withdrawal Amount (₹)
@@ -567,14 +600,17 @@ function ProfessionalLayoutContent() {
                   required
                   min="100"
                   step="50"
+                  placeholder="Enter amount to withdraw"
                   value={payoutAmount}
                   onChange={(e) => setPayoutAmount(e.target.value)}
-                  placeholder="Enter amount to withdraw"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-600 focus:outline-hidden font-bold text-base"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:border-emerald-600 text-slate-800 text-base font-bold"
                 />
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Minimum withdrawal: ₹100 &bull; Settlement processing: Under 30 minutes
+                </p>
               </div>
 
-              <div className="pt-2 flex gap-2">
+              <div className="flex items-center gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowPayoutModal(false)}
@@ -587,7 +623,7 @@ function ProfessionalLayoutContent() {
                   disabled={isSubmittingPayout}
                   className="flex-1 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black transition-colors"
                 >
-                  {isSubmittingPayout ? "Processing..." : "Confirm Payout"}
+                  {isSubmittingPayout ? "Processing..." : "Transfer to Bank"}
                 </button>
               </div>
             </form>
@@ -600,61 +636,65 @@ function ProfessionalLayoutContent() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-fade-in overflow-y-auto">
           <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl border border-slate-200 space-y-4 my-8">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <Pencil className="w-4 h-4 text-emerald-700" />
-                <h3 className="text-base font-black text-slate-900">
-                  Edit Professional Profile
-                </h3>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
+                  <Pencil className="w-5 h-5 text-emerald-700" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">
+                    Edit Profile Details
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Update public credentials and dispatch info
+                  </p>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => setShowEditProfile(false)}
-                className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600"
+                className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <form onSubmit={handleSaveProfile} className="space-y-3.5 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={editFormData.name}
-                    onChange={(e) =>
-                      setEditFormData({ ...editFormData, name: e.target.value })
-                    }
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-600 focus:outline-hidden"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">
-                    Phone Number
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    value={editFormData.phone}
-                    onChange={(e) =>
-                      setEditFormData({ ...editFormData, phone: e.target.value })
-                    }
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-600 focus:outline-hidden"
-                  />
-                </div>
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editFormData.name}
+                  onChange={(e) =>
+                    setEditFormData({ ...editFormData, name: e.target.value })
+                  }
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:border-emerald-600 text-slate-800"
+                />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Phone Number
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editFormData.phone}
+                  onChange={(e) =>
+                    setEditFormData({ ...editFormData, phone: e.target.value })
+                  }
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:border-emerald-600 text-slate-800"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">
-                    Specialist Category
+                    Primary Service
                   </label>
-                  <input
-                    type="text"
-                    required
+                  <select
                     value={editFormData.category}
                     onChange={(e) =>
                       setEditFormData({
@@ -662,17 +702,26 @@ function ProfessionalLayoutContent() {
                         category: e.target.value,
                       })
                     }
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-600 focus:outline-hidden"
-                  />
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:border-emerald-600 text-slate-800 bg-white"
+                  >
+                    <option value="Plumbing">Plumbing</option>
+                    <option value="Electrician">Electrician</option>
+                    <option value="AC & Appliance Repair">
+                      AC & Appliance Repair
+                    </option>
+                    <option value="Carpenter">Carpenter</option>
+                    <option value="Home Cleaning">Home Cleaning</option>
+                  </select>
                 </div>
+
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">
-                    Years of Experience
+                    Experience (Years)
                   </label>
                   <input
                     type="number"
                     min="1"
-                    max="50"
+                    max="40"
                     value={editFormData.experience_years}
                     onChange={(e) =>
                       setEditFormData({
@@ -680,29 +729,14 @@ function ProfessionalLayoutContent() {
                         experience_years: Number(e.target.value),
                       })
                     }
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-600 focus:outline-hidden"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:border-emerald-600 text-slate-800"
                   />
                 </div>
               </div>
 
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
-                  Skills & Specialized Trade Competencies
-                </label>
-                <textarea
-                  rows="2"
-                  value={editFormData.skills}
-                  onChange={(e) =>
-                    setEditFormData({ ...editFormData, skills: e.target.value })
-                  }
-                  placeholder="e.g. Pipe burst repair, water heater diagnostics"
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:border-emerald-600 focus:outline-hidden"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Vehicle Type
+                  Emergency Response Vehicle
                 </label>
                 <input
                   type="text"
@@ -713,11 +747,11 @@ function ProfessionalLayoutContent() {
                       vehicle_type: e.target.value,
                     })
                   }
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-600 focus:outline-hidden"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:border-emerald-600 text-slate-800"
                 />
               </div>
 
-              <div className="pt-2 flex gap-2">
+              <div className="flex items-center gap-3 pt-3">
                 <button
                   type="button"
                   onClick={() => setShowEditProfile(false)}

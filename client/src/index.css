@@ -69,7 +69,7 @@
     sans-serif;
 }
 
-/* Clean modern Sans Serif font throughout Technician Dashboard */
+/* Comic Neue font throughout Technician Dashboard, Jobs, Earnings, Notifications, and Profile */
 .technician-dashboard,
 .technician-dashboard *,
 .technician-dashboard h1,
@@ -80,18 +80,17 @@
 .technician-dashboard h6,
 .technician-dashboard p,
 .technician-dashboard span,
+.technician-dashboard div,
+.technician-dashboard a,
 .technician-dashboard button,
 .technician-dashboard input,
+.technician-dashboard select,
+.technician-dashboard textarea,
 .technician-dashboard label {
   font-family:
-    "Google Sans",
-    "Google Sans Text",
-    Inter,
+    "Comic Neue",
+    cursive,
     system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    Roboto,
     sans-serif !important;
 }
 
