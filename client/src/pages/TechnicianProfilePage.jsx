@@ -47,6 +47,9 @@ export default function TechnicianProfilePage() {
     showToast,
   } = useTechnician();
 
+  // Active section in the horizontal navigation
+  const [activeSection, setActiveSection] = useState("overview");
+
   // Photo change & crop/preview modal state
   const [showPhotoOptionsModal, setShowPhotoOptionsModal] = useState(false);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState(null);
@@ -83,7 +86,6 @@ export default function TechnicianProfilePage() {
   // File & Camera input refs
   const localFileInputRef = useRef(null);
   const localCameraInputRef = useRef(null);
-  const settingsSectionRef = useRef(null);
 
   const allAreas = [
     "Connaught Place & Central",
@@ -98,6 +100,16 @@ export default function TechnicianProfilePage() {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
+
+  // Horizontal Profile Section Tabs
+  const profileTabs = [
+    { id: "overview", label: "Overview" },
+    { id: "personal", label: "Personal Info" },
+    { id: "areas", label: "Service Areas" },
+    { id: "verification", label: "Verification" },
+    { id: "bank", label: "Bank & Payout" },
+    { id: "security", label: "Security" },
+  ];
 
   // Open Edit Profile / Personal Information Modal
   const openEditModal = () => {
@@ -126,7 +138,6 @@ export default function TechnicianProfilePage() {
 
     setIsSavingInfo(true);
     try {
-      // In a real app this syncs to backend; here we also update context
       if (typeof window !== "undefined") {
         const stored = JSON.parse(
           localStorage.getItem("argent_technician_user") || "{}"
@@ -143,7 +154,6 @@ export default function TechnicianProfilePage() {
       }
       showToast("Profile updated successfully", "success");
       setShowEditInfoModal(false);
-      // Update local view immediately
       if (techProfile) {
         Object.assign(techProfile, infoForm);
       }
@@ -236,11 +246,6 @@ export default function TechnicianProfilePage() {
     }, 600);
   };
 
-  // Scroll to Settings section
-  const scrollToSettings = () => {
-    settingsSectionRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
   const proName = techProfile?.name || "Apu Ray";
   const proCategory = techProfile?.category || "Plumbing";
   const proExpYears = techProfile?.experience_years || 5;
@@ -248,7 +253,7 @@ export default function TechnicianProfilePage() {
   const proJobsCount = metrics?.completedCount || 124;
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-2xl mx-auto px-1 sm:px-4 pb-28 text-slate-900">
+    <div className="space-y-4 sm:space-y-6 animate-fade-in max-w-2xl mx-auto px-1 sm:px-4 pb-28 text-slate-900">
       {/* Hidden file pickers for camera & photo upload */}
       <input
         type="file"
@@ -269,7 +274,7 @@ export default function TechnicianProfilePage() {
       {/* ========================================================
           1. PREMIUM PROFILE HEADER CARD (Circular photo, badges, info)
          ======================================================== */}
-      <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/90 shadow-sm relative overflow-hidden text-center space-y-4">
+      <div className="bg-white rounded-3xl p-5 sm:p-7 border border-slate-200/90 shadow-sm relative overflow-hidden text-center space-y-3.5">
         {/* Soft background radial highlight */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-emerald-100/50 rounded-full blur-3xl pointer-events-none" />
 
@@ -277,7 +282,7 @@ export default function TechnicianProfilePage() {
         <div className="relative inline-block mx-auto">
           <div
             onClick={() => setShowPhotoOptionsModal(true)}
-            className="w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden border-4 border-emerald-600/40 bg-gradient-to-br from-emerald-50 to-teal-100 shadow-md flex items-center justify-center cursor-pointer transition-transform hover:scale-102 relative"
+            className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-4 border-emerald-600/40 bg-gradient-to-br from-emerald-50 to-teal-100 shadow-md flex items-center justify-center cursor-pointer transition-transform hover:scale-102 relative"
           >
             {techProfile?.avatar ? (
               <img
@@ -286,7 +291,7 @@ export default function TechnicianProfilePage() {
                 className="w-full h-full object-cover"
               />
             ) : (
-              <User className="w-14 h-14 text-emerald-800" />
+              <User className="w-12 h-12 text-emerald-800" />
             )}
           </div>
 
@@ -295,14 +300,14 @@ export default function TechnicianProfilePage() {
             type="button"
             onClick={() => setShowPhotoOptionsModal(true)}
             aria-label="Change Profile Photo"
-            className="absolute bottom-0 right-0 w-9 h-9 rounded-full bg-emerald-700 hover:bg-emerald-800 text-white flex items-center justify-center shadow-lg border-2 border-white transition-transform hover:scale-110 cursor-pointer"
+            className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-emerald-700 hover:bg-emerald-800 text-white flex items-center justify-center shadow-lg border-2 border-white transition-transform hover:scale-110 cursor-pointer"
           >
-            <Camera className="w-4 h-4" />
+            <Camera className="w-3.5 h-3.5" />
           </button>
         </div>
 
         {/* Identity & Badges */}
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           <div className="flex items-center justify-center gap-2">
             <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
               {proName}
@@ -329,7 +334,7 @@ export default function TechnicianProfilePage() {
         </div>
 
         {/* Contact Info Pills */}
-        <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 text-xs text-slate-600 font-medium">
+        <div className="pt-1 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 text-xs text-slate-600 font-medium">
           <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 w-full sm:w-auto justify-center">
             <Phone className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
             <span>{techProfile?.phone || "+91 98765 43210"}</span>
@@ -341,450 +346,549 @@ export default function TechnicianProfilePage() {
         </div>
 
         {/* Edit Profile Button */}
-        <div className="pt-2">
+        <div className="pt-1">
           <button
             type="button"
             onClick={openEditModal}
-            className="w-full sm:w-auto px-6 py-2.5 rounded-2xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs sm:text-sm inline-flex items-center justify-center gap-2 transition-all shadow-md shadow-emerald-900/10 cursor-pointer"
+            className="w-full sm:w-auto px-6 py-2 rounded-2xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs sm:text-sm inline-flex items-center justify-center gap-2 transition-all shadow-md shadow-emerald-900/10 cursor-pointer"
           >
-            <Edit3 className="w-4 h-4" />
+            <Edit3 className="w-3.5 h-3.5" />
             <span>Edit Profile</span>
           </button>
         </div>
       </div>
 
       {/* ========================================================
-          2. PROFILE STATISTICS CARD (Jobs Done | Rating | Experience)
+          STICKY HORIZONTAL SECTION NAVIGATION
+          [ Overview ] [ Personal Info ] [ Service Areas ] [ Verification ] [ Bank & Payout ] [ Security ]
          ======================================================== */}
-      <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/90 shadow-sm grid grid-cols-3 divide-x divide-slate-100 text-center">
-        {/* Jobs Done */}
-        <div className="px-2 space-y-0.5">
-          <p className="text-xl sm:text-2xl font-black text-slate-900">
-            {proJobsCount}
-          </p>
-          <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">
-            Jobs Done
-          </p>
-        </div>
-
-        {/* Rating */}
-        <div className="px-2 space-y-0.5">
-          <div className="flex items-center justify-center gap-1 text-amber-500 font-black text-xl sm:text-2xl">
-            <Star className="w-5 h-5 fill-amber-400" />
-            <span>{proRating}</span>
-          </div>
-          <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">
-            Rating (128 reviews)
-          </p>
-        </div>
-
-        {/* Experience */}
-        <div className="px-2 space-y-0.5">
-          <p className="text-xl sm:text-2xl font-black text-emerald-700">
-            {proExpYears}+ Yrs
-          </p>
-          <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">
-            Experience
-          </p>
-        </div>
-      </div>
-
-      {/* ========================================================
-          3. QUICK ACTIONS (4 Clean Action Cards)
-         ======================================================== */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {/* 1. Edit Profile */}
-        <button
-          type="button"
-          onClick={openEditModal}
-          className="bg-white hover:bg-slate-50 p-4 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col items-center justify-center gap-2 text-center transition-all cursor-pointer group"
-        >
-          <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center group-hover:scale-105 transition-transform">
-            <Edit3 className="w-5 h-5" />
-          </div>
-          <span className="text-xs font-bold text-slate-800">Edit Profile</span>
-        </button>
-
-        {/* 2. Change Photo */}
-        <button
-          type="button"
-          onClick={() => setShowPhotoOptionsModal(true)}
-          className="bg-white hover:bg-slate-50 p-4 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col items-center justify-center gap-2 text-center transition-all cursor-pointer group"
-        >
-          <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-700 flex items-center justify-center group-hover:scale-105 transition-transform">
-            <Camera className="w-5 h-5" />
-          </div>
-          <span className="text-xs font-bold text-slate-800">Change Photo</span>
-        </button>
-
-        {/* 3. Bank Details */}
-        <button
-          type="button"
-          onClick={handleOpenBankModal}
-          className="bg-white hover:bg-slate-50 p-4 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col items-center justify-center gap-2 text-center transition-all cursor-pointer group"
-        >
-          <div className="w-10 h-10 rounded-2xl bg-teal-50 text-teal-700 flex items-center justify-center group-hover:scale-105 transition-transform">
-            <CreditCard className="w-5 h-5" />
-          </div>
-          <span className="text-xs font-bold text-slate-800">Bank Details</span>
-        </button>
-
-        {/* 4. Settings */}
-        <button
-          type="button"
-          onClick={scrollToSettings}
-          className="bg-white hover:bg-slate-50 p-4 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col items-center justify-center gap-2 text-center transition-all cursor-pointer group"
-        >
-          <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-700 flex items-center justify-center group-hover:scale-105 transition-transform">
-            <Settings className="w-5 h-5" />
-          </div>
-          <span className="text-xs font-bold text-slate-800">Settings</span>
-        </button>
-      </div>
-
-      {/* ========================================================
-          4. PERSONAL INFORMATION SECTION
-         ======================================================== */}
-      <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center">
-              <User className="w-4 h-4" />
-            </div>
-            <h2 className="text-sm sm:text-base font-black text-slate-900">
-              Personal Information
-            </h2>
-          </div>
-          <button
-            type="button"
-            onClick={openEditModal}
-            className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 cursor-pointer"
-          >
-            <Edit3 className="w-3.5 h-3.5" />
-            <span>Edit</span>
-          </button>
-        </div>
-
-        <div className="space-y-3 text-xs sm:text-sm">
-          {/* Full Name */}
-          <div className="flex items-center justify-between py-1 border-b border-slate-50">
-            <span className="text-slate-400 font-medium">Full Name</span>
-            <span className="font-bold text-slate-800">{proName}</span>
-          </div>
-
-          {/* Phone Number */}
-          <div className="flex items-center justify-between py-1 border-b border-slate-50">
-            <span className="text-slate-400 font-medium">Phone Number</span>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-slate-800">
-                {techProfile?.phone || "+91 98765 43210"}
-              </span>
-              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                Verified
-              </span>
-            </div>
-          </div>
-
-          {/* Email Address */}
-          <div className="flex items-center justify-between py-1 border-b border-slate-50">
-            <span className="text-slate-400 font-medium">Email Address</span>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-slate-800 truncate max-w-[180px] sm:max-w-none">
-                {techProfile?.email || "partner@argentyour.com"}
-              </span>
-              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                Verified
-              </span>
-            </div>
-          </div>
-
-          {/* Service Category */}
-          <div className="flex items-center justify-between py-1 border-b border-slate-50">
-            <span className="text-slate-400 font-medium">Service Category</span>
-            <span className="font-bold text-slate-800">{proCategory}</span>
-          </div>
-
-          {/* Experience */}
-          <div className="flex items-center justify-between py-1 border-b border-slate-50">
-            <span className="text-slate-400 font-medium">Experience</span>
-            <span className="font-bold text-slate-800">{proExpYears} Years</span>
-          </div>
-
-          {/* Professional Bio */}
-          <div className="pt-1 space-y-1">
-            <span className="text-slate-400 font-medium block">Professional Bio</span>
-            <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-2xl border border-slate-100">
-              {techProfile?.bio ||
-                "Certified emergency home services technician committed to swift arrival, accurate diagnostics, and quality craftsmanship across all service zones."}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* ========================================================
-          5. SERVICE AREAS CARD
-         ======================================================== */}
-      <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center">
-              <MapPin className="w-4 h-4" />
-            </div>
-            <div>
-              <h2 className="text-sm sm:text-base font-black text-slate-900">
-                Service Areas
-              </h2>
-              <p className="text-[11px] text-slate-400">
-                Active operational zones for instant dispatches
-              </p>
-            </div>
-          </div>
-          {isSavingAreas && (
-            <span className="text-[11px] font-bold text-emerald-700 animate-pulse">
-              Saving...
-            </span>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {allAreas.map((area) => {
-            const isCovered = currentAreas.some(
-              (a) =>
-                a.toLowerCase() === area.toLowerCase() ||
-                area.toLowerCase().includes(a.toLowerCase())
-            );
+      <div className="sticky top-[53px] z-30 bg-[#f6f7f3]/95 backdrop-blur-md py-2 border-b border-slate-200/80 -mx-1 px-1 sm:mx-0 sm:px-0">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth whitespace-nowrap px-0.5">
+          {profileTabs.map((tab) => {
+            const isActive = activeSection === tab.id;
             return (
-              <div
-                key={area}
-                onClick={() => handleToggleServiceArea(area)}
-                className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
-                  isCovered
-                    ? "bg-emerald-50/70 border-emerald-200 text-emerald-950 font-bold"
-                    : "bg-slate-50 border-slate-200/80 text-slate-600 hover:bg-slate-100/70"
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveSection(tab.id)}
+                className={`py-2 px-3.5 sm:px-4 rounded-2xl text-xs font-bold transition-all cursor-pointer shrink-0 select-none relative ${
+                  isActive
+                    ? "bg-emerald-800 text-white shadow-xs"
+                    : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200/80 hover:text-slate-900"
                 }`}
               >
-                <span className="text-xs leading-snug">{area}</span>
-                <div
-                  className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 ${
-                    isCovered ? "bg-emerald-700 text-white" : "border border-slate-300"
-                  }`}
-                >
-                  {isCovered && <Check className="w-3 h-3" />}
-                </div>
-              </div>
+                <span>{tab.label}</span>
+                {isActive && (
+                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 bg-emerald-600 rounded-full" />
+                )}
+              </button>
             );
           })}
         </div>
       </div>
 
       {/* ========================================================
-          6. VERIFICATION STATUS SECTION
+          SELECTED PROFILE SECTION CONTENT
          ======================================================== */}
-      <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center">
-              <ShieldCheck className="w-4 h-4" />
+
+      {/* --------------------------------------------------------
+          SECTION 1: OVERVIEW
+         -------------------------------------------------------- */}
+      {activeSection === "overview" && (
+        <div className="space-y-4 animate-fade-in">
+          {/* Profile Statistics Card */}
+          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/90 shadow-sm grid grid-cols-3 divide-x divide-slate-100 text-center">
+            {/* Jobs Done */}
+            <div className="px-2 space-y-0.5">
+              <p className="text-xl sm:text-2xl font-black text-slate-900">
+                {proJobsCount}
+              </p>
+              <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">
+                Jobs Done
+              </p>
             </div>
-            <h2 className="text-sm sm:text-base font-black text-slate-900">
-              Verification Status
-            </h2>
+
+            {/* Rating */}
+            <div className="px-2 space-y-0.5">
+              <div className="flex items-center justify-center gap-1 text-amber-500 font-black text-xl sm:text-2xl">
+                <Star className="w-5 h-5 fill-amber-400" />
+                <span>{proRating}</span>
+              </div>
+              <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">
+                Rating (128 reviews)
+              </p>
+            </div>
+
+            {/* Experience */}
+            <div className="px-2 space-y-0.5">
+              <p className="text-xl sm:text-2xl font-black text-emerald-700">
+                {proExpYears}+ Yrs
+              </p>
+              <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">
+                Experience
+              </p>
+            </div>
           </div>
-          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
-            Active
-          </span>
+
+          {/* Quick Actions (4 Clean Action Cards) */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {/* 1. Edit Profile */}
+            <button
+              type="button"
+              onClick={openEditModal}
+              className="bg-white hover:bg-slate-50 p-4 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col items-center justify-center gap-2 text-center transition-all cursor-pointer group"
+            >
+              <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <Edit3 className="w-5 h-5" />
+              </div>
+              <span className="text-xs font-bold text-slate-800">Edit Profile</span>
+            </button>
+
+            {/* 2. Change Photo */}
+            <button
+              type="button"
+              onClick={() => setShowPhotoOptionsModal(true)}
+              className="bg-white hover:bg-slate-50 p-4 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col items-center justify-center gap-2 text-center transition-all cursor-pointer group"
+            >
+              <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-700 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <Camera className="w-5 h-5" />
+              </div>
+              <span className="text-xs font-bold text-slate-800">Change Photo</span>
+            </button>
+
+            {/* 3. Bank Details */}
+            <button
+              type="button"
+              onClick={() => setActiveSection("bank")}
+              className="bg-white hover:bg-slate-50 p-4 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col items-center justify-center gap-2 text-center transition-all cursor-pointer group"
+            >
+              <div className="w-10 h-10 rounded-2xl bg-teal-50 text-teal-700 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <CreditCard className="w-5 h-5" />
+              </div>
+              <span className="text-xs font-bold text-slate-800">Bank Details</span>
+            </button>
+
+            {/* 4. Settings */}
+            <button
+              type="button"
+              onClick={() => setActiveSection("security")}
+              className="bg-white hover:bg-slate-50 p-4 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col items-center justify-center gap-2 text-center transition-all cursor-pointer group"
+            >
+              <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-700 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <Settings className="w-5 h-5" />
+              </div>
+              <span className="text-xs font-bold text-slate-800">Settings</span>
+            </button>
+          </div>
+
+          {/* Operational Hub & Vehicle Summary Card */}
+          <div className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-sm space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <span className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                Field Partner Overview
+              </span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                Active Duty
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                <span className="text-[10px] text-slate-400 font-bold block">
+                  Primary Zone
+                </span>
+                <span className="font-bold text-slate-800">
+                  {currentAreas[0] || "Delhi NCR"}
+                </span>
+              </div>
+              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                <span className="text-[10px] text-slate-400 font-bold block">
+                  Response Vehicle
+                </span>
+                <span className="font-bold text-slate-800">
+                  {techProfile?.vehicle_type || "Rapid Response Van"}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
+      )}
 
-        <div className="space-y-2.5">
-          <div className="p-3 rounded-2xl bg-emerald-50/50 border border-emerald-100 flex items-start gap-3">
-            <CheckCircle className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
-            <div className="space-y-0.5">
-              <p className="text-xs font-black text-emerald-950">Identity Verified</p>
-              <p className="text-[11px] text-emerald-800 leading-snug">
-                Government photo ID and Aadhaar biometric verification completed.
-              </p>
-            </div>
-          </div>
-
-          <div className="p-3 rounded-2xl bg-emerald-50/50 border border-emerald-100 flex items-start gap-3">
-            <CheckCircle className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
-            <div className="space-y-0.5">
-              <p className="text-xs font-black text-emerald-950">
-                Professional Credentials Verified
-              </p>
-              <p className="text-[11px] text-emerald-800 leading-snug">
-                Trade certifications and professional background check approved.
-              </p>
-            </div>
-          </div>
-
-          <div className="p-3 rounded-2xl bg-emerald-50/50 border border-emerald-100 flex items-start gap-3">
-            <CheckCircle className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
-            <div className="space-y-0.5">
-              <p className="text-xs font-black text-emerald-950">Account Verified</p>
-              <p className="text-[11px] text-emerald-800 leading-snug">
-                Authorized Argent Partner dispatch account fully active.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ========================================================
-          7. BANK DETAILS SECTION
-         ======================================================== */}
-      <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center">
-              <CreditCard className="w-4 h-4" />
-            </div>
-            <div>
+      {/* --------------------------------------------------------
+          SECTION 2: PERSONAL INFO
+         -------------------------------------------------------- */}
+      {activeSection === "personal" && (
+        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm space-y-4 animate-fade-in">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center">
+                <User className="w-4 h-4" />
+              </div>
               <h2 className="text-sm sm:text-base font-black text-slate-900">
-                Bank Details
+                Personal Information
               </h2>
-              <p className="text-[11px] text-slate-400">
-                Direct settlement for completed service dispatches
+            </div>
+            <button
+              type="button"
+              onClick={openEditModal}
+              className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 cursor-pointer"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              <span>Edit</span>
+            </button>
+          </div>
+
+          <div className="space-y-3 text-xs sm:text-sm">
+            {/* Full Name */}
+            <div className="flex items-center justify-between py-1 border-b border-slate-50">
+              <span className="text-slate-400 font-medium">Full Name</span>
+              <span className="font-bold text-slate-800">{proName}</span>
+            </div>
+
+            {/* Phone Number */}
+            <div className="flex items-center justify-between py-1 border-b border-slate-50">
+              <span className="text-slate-400 font-medium">Phone Number</span>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-slate-800">
+                  {techProfile?.phone || "+91 98765 43210"}
+                </span>
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                  Verified
+                </span>
+              </div>
+            </div>
+
+            {/* Email Address */}
+            <div className="flex items-center justify-between py-1 border-b border-slate-50">
+              <span className="text-slate-400 font-medium">Email Address</span>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-slate-800 truncate max-w-[180px] sm:max-w-none">
+                  {techProfile?.email || "partner@argentyour.com"}
+                </span>
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                  Verified
+                </span>
+              </div>
+            </div>
+
+            {/* Service Category */}
+            <div className="flex items-center justify-between py-1 border-b border-slate-50">
+              <span className="text-slate-400 font-medium">Service Category</span>
+              <span className="font-bold text-slate-800">{proCategory}</span>
+            </div>
+
+            {/* Experience */}
+            <div className="flex items-center justify-between py-1 border-b border-slate-50">
+              <span className="text-slate-400 font-medium">Experience</span>
+              <span className="font-bold text-slate-800">{proExpYears} Years</span>
+            </div>
+
+            {/* Professional Bio */}
+            <div className="pt-1 space-y-1">
+              <span className="text-slate-400 font-medium block">Professional Bio</span>
+              <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
+                {techProfile?.bio ||
+                  "Certified emergency home services technician committed to swift arrival, accurate diagnostics, and quality craftsmanship across all service zones."}
               </p>
             </div>
+
+            {/* Edit Profile Action Button */}
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={openEditModal}
+                className="w-full py-2.5 rounded-2xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>Update Personal Information</span>
+              </button>
+            </div>
           </div>
+        </div>
+      )}
+
+      {/* --------------------------------------------------------
+          SECTION 3: SERVICE AREAS
+         -------------------------------------------------------- */}
+      {activeSection === "areas" && (
+        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm space-y-4 animate-fade-in">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center">
+                <MapPin className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-sm sm:text-base font-black text-slate-900">
+                  Service Areas
+                </h2>
+                <p className="text-[11px] text-slate-400">
+                  Tap to add or remove operational territories
+                </p>
+              </div>
+            </div>
+            {isSavingAreas && (
+              <span className="text-[11px] font-bold text-emerald-700 animate-pulse">
+                Saving...
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {allAreas.map((area) => {
+              const isCovered = currentAreas.some(
+                (a) =>
+                  a.toLowerCase() === area.toLowerCase() ||
+                  area.toLowerCase().includes(a.toLowerCase())
+              );
+              return (
+                <div
+                  key={area}
+                  onClick={() => handleToggleServiceArea(area)}
+                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                    isCovered
+                      ? "bg-emerald-50/70 border-emerald-200 text-emerald-950 font-bold"
+                      : "bg-slate-50 border-slate-200/80 text-slate-600 hover:bg-slate-100/70"
+                  }`}
+                >
+                  <span className="text-xs leading-snug">{area}</span>
+                  <div
+                    className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
+                      isCovered ? "bg-emerald-700 text-white" : "border border-slate-300"
+                    }`}
+                  >
+                    {isCovered && <Check className="w-3.5 h-3.5" />}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-[11px] text-slate-500 leading-relaxed">
+            Emergency requests are auto-dispatched within your selected coverage areas. Keeping multiple active areas increases dispatch opportunities.
+          </div>
+        </div>
+      )}
+
+      {/* --------------------------------------------------------
+          SECTION 4: VERIFICATION
+         -------------------------------------------------------- */}
+      {activeSection === "verification" && (
+        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm space-y-4 animate-fade-in">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
+              <h2 className="text-sm sm:text-base font-black text-slate-900">
+                Verification Status
+              </h2>
+            </div>
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
+              Active Partner
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            <div className="p-3.5 rounded-2xl bg-emerald-50/50 border border-emerald-100 flex items-start gap-3">
+              <CheckCircle className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <p className="text-xs font-black text-emerald-950">Identity Verified</p>
+                <p className="text-[11px] text-emerald-800 leading-snug">
+                  Government photo ID and Aadhaar biometric verification completed.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-emerald-50/50 border border-emerald-100 flex items-start gap-3">
+              <CheckCircle className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <p className="text-xs font-black text-emerald-950">
+                  Professional Credentials Verified
+                </p>
+                <p className="text-[11px] text-emerald-800 leading-snug">
+                  Trade certifications and professional background check approved.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-emerald-50/50 border border-emerald-100 flex items-start gap-3">
+              <CheckCircle className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <p className="text-xs font-black text-emerald-950">Account Verified</p>
+                <p className="text-[11px] text-emerald-800 leading-snug">
+                  Authorized Argent Partner dispatch account fully active.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --------------------------------------------------------
+          SECTION 5: BANK & PAYOUT
+         -------------------------------------------------------- */}
+      {activeSection === "bank" && (
+        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm space-y-4 animate-fade-in">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center">
+                <CreditCard className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-sm sm:text-base font-black text-slate-900">
+                  Bank & Payout Details
+                </h2>
+                <p className="text-[11px] text-slate-400">
+                  Daily settlement for completed service dispatches
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleOpenBankModal}
+              className="py-1.5 px-3 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+            >
+              Edit Bank Details
+            </button>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2.5 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400 font-medium">Bank Name</span>
+              <span className="font-bold text-slate-900">
+                {bankAccount?.bankName || "ICICI Bank"}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400 font-medium">Account Number</span>
+              <span className="font-mono font-bold text-slate-800">
+                {bankAccount?.accountNumberMasked || "•••• •••• 6620"}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400 font-medium">IFSC</span>
+              <span className="font-mono font-bold text-slate-800">
+                {bankAccount?.ifsc || "ICIC0001234"}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between pt-1 border-t border-slate-200/60">
+              <span className="text-slate-400 font-medium">Payout Status</span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                Active (Daily IMPS)
+              </span>
+            </div>
+          </div>
+
           <button
             type="button"
             onClick={handleOpenBankModal}
-            className="py-1.5 px-3 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+            className="w-full py-2.5 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
           >
-            Edit Bank Details
+            <CreditCard className="w-3.5 h-3.5" />
+            <span>Manage Settlement Account</span>
           </button>
         </div>
+      )}
 
-        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2.5 text-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-slate-400 font-medium">Bank Name</span>
-            <span className="font-bold text-slate-900">
-              {bankAccount?.bankName || "ICICI Bank"}
-            </span>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <span className="text-slate-400 font-medium">Account Number</span>
-            <span className="font-mono font-bold text-slate-800">
-              {bankAccount?.accountNumberMasked || "•••• •••• 6620"}
-            </span>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <span className="text-slate-400 font-medium">IFSC</span>
-            <span className="font-mono font-bold text-slate-800">
-              {bankAccount?.ifsc || "ICIC0001234"}
-            </span>
-          </div>
-
-          <div className="flex items-center justify-between pt-1 border-t border-slate-200/60">
-            <span className="text-slate-400 font-medium">Account Status</span>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-              Active
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* ========================================================
-          8. ACCOUNT SETTINGS SECTION (Security, 2FA, Password, Logout)
-         ======================================================== */}
-      <div
-        ref={settingsSectionRef}
-        className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm space-y-4"
-      >
-        <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
-          <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center">
-            <Settings className="w-4 h-4" />
-          </div>
-          <h2 className="text-sm sm:text-base font-black text-slate-900">
-            Account Settings
-          </h2>
-        </div>
-
-        <div className="space-y-3">
-          {/* Account Security status row */}
-          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
-            <div className="space-y-0.5">
-              <p className="text-xs font-black text-slate-800">Account Security</p>
-              <p className="text-[11px] text-slate-400">Security shield active</p>
+      {/* --------------------------------------------------------
+          SECTION 6: SECURITY
+         -------------------------------------------------------- */}
+      {activeSection === "security" && (
+        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm space-y-4 animate-fade-in">
+          <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
+            <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center">
+              <Settings className="w-4 h-4" />
             </div>
-            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800">
-              Protected
-            </span>
+            <h2 className="text-sm sm:text-base font-black text-slate-900">
+              Account Security
+            </h2>
           </div>
 
-          {/* Two-step verification toggle row */}
-          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
-            <div className="space-y-0.5">
-              <p className="text-xs font-black text-slate-800">Two-Step Verification</p>
-              <p className="text-[11px] text-slate-400">
-                OTP sent on every partner portal sign-in
-              </p>
+          <div className="space-y-3">
+            {/* Account Security status row */}
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
+              <div className="space-y-0.5">
+                <p className="text-xs font-black text-slate-800">Account Security</p>
+                <p className="text-[11px] text-slate-400">Security shield active</p>
+              </div>
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                Protected
+              </span>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                setTwoStepEnabled(!twoStepEnabled);
-                showToast(
+
+            {/* Two-step verification toggle row */}
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
+              <div className="space-y-0.5">
+                <p className="text-xs font-black text-slate-800">Two-Step Verification</p>
+                <p className="text-[11px] text-slate-400">
+                  OTP sent on every partner portal sign-in
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setTwoStepEnabled(!twoStepEnabled);
+                  showToast(
+                    twoStepEnabled
+                      ? "Two-step verification disabled"
+                      : "Two-step verification enabled",
+                    "info"
+                  );
+                }}
+                className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all cursor-pointer ${
                   twoStepEnabled
-                    ? "Two-step verification disabled"
-                    : "Two-step verification enabled",
-                  "info"
-                );
-              }}
-              className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all cursor-pointer ${
-                twoStepEnabled
-                  ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                  : "bg-slate-200 text-slate-600"
-              }`}
-            >
-              {twoStepEnabled ? "Enabled (SMS OTP)" : "Disabled"}
-            </button>
-          </div>
-
-          {/* Change Password row */}
-          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
-            <div className="space-y-0.5">
-              <p className="text-xs font-black text-slate-800">Change Password</p>
-              <p className="text-[11px] text-slate-400">
-                Regularly update your password for safety
-              </p>
+                    ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                    : "bg-slate-200 text-slate-600"
+                }`}
+              >
+                {twoStepEnabled ? "Enabled (SMS OTP)" : "Disabled"}
+              </button>
             </div>
+
+            {/* Change Password row */}
+            <div className="p-3.5 rounded-2xl border border-slate-200/80 bg-slate-50 flex items-center justify-between">
+              <div className="space-y-0.5">
+                <p className="text-xs font-black text-slate-800">Change Password</p>
+                <p className="text-[11px] text-slate-400">
+                  Regularly update your password for safety
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowChangePasswordModal(true)}
+                className="py-1.5 px-3 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+              >
+                Update
+              </button>
+            </div>
+
+            {/* Login Activity row */}
+            <div className="p-3.5 rounded-2xl border border-slate-200/80 bg-slate-50 flex items-center justify-between">
+              <div className="space-y-0.5">
+                <p className="text-xs font-black text-slate-800">Login Activity</p>
+                <p className="text-[11px] text-slate-400">
+                  Current Session &bull; New Delhi &bull; Active Now
+                </p>
+              </div>
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            </div>
+
+            {/* Logout Button */}
             <button
               type="button"
-              onClick={() => setShowChangePasswordModal(true)}
-              className="py-1.5 px-3 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+              onClick={handleLogoutClick}
+              className="w-full py-3 px-4 rounded-2xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer mt-2"
             >
-              Update
+              <LogOut className="w-4 h-4" />
+              <span>Sign Out of Professional Portal</span>
             </button>
           </div>
-
-          {/* Login Activity row */}
-          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
-            <div className="space-y-0.5">
-              <p className="text-xs font-black text-slate-800">Login Activity</p>
-              <p className="text-[11px] text-slate-400">
-                Current Session &bull; New Delhi &bull; Active Now
-              </p>
-            </div>
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-          </div>
-
-          {/* Logout Button */}
-          <button
-            type="button"
-            onClick={handleLogoutClick}
-            className="w-full py-3 px-4 rounded-2xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer mt-2"
-          >
-            <LogOut className="w-4 h-4" />
-            <span>Sign Out of Professional Portal</span>
-          </button>
         </div>
-      </div>
+      )}
 
       {/* ========================================================
           PHOTO OPTIONS SHEET (Take Photo | Choose Gallery | Cancel)
