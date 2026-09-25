@@ -16,6 +16,7 @@ import {
   ArrowDownToLine,
   Wifi,
   WifiOff,
+  LogOut,
 } from "lucide-react";
 import { useTechnician, TechnicianProvider } from "../context/TechnicianContext";
 import TechnicianJobDetailsModal from "../components/common/TechnicianJobDetailsModal";
@@ -23,6 +24,9 @@ import InAppMapNavigationSheet from "../components/common/InAppMapNavigationShee
 
 function ProfessionalLayoutContent() {
   const {
+    techProfile,
+    techFirstName,
+    handleLogoutClick,
     isOnline,
     hasActiveJob,
     handleToggleOnline,
@@ -227,6 +231,28 @@ function ProfessionalLayoutContent() {
             />
           </div>
         </button>
+
+        {/* Profile Avatar Quick Link in Desktop Header */}
+        <NavLink
+          to="/technician/profile"
+          className="flex items-center gap-2 p-1 pl-2.5 rounded-full bg-slate-900/90 border border-slate-800 hover:border-emerald-500/50 transition-all cursor-pointer"
+          title="View Profile"
+        >
+          <span className="text-xs font-bold text-slate-200 hidden sm:inline">
+            {techFirstName}
+          </span>
+          <div className="w-7 h-7 rounded-full overflow-hidden bg-emerald-800 border border-emerald-500/50 flex items-center justify-center text-white font-bold text-xs shrink-0">
+            {techProfile?.avatar ? (
+              <img
+                src={techProfile.avatar}
+                alt={techProfile.name || "Technician"}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              techFirstName.charAt(0)
+            )}
+          </div>
+        </NavLink>
       </header>
 
       {/* Main Body: Desktop Sidebar + Single Responsive Content Container */}
@@ -265,8 +291,8 @@ function ProfessionalLayoutContent() {
             </div>
           </div>
 
-          {/* Need Help? Box at bottom of sidebar */}
-          <div className="pt-4 border-t border-slate-100">
+          {/* Need Help? Box & Desktop Logout at bottom of sidebar */}
+          <div className="pt-4 border-t border-slate-100 space-y-3">
             <div className="bg-emerald-50/70 border border-emerald-100/90 rounded-2xl p-3.5 space-y-2 text-left">
               <div className="flex items-center gap-2">
                 <HelpCircle className="w-4 h-4 text-emerald-700" />
@@ -284,19 +310,29 @@ function ProfessionalLayoutContent() {
                 <span>Contact Support</span>
               </a>
             </div>
+
+            {/* Clearly accessible Desktop Logout option */}
+            <button
+              type="button"
+              onClick={handleLogoutClick}
+              className="w-full py-2.5 px-3 rounded-xl border border-red-200/90 bg-red-50/80 hover:bg-red-100 text-red-700 text-xs font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
+            >
+              <LogOut className="w-3.5 h-3.5 text-red-600" />
+              <span>Sign Out</span>
+            </button>
           </div>
         </aside>
 
         {/* Page Content Area: Single Outlet for selected child route */}
-        <main className="flex-1 min-w-0 p-4 md:p-6 lg:p-8 space-y-6 overflow-y-auto pb-28 md:pb-28">
+        <main className="flex-1 min-w-0 p-4 md:p-6 lg:p-8 space-y-6 overflow-y-auto pb-28 md:pb-8">
           <Outlet />
         </main>
       </div>
 
-      {/* Professional Portal Bottom Navigation (Always accessible on all screen sizes) */}
+      {/* Mobile Bottom Fixed Navigation (HIDDEN on desktop, active on mobile) */}
       <nav
         aria-label="Professional Navigation"
-        className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 py-2 px-3 flex items-center justify-around shadow-lg"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 py-2 px-3 flex items-center justify-around shadow-lg"
       >
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -684,19 +720,46 @@ function ProfessionalLayoutContent() {
                 />
               </div>
 
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Phone Number
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={editFormData.phone}
-                  onChange={(e) =>
-                    setEditFormData({ ...editFormData, phone: e.target.value })
-                  }
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:border-emerald-600 text-slate-800"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-bold text-slate-700">
+                      Phone Number
+                    </label>
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                      Verified
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    value={editFormData.phone}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, phone: e.target.value })
+                    }
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:border-emerald-600 text-slate-800"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-bold text-slate-700">
+                      Email Address
+                    </label>
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                      Verified
+                    </span>
+                  </div>
+                  <input
+                    type="email"
+                    required
+                    value={editFormData.email || ""}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, email: e.target.value })
+                    }
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:border-emerald-600 text-slate-800"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -750,11 +813,48 @@ function ProfessionalLayoutContent() {
                 </label>
                 <input
                   type="text"
+                  placeholder="e.g. Rapid Response Van, Hero Electric Service Bike"
                   value={editFormData.vehicle_type}
                   onChange={(e) =>
                     setEditFormData({
                       ...editFormData,
                       vehicle_type: e.target.value,
+                    })
+                  }
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:border-emerald-600 text-slate-800"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Professional Bio
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Describe your trade background and certifications..."
+                  value={editFormData.bio || ""}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      bio: e.target.value,
+                    })
+                  }
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:border-emerald-600 text-slate-800"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Service Coverage Areas
+                </label>
+                <input
+                  type="text"
+                  placeholder="Delhi NCR, South Delhi, Gurgaon..."
+                  value={editFormData.service_areas || ""}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      service_areas: e.target.value,
                     })
                   }
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:border-emerald-600 text-slate-800"

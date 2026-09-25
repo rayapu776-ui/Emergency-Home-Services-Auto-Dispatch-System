@@ -318,7 +318,7 @@ export function TechnicianProvider({ children, onLogout }) {
         await technicianStore.updateProfile({ avatar: base64Data });
         setTechProfile((prev) => ({ ...prev, avatar: base64Data }));
         setEditFormData((prev) => ({ ...prev, avatar: base64Data }));
-        showToast("Profile photo updated successfully!", "success");
+        showToast("Profile updated successfully.", "success");
         await loadDashboardData(true);
       };
       reader.readAsDataURL(file);
@@ -327,26 +327,41 @@ export function TechnicianProvider({ children, onLogout }) {
     }
   };
 
+  const updateAvatar = async (base64Data) => {
+    try {
+      await technicianStore.updateProfile({ avatar: base64Data });
+      setTechProfile((prev) => ({ ...prev, avatar: base64Data }));
+      setEditFormData((prev) => ({ ...prev, avatar: base64Data }));
+      showToast("Profile updated successfully.", "success");
+      await loadDashboardData(true);
+    } catch {
+      showToast("Failed to update profile picture", "error");
+    }
+  };
+
   const handleOpenEditProfile = () => {
     setEditFormData({
       name: techProfile?.name || "",
       phone: techProfile?.phone || "",
+      email: techProfile?.email || "",
       category: techProfile?.category || "Plumbing",
       experience_years: techProfile?.experience_years || 3,
       skills: techProfile?.skills || "",
       vehicle_type: techProfile?.vehicle_type || "Rapid Response Van",
       avatar: techProfile?.avatar || "",
+      bio: techProfile?.bio || "Certified emergency home services technician committed to swift arrival, accurate diagnostics, and quality craftsmanship across all service zones.",
       service_areas: techProfile?.service_areas || "Delhi NCR",
     });
     setShowEditProfile(true);
   };
 
   const handleSaveProfile = async (e) => {
-    e.preventDefault();
+    if (e?.preventDefault) e.preventDefault();
     setIsSavingProfile(true);
     try {
       await technicianStore.updateProfile(editFormData);
-      showToast("Professional profile updated successfully!", "success");
+      setTechProfile((prev) => ({ ...prev, ...editFormData }));
+      showToast("Profile updated successfully.", "success");
       setShowEditProfile(false);
       await loadDashboardData(true);
     } catch (err) {
@@ -533,6 +548,7 @@ export function TechnicianProvider({ children, onLogout }) {
     markAllNotificationsAsRead,
     markNotificationAsRead,
     handlePhotoFileChange,
+    updateAvatar,
     handleLogoutClick,
 
     // Modals

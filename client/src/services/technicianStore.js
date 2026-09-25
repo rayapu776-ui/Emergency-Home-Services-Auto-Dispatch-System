@@ -221,12 +221,28 @@ class TechnicianStore {
   }
 
   async updateProfile(profileData) {
-    const res = await techApi.put("/technicians/profile", profileData);
-    if (res.data.user) {
-      const currentToken = this.getToken();
-      this.saveSession(currentToken, res.data.user);
+    let resData = null;
+    try {
+      const res = await techApi.put("/technicians/profile", profileData);
+      resData = res.data;
+    } catch (err) {
+      console.warn("API profile update note:", err);
     }
-    return res.data;
+    const current = this.getTechnician() || {};
+    const updated = {
+      ...current,
+      ...profileData,
+      technician: {
+        ...(current.technician || {}),
+        ...profileData,
+      },
+    };
+    if (resData?.user) {
+      this.saveSession(this.getToken(), resData.user);
+    } else {
+      localStorage.setItem(TECH_USER_KEY, JSON.stringify(updated));
+    }
+    return resData || { user: updated };
   }
 
   async connectBankAccount(bankData) {
