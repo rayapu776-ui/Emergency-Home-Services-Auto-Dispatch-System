@@ -187,7 +187,7 @@ function ProfessionalLayoutContent() {
           </NavLink>
         </div>
 
-        {/* Global Online / Offline Status Control: Clearly communicates Online vs Offline state */}
+        {/* Global Online / Offline Toggle: Compact modern status icon + slider only, NO text words */}
         <button
           type="button"
           onClick={handleToggleOnline}
@@ -196,40 +196,33 @@ function ProfessionalLayoutContent() {
             hasActiveJob && isOnline
               ? "Cannot switch offline while a service order is active"
               : isOnline
-              ? "Status: Online (Click to switch offline)"
-              : "Status: Offline (Click to switch online)"
+              ? "Status: Online (Click to go offline)"
+              : "Status: Offline (Click to go online)"
           }
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-2.5 py-1.5 rounded-full border transition-all cursor-pointer ${
             isOnline
-              ? "bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100 shadow-xs"
-              : "bg-slate-100 border-slate-300 text-slate-600 hover:bg-slate-200"
+              ? "bg-emerald-50/90 border-emerald-300/80 text-emerald-700 hover:bg-emerald-100/90 shadow-xs"
+              : "bg-slate-100/90 border-slate-200/90 text-slate-400 hover:bg-slate-200/80"
           }`}
         >
+          {/* Online/Offline Status Icon */}
           {isOnline ? (
-            <div className="flex items-center gap-1.5">
-              <span className="relative flex h-2.5 w-2.5 items-center justify-center">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
-              </span>
-              <Wifi className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-              <span className="text-xs font-black tracking-wide text-emerald-700">
-                ONLINE
-              </span>
+            <div className="relative flex items-center justify-center">
+              <span className="animate-ping absolute inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600 mr-0.5"></span>
+              <Wifi className="w-4 h-4 text-emerald-600 relative z-10" />
             </div>
           ) : (
-            <div className="flex items-center gap-1.5">
-              <span className="inline-flex rounded-full h-2 w-2 bg-slate-400"></span>
-              <WifiOff className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span className="text-xs font-black tracking-wide text-slate-600">
-                YOU ARE OFFLINE
-              </span>
+            <div className="flex items-center justify-center">
+              <span className="inline-flex rounded-full h-2 w-2 bg-slate-400 mr-1"></span>
+              <WifiOff className="w-4 h-4 text-slate-400" />
             </div>
           )}
 
           {/* Switch toggle slider */}
           <div
             className={`w-7 h-4 rounded-full p-0.5 transition-colors ${
-              isOnline ? "bg-emerald-600" : "bg-slate-400"
+              isOnline ? "bg-emerald-600" : "bg-slate-300"
             }`}
           >
             <div
