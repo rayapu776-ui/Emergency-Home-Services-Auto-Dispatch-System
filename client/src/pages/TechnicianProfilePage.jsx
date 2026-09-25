@@ -33,10 +33,12 @@ import {
   FileText,
 } from "lucide-react";
 import { useTechnician } from "../context/TechnicianContext";
+import technicianStore from "../services/technicianStore";
 
 export default function TechnicianProfilePage() {
   const {
     techProfile,
+    setTechProfile,
     metrics,
     bankAccount,
     updateAvatar,
@@ -138,25 +140,14 @@ export default function TechnicianProfilePage() {
 
     setIsSavingInfo(true);
     try {
-      if (typeof window !== "undefined") {
-        const stored = JSON.parse(
-          localStorage.getItem("argent_technician_user") || "{}"
-        );
-        const updated = {
-          ...stored,
-          ...infoForm,
-          technician: {
-            ...(stored.technician || {}),
-            ...infoForm,
-          },
-        };
-        localStorage.setItem("argent_technician_user", JSON.stringify(updated));
-      }
-      showToast("Profile updated successfully", "success");
-      setShowEditInfoModal(false);
-      if (techProfile) {
+      await technicianStore.updateProfile(infoForm);
+      if (setTechProfile) {
+        setTechProfile((prev) => ({ ...prev, ...infoForm }));
+      } else if (techProfile) {
         Object.assign(techProfile, infoForm);
       }
+      showToast("Personal information updated successfully", "success");
+      setShowEditInfoModal(false);
     } catch {
       showToast("Failed to update profile", "error");
     } finally {
@@ -344,18 +335,6 @@ export default function TechnicianProfilePage() {
             <span className="truncate">{techProfile?.email || "partner@argentyour.com"}</span>
           </div>
         </div>
-
-        {/* Edit Profile Button */}
-        <div className="pt-1">
-          <button
-            type="button"
-            onClick={openEditModal}
-            className="w-full sm:w-auto px-6 py-2 rounded-2xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs sm:text-sm inline-flex items-center justify-center gap-2 transition-all shadow-md shadow-emerald-900/10 cursor-pointer"
-          >
-            <Edit3 className="w-3.5 h-3.5" />
-            <span>Edit Profile</span>
-          </button>
-        </div>
       </div>
 
       {/* ========================================================
@@ -432,16 +411,16 @@ export default function TechnicianProfilePage() {
 
           {/* Quick Actions (4 Clean Action Cards) */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {/* 1. Edit Profile */}
+            {/* 1. Personal Info */}
             <button
               type="button"
-              onClick={openEditModal}
+              onClick={() => setActiveSection("personal")}
               className="bg-white hover:bg-slate-50 p-4 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col items-center justify-center gap-2 text-center transition-all cursor-pointer group"
             >
               <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center group-hover:scale-105 transition-transform">
-                <Edit3 className="w-5 h-5" />
+                <User className="w-5 h-5" />
               </div>
-              <span className="text-xs font-bold text-slate-800">Edit Profile</span>
+              <span className="text-xs font-bold text-slate-800">Personal Info</span>
             </button>
 
             {/* 2. Change Photo */}
@@ -581,6 +560,14 @@ export default function TechnicianProfilePage() {
             <div className="flex items-center justify-between py-1 border-b border-slate-50">
               <span className="text-slate-400 font-medium">Experience</span>
               <span className="font-bold text-slate-800">{proExpYears} Years</span>
+            </div>
+
+            {/* Vehicle Information */}
+            <div className="flex items-center justify-between py-1 border-b border-slate-50">
+              <span className="text-slate-400 font-medium">Vehicle Information</span>
+              <span className="font-bold text-slate-800">
+                {techProfile?.vehicle_type || "Rapid Response Van"}
+              </span>
             </div>
 
             {/* Professional Bio */}
@@ -1189,6 +1176,21 @@ export default function TechnicianProfilePage() {
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:border-emerald-600 text-slate-800"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Vehicle Information
+                </label>
+                <input
+                  type="text"
+                  value={infoForm.vehicle_type}
+                  onChange={(e) =>
+                    setInfoForm({ ...infoForm, vehicle_type: e.target.value })
+                  }
+                  placeholder="e.g. Rapid Response Van, Utility Bike, etc."
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:border-emerald-600 text-slate-800"
+                />
               </div>
 
               <div>

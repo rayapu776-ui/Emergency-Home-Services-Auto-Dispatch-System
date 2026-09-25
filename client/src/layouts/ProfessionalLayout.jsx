@@ -158,9 +158,8 @@ function ProfessionalLayoutContent() {
         </div>
       )}
 
-      {/* Shared Professional Top Navbar */}
-      {/* Shared Professional Top Navbar */}
-      <header className="sticky top-0 z-40 bg-[#0c1311] text-white px-4 md:px-6 py-2.5 flex items-center justify-between border-b border-emerald-950/60 shadow-md">
+      {/* Shared Professional Top Navbar - Fixed/Sticky, Light Premium Style */}
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md text-slate-900 px-4 md:px-6 py-2.5 flex items-center justify-between border-b border-slate-200/90 shadow-xs">
         {/* Company Name & Brand */}
         <div className="flex items-center gap-3">
           <NavLink
@@ -170,25 +169,25 @@ function ProfessionalLayoutContent() {
             <img
               src="/argent-logo.png"
               alt="Argent Your"
-              className="w-8 h-8 rounded-xl object-contain shadow-md group-hover:scale-105 transition-transform"
+              className="w-8 h-8 rounded-xl object-contain shadow-xs group-hover:scale-105 transition-transform"
             />
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-black text-sm sm:text-base tracking-tight text-white">
+                <span className="font-black text-sm sm:text-base tracking-tight text-slate-900">
                   Argent Your
                 </span>
-                <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
                   PRO
                 </span>
               </div>
-              <p className="text-[10px] text-slate-400 font-medium">
+              <p className="text-[10px] text-slate-500 font-medium">
                 Field Partner Portal
               </p>
             </div>
           </NavLink>
         </div>
 
-        {/* Global Online / Offline Toggle: Proper logo only, NO words */}
+        {/* Global Online / Offline Toggle: Compact modern status icon + slider only, NO text words */}
         <button
           type="button"
           onClick={handleToggleOnline}
@@ -200,20 +199,22 @@ function ProfessionalLayoutContent() {
               ? "Status: Online (Click to go offline)"
               : "Status: Offline (Click to go online)"
           }
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-2.5 py-1.5 rounded-full border transition-all cursor-pointer ${
             isOnline
-              ? "bg-emerald-950/90 border-emerald-500/60 text-emerald-300 hover:bg-emerald-900/90 shadow-sm shadow-emerald-500/20"
-              : "bg-slate-900/90 border-slate-700/80 text-slate-400 hover:bg-slate-800"
+              ? "bg-emerald-50/90 border-emerald-300/80 text-emerald-700 hover:bg-emerald-100/90 shadow-xs"
+              : "bg-slate-100/90 border-slate-200/90 text-slate-400 hover:bg-slate-200/80"
           }`}
         >
-          {/* Online/Offline Proper Logo */}
+          {/* Online/Offline Status Icon */}
           {isOnline ? (
             <div className="relative flex items-center justify-center">
-              <span className="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-emerald-400 opacity-60"></span>
-              <Wifi className="w-4 h-4 text-emerald-400 relative z-10" />
+              <span className="animate-ping absolute inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600 mr-0.5"></span>
+              <Wifi className="w-4 h-4 text-emerald-600 relative z-10" />
             </div>
           ) : (
             <div className="flex items-center justify-center">
+              <span className="inline-flex rounded-full h-2 w-2 bg-slate-400 mr-1"></span>
               <WifiOff className="w-4 h-4 text-slate-400" />
             </div>
           )}
@@ -221,38 +222,16 @@ function ProfessionalLayoutContent() {
           {/* Switch toggle slider */}
           <div
             className={`w-7 h-4 rounded-full p-0.5 transition-colors ${
-              isOnline ? "bg-emerald-500" : "bg-slate-700"
+              isOnline ? "bg-emerald-600" : "bg-slate-300"
             }`}
           >
             <div
-              className={`w-3 h-3 rounded-full bg-white transition-transform ${
+              className={`w-3 h-3 rounded-full bg-white shadow-xs transition-transform ${
                 isOnline ? "translate-x-3" : "translate-x-0"
               }`}
             />
           </div>
         </button>
-
-        {/* Profile Avatar Quick Link in Desktop Header */}
-        <NavLink
-          to="/technician/profile"
-          className="flex items-center gap-2 p-1 pl-2.5 rounded-full bg-slate-900/90 border border-slate-800 hover:border-emerald-500/50 transition-all cursor-pointer"
-          title="View Profile"
-        >
-          <span className="text-xs font-bold text-slate-200 hidden sm:inline">
-            {techFirstName}
-          </span>
-          <div className="w-7 h-7 rounded-full overflow-hidden bg-emerald-800 border border-emerald-500/50 flex items-center justify-center text-white font-bold text-xs shrink-0">
-            {techProfile?.avatar ? (
-              <img
-                src={techProfile.avatar}
-                alt={techProfile.name || "Technician"}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              techFirstName.charAt(0)
-            )}
-          </div>
-        </NavLink>
       </header>
 
       {/* Main Body: Desktop Sidebar + Single Responsive Content Container */}
