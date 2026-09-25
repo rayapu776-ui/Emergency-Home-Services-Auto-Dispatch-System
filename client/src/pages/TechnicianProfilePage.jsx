@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   User,
   ShieldCheck,
@@ -31,9 +31,17 @@ import {
   Layers,
   KeyRound,
   FileText,
+  Plus,
+  Trash2,
+  Navigation,
+  UploadCloud,
+  FileCheck,
+  Building2,
+  ExternalLink,
 } from "lucide-react";
 import { useTechnician } from "../context/TechnicianContext";
 import technicianStore from "../services/technicianStore";
+import ProfessionalRegisterForm from "../components/common/ProfessionalRegisterForm";
 
 export default function TechnicianProfilePage() {
   const {
@@ -44,13 +52,15 @@ export default function TechnicianProfilePage() {
     updateAvatar,
     handleOpenBankModal,
     handleLogoutClick,
-    handleToggleServiceArea,
-    isSavingAreas,
     showToast,
   } = useTechnician();
 
-  // Active section in the horizontal navigation
+  // Active section in the horizontal navigation:
+  // Overview | Personal Info | Service Areas | Verification | Work Proof | Bank & Payout | Security
   const [activeSection, setActiveSection] = useState("overview");
+
+  // State to trigger the full original registration form for editing
+  const [isEditingRegistrationForm, setIsEditingRegistrationForm] = useState(false);
 
   // Photo change & crop/preview modal state
   const [showPhotoOptionsModal, setShowPhotoOptionsModal] = useState(false);
@@ -59,109 +69,271 @@ export default function TechnicianProfilePage() {
   const [rotationDegrees, setRotationDegrees] = useState(0);
   const [isSavingPhoto, setIsSavingPhoto] = useState(false);
 
-  // Edit Personal Information modal state
-  const [showEditInfoModal, setShowEditInfoModal] = useState(false);
-  const [infoForm, setInfoForm] = useState({
-    name: "",
-    phone: "",
-    email: "",
-    category: "Plumbing",
-    experience_years: 5,
-    bio: "",
-    vehicle_type: "Rapid Response Van",
-    service_areas: "Delhi NCR",
-  });
-  const [isSavingInfo, setIsSavingInfo] = useState(false);
-
-  // Security / Password modal state
-  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
-  const [passwordForm, setPasswordForm] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
-  });
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
-
-  // Two-step verification state
-  const [twoStepEnabled, setTwoStepEnabled] = useState(true);
-
-  // File & Camera input refs
+  // File & Camera input refs for profile photo
   const localFileInputRef = useRef(null);
   const localCameraInputRef = useRef(null);
 
-  const allAreas = [
-    "Connaught Place & Central",
-    "South Delhi (GK, Saket, Hauz Khas)",
-    "Gurgaon / Cyber City",
-    "Noida Sectors & Expressways",
-    "West Delhi (Rajouri, Punjabi Bagh)",
-    "Dwarka & Aerocity",
-  ];
+  // ========================================================
+  // 1. WORK / EXPERIENCE PROOF STATE & PERSISTENCE
+  // ========================================================
+  const [workProofs, setWorkProofs] = useState(() => {
+    try {
+      const saved = localStorage.getItem("argent_technician_work_proofs");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
 
-  const currentAreas = (techProfile?.service_areas || "Delhi NCR, South Delhi, Gurgaon")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const [showAddProofModal, setShowAddProofModal] = useState(false);
+  const [proofPreviewItem, setProofPreviewItem] = useState(null);
+  const [newProofForm, setNewProofForm] = useState({
+    title: "",
+    category: "Completed Project Photo",
+    imageData: "",
+  });
+  const proofFileInputRef = useRef(null);
+  const proofCameraInputRef = useRef(null);
 
-  // Horizontal Profile Section Tabs
-  const profileTabs = [
-    { id: "overview", label: "Overview" },
-    { id: "personal", label: "Personal Info" },
-    { id: "areas", label: "Service Areas" },
-    { id: "verification", label: "Verification" },
-    { id: "bank", label: "Bank & Payout" },
-    { id: "security", label: "Security" },
-  ];
-
-  // Open Edit Profile / Personal Information Modal
-  const openEditModal = () => {
-    setInfoForm({
-      name: techProfile?.name || "Apu Ray",
-      phone: techProfile?.phone || "+91 98765 43210",
-      email: techProfile?.email || "partner@argentyour.com",
-      category: techProfile?.category || "Plumbing",
-      experience_years: techProfile?.experience_years || 5,
-      bio:
-        techProfile?.bio ||
-        "Certified emergency home services technician committed to swift arrival, accurate diagnostics, and quality craftsmanship across all service zones.",
-      vehicle_type: techProfile?.vehicle_type || "Rapid Response Van",
-      service_areas: techProfile?.service_areas || "Delhi NCR, South Delhi, Gurgaon",
-    });
-    setShowEditInfoModal(true);
+  const saveWorkProofs = (updated) => {
+    setWorkProofs(updated);
+    try {
+      localStorage.setItem("argent_technician_work_proofs", JSON.stringify(updated));
+    } catch (e) {
+      console.warn("Storage warning for work proofs:", e);
+    }
   };
 
-  // Save Personal Information
-  const handleSaveInfoSubmit = async (e) => {
+  const handleProofImageSelected = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) {
+      showToast("Document or photo must be under 8MB", "error");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setNewProofForm((prev) => ({ ...prev, imageData: reader.result }));
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const handleAddProofSubmit = (e) => {
     e.preventDefault();
-    if (!infoForm.name.trim()) {
-      showToast("Please enter your name", "error");
+    if (!newProofForm.title.trim()) {
+      showToast("Please provide a title for this work proof", "error");
+      return;
+    }
+    if (!newProofForm.imageData) {
+      showToast("Please select a photo or certificate to upload", "error");
       return;
     }
 
-    setIsSavingInfo(true);
+    const proofItem = {
+      id: "proof-" + Date.now(),
+      title: newProofForm.title.trim(),
+      category: newProofForm.category,
+      imageUrl: newProofForm.imageData,
+      uploadedAt: new Date().toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }),
+    };
+
+    const updated = [proofItem, ...workProofs];
+    saveWorkProofs(updated);
+    showToast("Work & experience proof uploaded successfully", "success");
+    setShowAddProofModal(false);
+    setNewProofForm({
+      title: "",
+      category: "Completed Project Photo",
+      imageData: "",
+    });
+  };
+
+  const handleDeleteProof = (id) => {
+    const updated = workProofs.filter((p) => p.id !== id);
+    saveWorkProofs(updated);
+    showToast("Work proof document removed", "info");
+  };
+
+  // ========================================================
+  // 2. SERVICE ADDRESS / SERVICE AREAS MANAGEMENT
+  // ========================================================
+  const [serviceLocations, setServiceLocations] = useState(() => {
     try {
-      await technicianStore.updateProfile(infoForm);
-      if (setTechProfile) {
-        setTechProfile((prev) => ({ ...prev, ...infoForm }));
-      } else if (techProfile) {
-        Object.assign(techProfile, infoForm);
-      }
-      showToast("Personal information updated successfully", "success");
-      setShowEditInfoModal(false);
+      const saved = localStorage.getItem("argent_technician_service_locations");
+      if (saved) return JSON.parse(saved);
     } catch {
-      showToast("Failed to update profile", "error");
-    } finally {
-      setIsSavingInfo(false);
+      // ignore
+    }
+    const areas = (techProfile?.service_areas || "Delhi NCR, South Delhi, Gurgaon")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    return areas.map((name, idx) => ({
+      id: "loc-" + idx,
+      name,
+      address: `${name}, National Capital Region`,
+      isPrimary: idx === 0,
+    }));
+  });
+
+  const [newLocationInput, setNewLocationInput] = useState("");
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+  const [editingLocId, setEditingLocId] = useState(null);
+  const [editLocName, setEditLocName] = useState("");
+
+  const saveServiceLocations = async (updated) => {
+    setServiceLocations(updated);
+    try {
+      localStorage.setItem("argent_technician_service_locations", JSON.stringify(updated));
+      const joined = updated.map((l) => l.name).join(", ");
+      await technicianStore.updateProfile({ service_areas: joined });
+      if (setTechProfile) {
+        setTechProfile((prev) => ({ ...prev, service_areas: joined }));
+      }
+    } catch (e) {
+      console.warn("Service location save error:", e);
     }
   };
 
-  // Handle image file selection
+  // Use Device Geolocation with permission
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      showToast("Geolocation is not supported by your browser", "error");
+      return;
+    }
+
+    setIsDetectingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        let detectedName = `Zone [${latitude.toFixed(3)}, ${longitude.toFixed(3)}]`;
+        let detectedAddress = `GPS Location: Lat ${latitude.toFixed(4)}, Lon ${longitude.toFixed(4)}`;
+
+        try {
+          // Attempt reverse geocoding via OpenStreetMap Nominatim
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+          );
+          if (res.ok) {
+            const data = await res.json();
+            const sub =
+              data.address?.suburb ||
+              data.address?.neighbourhood ||
+              data.address?.city_district ||
+              data.address?.city ||
+              data.address?.county ||
+              "Current Locality";
+            const state = data.address?.state || "Delhi NCR";
+            detectedName = `${sub}, ${state}`;
+            detectedAddress = data.display_name || detectedAddress;
+          }
+        } catch {
+          // fallback to coordinates if reverse geocode is blocked
+        }
+
+        const newLoc = {
+          id: "loc-" + Date.now(),
+          name: detectedName,
+          address: detectedAddress,
+          isPrimary: serviceLocations.length === 0,
+        };
+
+        const updated = [...serviceLocations, newLoc];
+        await saveServiceLocations(updated);
+        setIsDetectingLocation(false);
+        showToast(`Current location added: ${detectedName}`, "success");
+      },
+      (err) => {
+        setIsDetectingLocation(false);
+        if (err.code === 1) {
+          showToast("Location permission was denied. Please allow location access in your browser.", "error");
+        } else {
+          showToast("Unable to retrieve device location", "error");
+        }
+      },
+      { timeout: 10000, enableHighAccuracy: true }
+    );
+  };
+
+  // Add manual service location
+  const handleAddManualLocation = async (e) => {
+    e.preventDefault();
+    if (!newLocationInput.trim()) {
+      showToast("Please enter an operational area name", "error");
+      return;
+    }
+
+    const trimmed = newLocationInput.trim();
+    if (serviceLocations.some((l) => l.name.toLowerCase() === trimmed.toLowerCase())) {
+      showToast("This service area is already in your active list", "error");
+      return;
+    }
+
+    const newLoc = {
+      id: "loc-" + Date.now(),
+      name: trimmed,
+      address: `${trimmed}, Operational Zone`,
+      isPrimary: serviceLocations.length === 0,
+    };
+
+    const updated = [...serviceLocations, newLoc];
+    await saveServiceLocations(updated);
+    setNewLocationInput("");
+    showToast(`Service location added: ${trimmed}`, "success");
+  };
+
+  // Set primary location
+  const handleSetPrimaryLocation = async (id) => {
+    const updated = serviceLocations.map((loc) => ({
+      ...loc,
+      isPrimary: loc.id === id,
+    }));
+    await saveServiceLocations(updated);
+    showToast("Primary service location updated", "success");
+  };
+
+  // Delete service location
+  const handleDeleteLocation = async (id) => {
+    if (serviceLocations.length <= 1) {
+      showToast("At least one operational service area must remain active.", "error");
+      return;
+    }
+    const updated = serviceLocations.filter((l) => l.id !== id);
+    if (!updated.some((l) => l.isPrimary) && updated.length > 0) {
+      updated[0].isPrimary = true;
+    }
+    await saveServiceLocations(updated);
+    showToast("Service location removed", "info");
+  };
+
+  // Save edited location name
+  const handleSaveEditedLocation = async (id) => {
+    if (!editLocName.trim()) {
+      setEditingLocId(null);
+      return;
+    }
+    const updated = serviceLocations.map((loc) =>
+      loc.id === id ? { ...loc, name: editLocName.trim(), address: `${editLocName.trim()}, Operational Zone` } : loc
+    );
+    await saveServiceLocations(updated);
+    setEditingLocId(null);
+    showToast("Service location updated", "success");
+  };
+
+  // ========================================================
+  // 3. PROFILE PHOTO HANDLERS (Real Camera & Gallery Upload)
+  // ========================================================
   const onImageFileSelected = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      showToast("Please choose an image file (PNG, JPG, WEBP)", "error");
+      showToast("Please select a valid image file (PNG, JPG, WEBP)", "error");
       return;
     }
 
@@ -181,15 +353,17 @@ export default function TechnicianProfilePage() {
     e.target.value = "";
   };
 
-  // Request camera permission and open camera
+  // Request camera permission and trigger camera capture
   const handleTriggerCamera = async () => {
     try {
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user" },
+        });
         stream.getTracks().forEach((track) => track.stop());
       }
     } catch (err) {
-      console.warn("Camera access note:", err);
+      console.warn("Camera permission note:", err);
     }
     localCameraInputRef.current?.click();
     setShowPhotoOptionsModal(false);
@@ -201,14 +375,15 @@ export default function TechnicianProfilePage() {
     setShowPhotoOptionsModal(false);
   };
 
-  // Save photo after crop/zoom/rotate
+  // Save confirmed photo
   const handleSaveCroppedPhoto = async () => {
     if (!photoPreviewUrl) return;
     setIsSavingPhoto(true);
     try {
       await updateAvatar(photoPreviewUrl);
-      showToast("Profile updated successfully", "success");
+      showToast("Profile photo updated successfully!", "success");
       setPhotoPreviewUrl(null);
+      setShowPhotoOptionsModal(false);
     } catch {
       showToast("Failed to save profile picture", "error");
     } finally {
@@ -216,7 +391,34 @@ export default function TechnicianProfilePage() {
     }
   };
 
-  // Save password change
+  // ========================================================
+  // 4. REGISTRATION FORM SAVE HANDLER (Edit Personal Info)
+  // ========================================================
+  const handleSaveRegistrationForm = async (payload) => {
+    try {
+      await technicianStore.updateProfile(payload);
+      if (setTechProfile) {
+        setTechProfile((prev) => ({ ...prev, ...payload }));
+      } else if (techProfile) {
+        Object.assign(techProfile, payload);
+      }
+      showToast("Personal registration details updated successfully", "success");
+      setIsEditingRegistrationForm(false);
+    } catch {
+      showToast("Failed to update registration information", "error");
+    }
+  };
+
+  // Security / Password modal state
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [twoStepEnabled, setTwoStepEnabled] = useState(true);
+
   const handleSavePassword = (e) => {
     e.preventDefault();
     if (!passwordForm.newPassword || passwordForm.newPassword.length < 6) {
@@ -243,9 +445,20 @@ export default function TechnicianProfilePage() {
   const proRating = metrics?.rating ? Number(metrics.rating).toFixed(1) : "4.9";
   const proJobsCount = metrics?.completedCount || 124;
 
+  // Horizontal Profile Section Tabs (7 cleanly organized tabs)
+  const profileTabs = [
+    { id: "overview", label: "Overview" },
+    { id: "personal", label: "Personal Info" },
+    { id: "areas", label: "Service Areas" },
+    { id: "verification", label: "Verification" },
+    { id: "work_proof", label: "Work Proof" },
+    { id: "bank", label: "Bank & Payout" },
+    { id: "security", label: "Security" },
+  ];
+
   return (
     <div className="space-y-4 sm:space-y-6 animate-fade-in max-w-2xl mx-auto px-1 sm:px-4 pb-28 text-slate-900">
-      {/* Hidden file pickers for camera & photo upload */}
+      {/* Hidden file pickers for profile photo upload */}
       <input
         type="file"
         ref={localFileInputRef}
@@ -262,8 +475,26 @@ export default function TechnicianProfilePage() {
         onChange={onImageFileSelected}
       />
 
+      {/* Hidden file pickers for Work & Experience Proof */}
+      <input
+        type="file"
+        ref={proofFileInputRef}
+        accept="image/*,.pdf"
+        className="hidden"
+        onChange={handleProofImageSelected}
+      />
+      <input
+        type="file"
+        ref={proofCameraInputRef}
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleProofImageSelected}
+      />
+
       {/* ========================================================
           1. PREMIUM PROFILE HEADER CARD (Circular photo, badges, info)
+          Informational & Profile photo change trigger only
          ======================================================== */}
       <div className="bg-white rounded-3xl p-5 sm:p-7 border border-slate-200/90 shadow-sm relative overflow-hidden text-center space-y-3.5">
         {/* Soft background radial highlight */}
@@ -274,6 +505,7 @@ export default function TechnicianProfilePage() {
           <div
             onClick={() => setShowPhotoOptionsModal(true)}
             className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-4 border-emerald-600/40 bg-gradient-to-br from-emerald-50 to-teal-100 shadow-md flex items-center justify-center cursor-pointer transition-transform hover:scale-102 relative"
+            title="Click to change profile picture"
           >
             {techProfile?.avatar ? (
               <img
@@ -324,7 +556,7 @@ export default function TechnicianProfilePage() {
           </div>
         </div>
 
-        {/* Contact Info Pills */}
+        {/* Contact Info Summary */}
         <div className="pt-1 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 text-xs text-slate-600 font-medium">
           <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 w-full sm:w-auto justify-center">
             <Phone className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
@@ -339,7 +571,7 @@ export default function TechnicianProfilePage() {
 
       {/* ========================================================
           STICKY HORIZONTAL SECTION NAVIGATION
-          [ Overview ] [ Personal Info ] [ Service Areas ] [ Verification ] [ Bank & Payout ] [ Security ]
+          Single row, scrollable, no duplicate buttons
          ======================================================== */}
       <div className="sticky top-[53px] z-30 bg-[#f6f7f3]/95 backdrop-blur-md py-2 border-b border-slate-200/80 -mx-1 px-1 sm:mx-0 sm:px-0">
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth whitespace-nowrap px-0.5">
@@ -349,7 +581,10 @@ export default function TechnicianProfilePage() {
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setActiveSection(tab.id)}
+                onClick={() => {
+                  setActiveSection(tab.id);
+                  setIsEditingRegistrationForm(false);
+                }}
                 className={`py-2 px-3.5 sm:px-4 rounded-2xl text-xs font-bold transition-all cursor-pointer shrink-0 select-none relative ${
                   isActive
                     ? "bg-emerald-800 text-white shadow-xs"
@@ -371,7 +606,7 @@ export default function TechnicianProfilePage() {
          ======================================================== */}
 
       {/* --------------------------------------------------------
-          SECTION 1: OVERVIEW
+          SECTION 1: OVERVIEW (Informational ONLY, NO edit/settings buttons)
          -------------------------------------------------------- */}
       {activeSection === "overview" && (
         <div className="space-y-4 animate-fade-in">
@@ -409,85 +644,44 @@ export default function TechnicianProfilePage() {
             </div>
           </div>
 
-          {/* Quick Actions (4 Clean Action Cards) */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {/* 1. Personal Info */}
-            <button
-              type="button"
-              onClick={() => setActiveSection("personal")}
-              className="bg-white hover:bg-slate-50 p-4 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col items-center justify-center gap-2 text-center transition-all cursor-pointer group"
-            >
-              <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center group-hover:scale-105 transition-transform">
-                <User className="w-5 h-5" />
-              </div>
-              <span className="text-xs font-bold text-slate-800">Personal Info</span>
-            </button>
-
-            {/* 2. Change Photo */}
-            <button
-              type="button"
-              onClick={() => setShowPhotoOptionsModal(true)}
-              className="bg-white hover:bg-slate-50 p-4 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col items-center justify-center gap-2 text-center transition-all cursor-pointer group"
-            >
-              <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-700 flex items-center justify-center group-hover:scale-105 transition-transform">
-                <Camera className="w-5 h-5" />
-              </div>
-              <span className="text-xs font-bold text-slate-800">Change Photo</span>
-            </button>
-
-            {/* 3. Bank Details */}
-            <button
-              type="button"
-              onClick={() => setActiveSection("bank")}
-              className="bg-white hover:bg-slate-50 p-4 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col items-center justify-center gap-2 text-center transition-all cursor-pointer group"
-            >
-              <div className="w-10 h-10 rounded-2xl bg-teal-50 text-teal-700 flex items-center justify-center group-hover:scale-105 transition-transform">
-                <CreditCard className="w-5 h-5" />
-              </div>
-              <span className="text-xs font-bold text-slate-800">Bank Details</span>
-            </button>
-
-            {/* 4. Settings */}
-            <button
-              type="button"
-              onClick={() => setActiveSection("security")}
-              className="bg-white hover:bg-slate-50 p-4 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col items-center justify-center gap-2 text-center transition-all cursor-pointer group"
-            >
-              <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-700 flex items-center justify-center group-hover:scale-105 transition-transform">
-                <Settings className="w-5 h-5" />
-              </div>
-              <span className="text-xs font-bold text-slate-800">Settings</span>
-            </button>
-          </div>
-
-          {/* Operational Hub & Vehicle Summary Card */}
+          {/* Operational Dispatch Readiness Card */}
           <div className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-sm space-y-3">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <span className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                Field Partner Overview
-              </span>
+              <div className="flex items-center gap-2">
+                <Car className="w-4 h-4 text-emerald-700" />
+                <h3 className="font-black text-slate-900 text-xs uppercase tracking-wider">
+                  Operational Credentials & Readiness
+                </h3>
+              </div>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                Active Duty
+                Active Partner
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
-                <span className="text-[10px] text-slate-400 font-bold block">
-                  Primary Zone
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
+                <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">
+                  Primary Dispatch Zone
                 </span>
-                <span className="font-bold text-slate-800">
-                  {currentAreas[0] || "Delhi NCR"}
+                <span className="font-bold text-slate-800 text-sm mt-0.5 block">
+                  {serviceLocations.find((l) => l.isPrimary)?.name || "Delhi NCR"}
                 </span>
               </div>
-              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
-                <span className="text-[10px] text-slate-400 font-bold block">
+              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
+                <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">
                   Response Vehicle
                 </span>
-                <span className="font-bold text-slate-800">
+                <span className="font-bold text-slate-800 text-sm mt-0.5 block">
                   {techProfile?.vehicle_type || "Rapid Response Van"}
                 </span>
               </div>
+            </div>
+
+            <div className="p-3 bg-emerald-50/60 rounded-2xl border border-emerald-100/80 text-[11px] text-emerald-950 flex items-center justify-between">
+              <span className="font-semibold">
+                Coverage: {serviceLocations.length} active operational dispatch zones
+              </span>
+              <span className="text-emerald-700 font-black">100% Ready</span>
             </div>
           </div>
         </div>
@@ -495,163 +689,307 @@ export default function TechnicianProfilePage() {
 
       {/* --------------------------------------------------------
           SECTION 2: PERSONAL INFO
+          When editing, renders the official ProfessionalRegisterForm!
          -------------------------------------------------------- */}
       {activeSection === "personal" && (
-        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm space-y-4 animate-fade-in">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center">
-                <User className="w-4 h-4" />
+        <>
+          {isEditingRegistrationForm ? (
+            /* Open the SAME registration form used during account creation */
+            <div className="animate-fade-in">
+              <ProfessionalRegisterForm
+                editMode={true}
+                initialData={techProfile}
+                onSave={handleSaveRegistrationForm}
+                onCancel={() => setIsEditingRegistrationForm(false)}
+              />
+            </div>
+          ) : (
+            /* View Mode: Displays all registered personal & trade details with ONE clean Edit button */
+            <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm space-y-4 animate-fade-in">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center">
+                    <User className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm sm:text-base font-black text-slate-900">
+                      Personal & Professional Information
+                    </h2>
+                    <p className="text-[11px] text-slate-400">
+                      Account registration details and certified credentials
+                    </p>
+                  </div>
+                </div>
+                {/* ONE single Edit button that opens the registration form */}
+                <button
+                  type="button"
+                  onClick={() => setIsEditingRegistrationForm(true)}
+                  className="px-3.5 py-1.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span>Edit</span>
+                </button>
               </div>
-              <h2 className="text-sm sm:text-base font-black text-slate-900">
-                Personal Information
-              </h2>
-            </div>
-            <button
-              type="button"
-              onClick={openEditModal}
-              className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 cursor-pointer"
-            >
-              <Edit3 className="w-3.5 h-3.5" />
-              <span>Edit</span>
-            </button>
-          </div>
 
-          <div className="space-y-3 text-xs sm:text-sm">
-            {/* Full Name */}
-            <div className="flex items-center justify-between py-1 border-b border-slate-50">
-              <span className="text-slate-400 font-medium">Full Name</span>
-              <span className="font-bold text-slate-800">{proName}</span>
-            </div>
+              <div className="space-y-3 text-xs sm:text-sm">
+                {/* Full Legal Name */}
+                <div className="flex items-center justify-between py-1 border-b border-slate-50">
+                  <span className="text-slate-400 font-medium">Full Legal Name</span>
+                  <span className="font-bold text-slate-800">{proName}</span>
+                </div>
 
-            {/* Phone Number */}
-            <div className="flex items-center justify-between py-1 border-b border-slate-50">
-              <span className="text-slate-400 font-medium">Phone Number</span>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-slate-800">
-                  {techProfile?.phone || "+91 98765 43210"}
-                </span>
-                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                  Verified
-                </span>
+                {/* Email Address */}
+                <div className="flex items-center justify-between py-1 border-b border-slate-50">
+                  <span className="text-slate-400 font-medium">Email Address</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-800 truncate max-w-[180px] sm:max-w-none">
+                      {techProfile?.email || "partner@argentyour.com"}
+                    </span>
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                      Verified
+                    </span>
+                  </div>
+                </div>
+
+                {/* Mobile Phone Number */}
+                <div className="flex items-center justify-between py-1 border-b border-slate-50">
+                  <span className="text-slate-400 font-medium">Mobile Phone Number</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-800">
+                      {techProfile?.phone || "+91 98765 43210"}
+                    </span>
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                      Verified
+                    </span>
+                  </div>
+                </div>
+
+                {/* Professional Type */}
+                <div className="flex items-center justify-between py-1 border-b border-slate-50">
+                  <span className="text-slate-400 font-medium">Professional Type</span>
+                  <span className="font-bold text-slate-800">
+                    {techProfile?.account_type === "company" || techProfile?.company_name
+                      ? "Service Company / Agency"
+                      : "Individual Professional"}
+                  </span>
+                </div>
+
+                {/* Service Category */}
+                <div className="flex items-center justify-between py-1 border-b border-slate-50">
+                  <span className="text-slate-400 font-medium">Service Category</span>
+                  <span className="font-bold text-slate-800">{proCategory}</span>
+                </div>
+
+                {/* Experience */}
+                <div className="flex items-center justify-between py-1 border-b border-slate-50">
+                  <span className="text-slate-400 font-medium">Experience</span>
+                  <span className="font-bold text-slate-800">{proExpYears} Years</span>
+                </div>
+
+                {/* Skills / Specializations */}
+                <div className="flex items-center justify-between py-1 border-b border-slate-50">
+                  <span className="text-slate-400 font-medium">Skills & Specializations</span>
+                  <span className="font-bold text-slate-800 text-right">
+                    {techProfile?.skills || "Emergency Diagnostics, Rapid Repair, OEM Installation"}
+                  </span>
+                </div>
+
+                {/* Service Location */}
+                <div className="flex items-center justify-between py-1 border-b border-slate-50">
+                  <span className="text-slate-400 font-medium">Primary Service Location</span>
+                  <span className="font-bold text-slate-800">
+                    {serviceLocations.find((l) => l.isPrimary)?.name || "Delhi NCR"}
+                  </span>
+                </div>
+
+                {/* Residential / Operating Address */}
+                <div className="flex items-center justify-between py-1 border-b border-slate-50">
+                  <span className="text-slate-400 font-medium">Address</span>
+                  <span className="font-bold text-slate-800 text-right max-w-[200px] truncate">
+                    {techProfile?.address || "Connaught Place, Central Delhi, 110001"}
+                  </span>
+                </div>
+
+                {/* Vehicle Information */}
+                <div className="flex items-center justify-between py-1 border-b border-slate-50">
+                  <span className="text-slate-400 font-medium">Vehicle Information</span>
+                  <span className="font-bold text-slate-800">
+                    {techProfile?.vehicle_type || "Rapid Response Van"}
+                  </span>
+                </div>
+
+                {/* Verification Document Info */}
+                <div className="flex items-center justify-between py-1 border-b border-slate-50">
+                  <span className="text-slate-400 font-medium">Verification ID</span>
+                  <span className="font-bold text-slate-800">
+                    {techProfile?.id_document_type || "Government Photo ID (Verified)"}
+                  </span>
+                </div>
+
+                {/* Professional Bio */}
+                <div className="pt-1 space-y-1">
+                  <span className="text-slate-400 font-medium block">Professional Bio</span>
+                  <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
+                    {techProfile?.experience_description ||
+                      techProfile?.bio ||
+                      "Certified emergency home services technician committed to swift arrival, accurate diagnostics, and quality craftsmanship across all service zones."}
+                  </p>
+                </div>
               </div>
             </div>
-
-            {/* Email Address */}
-            <div className="flex items-center justify-between py-1 border-b border-slate-50">
-              <span className="text-slate-400 font-medium">Email Address</span>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-slate-800 truncate max-w-[180px] sm:max-w-none">
-                  {techProfile?.email || "partner@argentyour.com"}
-                </span>
-                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                  Verified
-                </span>
-              </div>
-            </div>
-
-            {/* Service Category */}
-            <div className="flex items-center justify-between py-1 border-b border-slate-50">
-              <span className="text-slate-400 font-medium">Service Category</span>
-              <span className="font-bold text-slate-800">{proCategory}</span>
-            </div>
-
-            {/* Experience */}
-            <div className="flex items-center justify-between py-1 border-b border-slate-50">
-              <span className="text-slate-400 font-medium">Experience</span>
-              <span className="font-bold text-slate-800">{proExpYears} Years</span>
-            </div>
-
-            {/* Vehicle Information */}
-            <div className="flex items-center justify-between py-1 border-b border-slate-50">
-              <span className="text-slate-400 font-medium">Vehicle Information</span>
-              <span className="font-bold text-slate-800">
-                {techProfile?.vehicle_type || "Rapid Response Van"}
-              </span>
-            </div>
-
-            {/* Professional Bio */}
-            <div className="pt-1 space-y-1">
-              <span className="text-slate-400 font-medium block">Professional Bio</span>
-              <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
-                {techProfile?.bio ||
-                  "Certified emergency home services technician committed to swift arrival, accurate diagnostics, and quality craftsmanship across all service zones."}
-              </p>
-            </div>
-
-            {/* Edit Profile Action Button */}
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={openEditModal}
-                className="w-full py-2.5 rounded-2xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
-              >
-                <Edit3 className="w-3.5 h-3.5" />
-                <span>Update Personal Information</span>
-              </button>
-            </div>
-          </div>
-        </div>
+          )}
+        </>
       )}
 
       {/* --------------------------------------------------------
-          SECTION 3: SERVICE AREAS
+          SECTION 3: SERVICE ADDRESS / SERVICE AREAS (Requirement 5)
+          Add current location with permission, select manually, edit, delete, set primary
          -------------------------------------------------------- */}
       {activeSection === "areas" && (
-        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm space-y-4 animate-fade-in">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm space-y-5 animate-fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center">
                 <MapPin className="w-4 h-4" />
               </div>
               <div>
                 <h2 className="text-sm sm:text-base font-black text-slate-900">
-                  Service Areas
+                  Service Address & Locations
                 </h2>
                 <p className="text-[11px] text-slate-400">
-                  Tap to add or remove operational territories
+                  Manage active dispatch zones and doorstep service territory
                 </p>
               </div>
             </div>
-            {isSavingAreas && (
-              <span className="text-[11px] font-bold text-emerald-700 animate-pulse">
-                Saving...
-              </span>
-            )}
+
+            {/* Button: Use Current Device Location with Permission */}
+            <button
+              type="button"
+              onClick={handleUseCurrentLocation}
+              disabled={isDetectingLocation}
+              className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 disabled:bg-slate-300 text-white font-bold text-xs transition-colors cursor-pointer shadow-2xs"
+            >
+              <Navigation className={`w-3.5 h-3.5 ${isDetectingLocation ? "animate-spin" : ""}`} />
+              <span>{isDetectingLocation ? "Detecting GPS..." : "Add Current Location"}</span>
+            </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            {allAreas.map((area) => {
-              const isCovered = currentAreas.some(
-                (a) =>
-                  a.toLowerCase() === area.toLowerCase() ||
-                  area.toLowerCase().includes(a.toLowerCase())
-              );
-              return (
-                <div
-                  key={area}
-                  onClick={() => handleToggleServiceArea(area)}
-                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
-                    isCovered
-                      ? "bg-emerald-50/70 border-emerald-200 text-emerald-950 font-bold"
-                      : "bg-slate-50 border-slate-200/80 text-slate-600 hover:bg-slate-100/70"
-                  }`}
-                >
-                  <span className="text-xs leading-snug">{area}</span>
+          {/* Add Manual Service Location Form */}
+          <form onSubmit={handleAddManualLocation} className="flex gap-2">
+            <input
+              type="text"
+              placeholder="Enter locality or service zone (e.g. Connaught Place, Noida Sector 62)"
+              value={newLocationInput}
+              onChange={(e) => setNewLocationInput(e.target.value)}
+              className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-hidden focus:border-emerald-600 bg-slate-50/50"
+            />
+            <button
+              type="submit"
+              className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-emerald-800 text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Zone</span>
+            </button>
+          </form>
+
+          {/* List of Managed Locations */}
+          <div className="space-y-2.5">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
+              Active Service Zones ({serviceLocations.length})
+            </h3>
+
+            <div className="grid grid-cols-1 gap-2.5">
+              {serviceLocations.map((loc) => {
+                const isEditing = editingLocId === loc.id;
+                return (
                   <div
-                    className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
-                      isCovered ? "bg-emerald-700 text-white" : "border border-slate-300"
+                    key={loc.id}
+                    className={`p-3.5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                      loc.isPrimary
+                        ? "bg-emerald-50/70 border-emerald-300 shadow-2xs"
+                        : "bg-slate-50 border-slate-200/80 hover:bg-slate-100/70"
                     }`}
                   >
-                    {isCovered && <Check className="w-3.5 h-3.5" />}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                    <div className="space-y-1 flex-1">
+                      {isEditing ? (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={editLocName}
+                            onChange={(e) => setEditLocName(e.target.value)}
+                            className="px-2 py-1 rounded-lg border border-emerald-500 text-xs font-bold text-slate-800 bg-white"
+                            autoFocus
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleSaveEditedLocation(loc.id)}
+                            className="px-2 py-1 bg-emerald-700 text-white rounded-lg text-xs font-bold"
+                          >
+                            Save
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingLocId(null)}
+                            className="px-2 py-1 bg-slate-200 text-slate-600 rounded-lg text-xs"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-xs sm:text-sm text-slate-900">
+                            {loc.name}
+                          </span>
+                          {loc.isPrimary && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-700 text-white">
+                              <Star className="w-3 h-3 fill-white" />
+                              Primary Zone
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      <p className="text-[11px] text-slate-500 truncate max-w-sm">
+                        {loc.address}
+                      </p>
+                    </div>
 
-          <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-[11px] text-slate-500 leading-relaxed">
-            Emergency requests are auto-dispatched within your selected coverage areas. Keeping multiple active areas increases dispatch opportunities.
+                    {/* Location Actions: Set Primary, Edit, Delete */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      {!loc.isPrimary && (
+                        <button
+                          type="button"
+                          onClick={() => handleSetPrimaryLocation(loc.id)}
+                          className="px-2.5 py-1 rounded-xl border border-slate-200 bg-white hover:bg-emerald-50 hover:border-emerald-300 text-slate-600 hover:text-emerald-800 text-[11px] font-bold transition-colors cursor-pointer"
+                        >
+                          Set Primary
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingLocId(loc.id);
+                          setEditLocName(loc.name);
+                        }}
+                        className="p-1.5 rounded-xl hover:bg-white text-slate-500 hover:text-slate-800 transition-colors"
+                        title="Edit location name"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteLocation(loc.id)}
+                        className="p-1.5 rounded-xl hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors"
+                        title="Delete service area"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
@@ -667,7 +1005,7 @@ export default function TechnicianProfilePage() {
                 <ShieldCheck className="w-4 h-4" />
               </div>
               <h2 className="text-sm sm:text-base font-black text-slate-900">
-                Verification Status
+                Verification & Credentials Status
               </h2>
             </div>
             <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
@@ -681,7 +1019,7 @@ export default function TechnicianProfilePage() {
               <div className="space-y-0.5">
                 <p className="text-xs font-black text-emerald-950">Identity Verified</p>
                 <p className="text-[11px] text-emerald-800 leading-snug">
-                  Government photo ID and Aadhaar biometric verification completed.
+                  Government photo ID and Aadhaar biometric verification approved.
                 </p>
               </div>
             </div>
@@ -712,7 +1050,114 @@ export default function TechnicianProfilePage() {
       )}
 
       {/* --------------------------------------------------------
-          SECTION 5: BANK & PAYOUT
+          SECTION 5: WORK / EXPERIENCE PROOF (Requirement 4)
+          Dedicated section for uploading genuine work photos and certificates
+         -------------------------------------------------------- */}
+      {activeSection === "work_proof" && (
+        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm space-y-5 animate-fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center">
+                <FileCheck className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-sm sm:text-base font-black text-slate-900">
+                  Work & Experience Proof
+                </h2>
+                <p className="text-[11px] text-slate-400">
+                  Upload genuine project photos, work certificates, and trade evidence
+                </p>
+              </div>
+            </div>
+
+            {/* Add Work Proof Button */}
+            <button
+              type="button"
+              onClick={() => setShowAddProofModal(true)}
+              className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs transition-colors cursor-pointer shadow-2xs"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Upload Work Proof</span>
+            </button>
+          </div>
+
+          {/* Work Proof Items Grid */}
+          {workProofs.length === 0 ? (
+            <div className="py-10 text-center space-y-3 border-2 border-dashed border-slate-200 rounded-3xl p-6 bg-slate-50/50">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-800 flex items-center justify-center mx-auto">
+                <UploadCloud className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-black text-slate-900 text-sm">No Work Proofs Uploaded Yet</h3>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+                  Upload photos of previous repairs, completed customer projects, or trade certificates to showcase your genuine experience.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddProofModal(true)}
+                className="px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs transition-colors cursor-pointer inline-flex items-center gap-1.5 shadow-2xs mt-2"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Upload First Proof</span>
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {workProofs.map((proof) => (
+                <div
+                  key={proof.id}
+                  className="rounded-2xl border border-slate-200/90 bg-slate-50/50 overflow-hidden shadow-2xs group flex flex-col justify-between"
+                >
+                  <div
+                    onClick={() => setProofPreviewItem(proof)}
+                    className="h-40 bg-slate-900 overflow-hidden cursor-pointer relative"
+                  >
+                    <img
+                      src={proof.imageUrl}
+                      alt={proof.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                    />
+                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors" />
+                    <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-black/70 text-white text-[10px] font-bold backdrop-blur-xs">
+                      {proof.category}
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 flex items-center justify-between gap-2 bg-white">
+                    <div className="space-y-0.5 flex-1 min-w-0">
+                      <p className="font-bold text-xs text-slate-900 truncate">{proof.title}</p>
+                      <p className="text-[10px] text-slate-400">Added on {proof.uploadedAt}</p>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setProofPreviewItem(proof)}
+                        className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs"
+                        title="Preview document"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteProof(proof.id)}
+                        className="p-1.5 rounded-lg border border-red-200 hover:bg-red-50 text-red-600 text-xs"
+                        title="Delete work proof"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* --------------------------------------------------------
+          SECTION 6: BANK & PAYOUT
          -------------------------------------------------------- */}
       {activeSection === "bank" && (
         <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm space-y-4 animate-fade-in">
@@ -782,7 +1227,7 @@ export default function TechnicianProfilePage() {
       )}
 
       {/* --------------------------------------------------------
-          SECTION 6: SECURITY
+          SECTION 7: SECURITY
          -------------------------------------------------------- */}
       {activeSection === "security" && (
         <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm space-y-4 animate-fade-in">
@@ -906,14 +1351,14 @@ export default function TechnicianProfilePage() {
             </p>
 
             <div className="space-y-2.5 pt-1">
-              {/* Option 1: Take Photo */}
+              {/* Option 1: Take Photo with camera permission */}
               <button
                 type="button"
                 onClick={handleTriggerCamera}
                 className="w-full py-3 px-4 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs flex items-center justify-center gap-2.5 transition-colors cursor-pointer shadow-xs"
               >
                 <Camera className="w-4 h-4" />
-                <span>Take Photo</span>
+                <span>Take Photo (Camera)</span>
               </button>
 
               {/* Option 2: Choose from Gallery */}
@@ -923,7 +1368,7 @@ export default function TechnicianProfilePage() {
                 className="w-full py-3 px-4 rounded-2xl border border-slate-200 hover:bg-slate-50 text-slate-800 font-bold text-xs flex items-center justify-center gap-2.5 transition-colors cursor-pointer"
               >
                 <ImageIcon className="w-4 h-4 text-emerald-700" />
-                <span>Choose from Gallery</span>
+                <span>Choose from Gallery / Photos</span>
               </button>
 
               {/* Option 3: Cancel */}
@@ -940,8 +1385,7 @@ export default function TechnicianProfilePage() {
       )}
 
       {/* ========================================================
-          PROPER CROP & PREVIEW SCREEN
-          (Crop, Zoom, Rotate, Reset, Cancel, Save Photo)
+          CROP & PREVIEW SCREEN FOR PROFILE PHOTO
          ======================================================== */}
       {photoPreviewUrl && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
@@ -979,7 +1423,6 @@ export default function TechnicianProfilePage() {
 
               {/* Interactive Controls: Zoom, Rotate, Reset */}
               <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
-                {/* Zoom buttons */}
                 <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
                   <span className="text-[10px] font-bold text-slate-500 px-1">
                     Zoom:
@@ -1000,12 +1443,9 @@ export default function TechnicianProfilePage() {
                   ))}
                 </div>
 
-                {/* Rotate button */}
                 <button
                   type="button"
-                  onClick={() =>
-                    setRotationDegrees((prev) => (prev + 90) % 360)
-                  }
+                  onClick={() => setRotationDegrees((prev) => (prev + 90) % 360)}
                   className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold flex items-center gap-1 cursor-pointer"
                   title="Rotate 90 degrees"
                 >
@@ -1013,7 +1453,6 @@ export default function TechnicianProfilePage() {
                   <span>Rotate</span>
                 </button>
 
-                {/* Reset button */}
                 <button
                   type="button"
                   onClick={() => {
@@ -1050,180 +1489,167 @@ export default function TechnicianProfilePage() {
       )}
 
       {/* ========================================================
-          EDIT PERSONAL INFORMATION MODAL
+          MODAL: ADD WORK & EXPERIENCE PROOF (Requirement 4)
          ======================================================== */}
-      {showEditInfoModal && (
+      {showAddProofModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-fade-in overflow-y-auto">
-          <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl border border-slate-200 space-y-4 my-8">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-slate-200 space-y-4 my-8">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
-                  <Edit3 className="w-4 h-4" />
+                  <FileCheck className="w-4 h-4" />
                 </div>
                 <div>
                   <h3 className="font-black text-slate-900 text-base">
-                    Edit Personal Information
+                    Upload Work & Experience Proof
                   </h3>
                   <p className="text-[11px] text-slate-400">
-                    Update profile credentials and trade bio
+                    Add project photos or certified trade documents
                   </p>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => setShowEditInfoModal(false)}
+                onClick={() => setShowAddProofModal(false)}
                 className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveInfoSubmit} className="space-y-3.5 text-xs">
+            <form onSubmit={handleAddProofSubmit} className="space-y-3.5 text-xs">
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
-                  Full Name
+                  Document / Project Title <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   required
-                  value={infoForm.name}
-                  onChange={(e) =>
-                    setInfoForm({ ...infoForm, name: e.target.value })
-                  }
+                  placeholder="e.g. Master ITI Certificate / Bathroom Remodel Installation"
+                  value={newProofForm.title}
+                  onChange={(e) => setNewProofForm({ ...newProofForm, title: e.target.value })}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:border-emerald-600 text-slate-800"
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block font-bold text-slate-700">
-                      Phone Number
-                    </label>
-                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                      Verified
-                    </span>
-                  </div>
-                  <input
-                    type="text"
-                    required
-                    value={infoForm.phone}
-                    onChange={(e) =>
-                      setInfoForm({ ...infoForm, phone: e.target.value })
-                    }
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:border-emerald-600 text-slate-800"
-                  />
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block font-bold text-slate-700">
-                      Email Address
-                    </label>
-                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                      Verified
-                    </span>
-                  </div>
-                  <input
-                    type="email"
-                    required
-                    value={infoForm.email}
-                    onChange={(e) =>
-                      setInfoForm({ ...infoForm, email: e.target.value })
-                    }
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:border-emerald-600 text-slate-800"
-                  />
-                </div>
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Proof Category <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={newProofForm.category}
+                  onChange={(e) => setNewProofForm({ ...newProofForm, category: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:border-emerald-600 text-slate-800 bg-white"
+                >
+                  <option value="Completed Project Photo">Completed Project Photo</option>
+                  <option value="Previous Work Photo">Previous Work Photo</option>
+                  <option value="Work / Trade Certificate">Work / Trade Certificate</option>
+                  <option value="Experience Document">Experience Document</option>
+                  <option value="Authorized Brand Certification">Authorized Brand Certification</option>
+                </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">
-                    Service Category
-                  </label>
-                  <select
-                    value={infoForm.category}
-                    onChange={(e) =>
-                      setInfoForm({ ...infoForm, category: e.target.value })
-                    }
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:border-emerald-600 text-slate-800 bg-white"
+              {/* Upload options: Camera or Gallery */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1.5">
+                  Select Proof Media <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => proofCameraInputRef.current?.click()}
+                    className="py-2.5 px-3 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <option value="Plumbing">Plumbing</option>
-                    <option value="Electrician">Electrician</option>
-                    <option value="AC & Appliance Repair">
-                      AC & Appliance Repair
-                    </option>
-                    <option value="Carpenter">Carpenter</option>
-                    <option value="Home Cleaning">Home Cleaning</option>
-                  </select>
+                    <Camera className="w-4 h-4 text-emerald-700" />
+                    <span>Take Photo</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => proofFileInputRef.current?.click()}
+                    className="py-2.5 px-3 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <ImageIcon className="w-4 h-4 text-emerald-700" />
+                    <span>Upload File</span>
+                  </button>
                 </div>
+              </div>
 
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">
-                    Experience (Years)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="40"
-                    value={infoForm.experience_years}
-                    onChange={(e) =>
-                      setInfoForm({
-                        ...infoForm,
-                        experience_years: Number(e.target.value),
-                      })
-                    }
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:border-emerald-600 text-slate-800"
+              {/* Selected Image Preview in Modal */}
+              {newProofForm.imageData && (
+                <div className="rounded-xl border border-emerald-200 p-2 bg-emerald-50/50 flex items-center gap-3">
+                  <img
+                    src={newProofForm.imageData}
+                    alt="Proof Preview"
+                    className="w-14 h-14 rounded-lg object-cover border border-emerald-300 shrink-0"
                   />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-emerald-950 truncate">Image ready for upload</p>
+                    <p className="text-[10px] text-emerald-700">Tap below to submit</p>
+                  </div>
                 </div>
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Vehicle Information
-                </label>
-                <input
-                  type="text"
-                  value={infoForm.vehicle_type}
-                  onChange={(e) =>
-                    setInfoForm({ ...infoForm, vehicle_type: e.target.value })
-                  }
-                  placeholder="e.g. Rapid Response Van, Utility Bike, etc."
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:border-emerald-600 text-slate-800"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Professional Bio
-                </label>
-                <textarea
-                  rows={3}
-                  value={infoForm.bio}
-                  onChange={(e) =>
-                    setInfoForm({ ...infoForm, bio: e.target.value })
-                  }
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-hidden focus:border-emerald-600 text-slate-800 leading-relaxed"
-                />
-              </div>
+              )}
 
               <div className="flex items-center gap-3 pt-3">
                 <button
                   type="button"
-                  onClick={() => setShowEditInfoModal(false)}
+                  onClick={() => setShowAddProofModal(false)}
                   className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold hover:bg-slate-50 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={isSavingInfo}
                   className="flex-1 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black transition-colors"
                 >
-                  {isSavingInfo ? "Saving..." : "Save Changes"}
+                  Save Work Proof
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          MODAL: LIGHTBOX / PREVIEW WORK PROOF
+         ======================================================== */}
+      {proofPreviewItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-lg rounded-3xl bg-white p-5 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div>
+                <h3 className="font-black text-slate-900 text-sm sm:text-base">
+                  {proofPreviewItem.title}
+                </h3>
+                <p className="text-[11px] text-slate-400">
+                  {proofPreviewItem.category} &bull; Uploaded on {proofPreviewItem.uploadedAt}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setProofPreviewItem(null)}
+                className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="rounded-2xl overflow-hidden bg-slate-900 max-h-[65vh] flex items-center justify-center">
+              <img
+                src={proofPreviewItem.imageUrl}
+                alt={proofPreviewItem.title}
+                className="w-full h-full object-contain max-h-[60vh]"
+              />
+            </div>
+
+            <div className="flex justify-end pt-1">
+              <button
+                type="button"
+                onClick={() => setProofPreviewItem(null)}
+                className="px-5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs"
+              >
+                Close Preview
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -87,53 +87,31 @@ const COMPANY_LOGOS = [
   },
 ];
 
-const VEHICLE_TYPES = [
-  "Rapid Response Van",
-  "Utility Two-Wheeler / Bike",
-  "Service Truck / Utility Pickup",
-  "Standard Car / Hatchback",
-  "No Vehicle / Public Transit",
-];
-
-export default function ProfessionalRegisterForm({
-  onNavigate,
-  editMode = false,
-  initialData = null,
-  onSave = null,
-  onCancel = null,
-}) {
-  const [accountType, setAccountType] = useState(
-    initialData?.account_type ||
-      (initialData?.company_name ? "company" : "individual")
-  );
+export default function ProfessionalRegisterForm({ onNavigate }) {
+  const [accountType, setAccountType] = useState("individual"); // 'individual' | 'company'
   const [formData, setFormData] = useState({
     // Individual fields
-    name: initialData?.name || "",
-    email: initialData?.email || "",
-    phone: initialData?.phone || "",
-    location:
-      initialData?.location ||
-      (initialData?.service_areas ? initialData.service_areas.split(",")[0].trim() : "Delhi NCR"),
-    address: initialData?.address || "",
-    category: initialData?.category || "Plumbing",
-    skills: initialData?.skills || "",
-    experience_years: initialData?.experience_years ? Number(initialData.experience_years) : 3,
-    experience_description:
-      initialData?.experience_description || initialData?.bio || "",
-    avatar: initialData?.avatar || PRESET_AVATARS[0].url,
-    vehicle_type: initialData?.vehicle_type || "Rapid Response Van",
-    id_document_type: initialData?.id_document_type || ID_DOC_TYPES[0],
-    id_document_url: initialData?.id_document_url || "",
+    name: "",
+    email: "",
+    phone: "",
+    location: "Delhi NCR",
+    address: "",
+    category: "Plumbing",
+    skills: "",
+    experience_years: 3,
+    experience_description: "",
+    avatar: PRESET_AVATARS[0].url,
+    id_document_type: ID_DOC_TYPES[0],
+    id_document_url: "",
     // Company fields
-    company_name: initialData?.company_name || initialData?.name || "",
-    authorized_person: initialData?.authorized_person || initialData?.name || "",
-    business_email: initialData?.business_email || initialData?.email || "",
-    business_phone: initialData?.business_phone || initialData?.phone || "",
-    business_address: initialData?.business_address || initialData?.address || "",
-    service_areas: initialData?.service_areas || "Delhi NCR (All Zones)",
-    business_registration_number:
-      initialData?.business_registration_number || "",
-    company_logo: initialData?.company_logo || initialData?.avatar || COMPANY_LOGOS[0].url,
+    company_name: "",
+    authorized_person: "",
+    business_email: "",
+    business_phone: "",
+    business_address: "",
+    service_areas: "Delhi NCR (All Zones)",
+    business_registration_number: "",
+    company_logo: COMPANY_LOGOS[0].url,
     // Auth credentials
     password: "",
     confirmPassword: "",
@@ -203,15 +181,13 @@ export default function ProfessionalRegisterForm({
       }
     }
 
-    if (!editMode) {
-      if (!formData.password || formData.password.length < 6) {
-        setErrorMessage("Password must be at least 6 characters long.");
-        return;
-      }
-      if (formData.password !== formData.confirmPassword) {
-        setErrorMessage("Passwords do not match.");
-        return;
-      }
+    if (!formData.password || formData.password.length < 6) {
+      setErrorMessage("Password must be at least 6 characters long.");
+      return;
+    }
+    if (formData.password !== formData.confirmPassword) {
+      setErrorMessage("Passwords do not match.");
+      return;
     }
 
     setLoading(true);
@@ -229,15 +205,13 @@ export default function ProfessionalRegisterForm({
             service_areas: formData.service_areas,
             category: formData.category,
             skills: formData.skills,
-            vehicle_type: formData.vehicle_type,
-            experience_description: formData.experience_description.trim(),
-            bio: formData.experience_description.trim(),
             business_registration_number:
               formData.business_registration_number.trim(),
             avatar: formData.company_logo,
             id_document_type: "GSTIN / Trade License",
             id_document_url: formData.business_registration_number.trim(),
-            ...(formData.password ? { password: formData.password } : {}),
+            password: formData.password,
+            confirmPassword: formData.confirmPassword,
           }
         : {
             account_type: "individual",
@@ -248,24 +222,14 @@ export default function ProfessionalRegisterForm({
             address: formData.address.trim(),
             category: formData.category,
             skills: formData.skills,
-            vehicle_type: formData.vehicle_type,
             experience_years: formData.experience_years,
             experience_description: formData.experience_description.trim(),
-            bio: formData.experience_description.trim(),
             avatar: formData.avatar,
             id_document_type: formData.id_document_type,
             id_document_url: formData.id_document_url.trim(),
-            ...(formData.password ? { password: formData.password } : {}),
+            password: formData.password,
+            confirmPassword: formData.confirmPassword,
           };
-
-      if (editMode) {
-        if (onSave) {
-          await onSave(payload);
-        } else {
-          await technicianStore.updateProfile(payload);
-        }
-        return;
-      }
 
       const res = await technicianStore.registerTechnician(payload);
       setRegistrationResult(
