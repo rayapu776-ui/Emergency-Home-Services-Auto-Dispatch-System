@@ -58,11 +58,8 @@ const handleSendOtp = async (req, res) => {
       ? cleanIdentifier.toLowerCase()
       : cleanIdentifier;
 
-    // Look up existing user (prioritizing technician role)
-    let user = await otpService.findUserByIdentifier(
-      normalizedIdentifier,
-      "technician",
-    );
+    // Look up existing user
+    let user = await otpService.findUserByIdentifier(normalizedIdentifier);
 
     // If password was provided, verify credentials
     if (password) {
@@ -313,10 +310,7 @@ const handleProfessionalLogin = async (req, res) => {
       });
     }
 
-    const user = await otpService.findUserByIdentifier(
-      inputIdentifier,
-      "technician",
-    );
+    const user = await otpService.findUserByIdentifier(inputIdentifier);
     if (!user) {
       return res.status(401).json({
         error:
@@ -339,23 +333,10 @@ const handleProfessionalLogin = async (req, res) => {
       });
     }
 
-    let technicianData = await query.get(
+    const technicianData = await query.get(
       "SELECT * FROM technicians WHERE user_id = ?",
       [user.id],
     );
-
-    if (!technicianData && user.role === "technician") {
-      const techId = uuidv4();
-      await query.run(
-        `INSERT INTO technicians (id, user_id, category, latitude, longitude, is_online, rating, total_jobs, status)
-         VALUES (?, ?, 'Plumbing', 28.6139, 77.2090, 0, 4.9, 0, 'Approved')`,
-        [techId, user.id],
-      );
-      technicianData = await query.get(
-        "SELECT * FROM technicians WHERE id = ?",
-        [techId],
-      );
-    }
 
     const token = generateToken({
       id: user.id,
@@ -389,128 +370,5 @@ const handleProfessionalLogin = async (req, res) => {
 };
 
 router.post("/login", handleProfessionalLogin);
-
-/**
- * POST /api/professional/auth/forgot-password
- */
-router.post("/forgot-password", async (req, res) => {
-  try {
-    const { identifier, email, phone } = req.body;
-    const rawIdentifier = (identifier || email || phone || "").trim();
-    if (!rawIdentifier) {
-      return res.status(400).json({
-        error: "Please enter your registered email address or mobile number.",
-      });
-    }
-
-    const user = await otpService.findUserByIdentifier(
-      rawIdentifier,
-      "technician",
-    );
-    if (!user || (user.role !== "technician" && user.role !== "admin")) {
-      return res.status(404).json({
-        error: "No partner account found with this email or mobile number.",
-      });
-    }
-
-    const otpResult = await otpService.createOtpSession(user, rawIdentifier);
-    if (!otpResult.success) {
-      return res.status(otpResult.rateLimited ? 429 : 503).json({
-        error:
-          otpResult.error ||
-          "Unable to send the verification code right now. Please try again.",
-        retryAfterSeconds: otpResult.retryAfterSeconds,
-      });
-    }
-
-    return res.json({
-      success: true,
-      status: "OTP_REQUIRED",
-      message: "Verification code sent to your registered contact.",
-      tempSessionToken: otpResult.tempSessionToken,
-      channel: otpResult.channel,
-      maskedDestination: otpResult.maskedDestination,
-      cooldownSeconds: otpResult.cooldownSeconds || 60,
-      expiresInSeconds: otpResult.expiresInSeconds || 300,
-    });
-  } catch (err) {
-    console.error("❌ [Professional Auth] Forgot password error:", err);
-    return res.status(500).json({
-      error: "Unable to process password reset request. Please try again.",
-    });
-  }
-});
-
-/**
- * POST /api/professional/auth/reset-password
- */
-router.post("/reset-password", async (req, res) => {
-  try {
-    const {
-      identifier,
-      tempSessionToken,
-      code,
-      otp,
-      newPassword,
-      new_password,
-      password,
-      confirmPassword,
-    } = req.body;
-    const sessionRef = tempSessionToken || identifier;
-    const inputCode = String(code || otp || "").trim();
-    const effectiveNewPassword = newPassword || new_password || password;
-
-    if (!sessionRef || !inputCode) {
-      return res.status(400).json({
-        error: "Verification code and session identifier are required.",
-      });
-    }
-
-    if (!effectiveNewPassword || effectiveNewPassword.length < 6) {
-      return res.status(400).json({
-        error: "New password must be at least 6 characters long.",
-      });
-    }
-
-    if (confirmPassword && effectiveNewPassword !== confirmPassword) {
-      return res.status(400).json({
-        error: "New password and Confirm Password do not match.",
-      });
-    }
-
-    const verifyResult = await otpService.verifyOtp(sessionRef, inputCode);
-    if (!verifyResult.success) {
-      return res.status(400).json({
-        error:
-          verifyResult.error || "Invalid verification code. Please try again.",
-        remainingAttempts: verifyResult.remainingAttempts,
-      });
-    }
-
-    const user = verifyResult.user;
-    if (user.role !== "technician" && user.role !== "admin") {
-      return res.status(403).json({
-        error: "This account is not authorized as a service professional.",
-      });
-    }
-
-    const newHash = bcrypt.hashSync(effectiveNewPassword, 10);
-    await query.run("UPDATE users SET password_hash = ? WHERE id = ?", [
-      newHash,
-      user.id,
-    ]);
-
-    return res.json({
-      success: true,
-      message:
-        "Password updated successfully. You can now log in with your new password.",
-    });
-  } catch (err) {
-    console.error("❌ [Professional Auth] Reset password error:", err);
-    return res
-      .status(500)
-      .json({ error: "Failed to reset password. Please try again." });
-  }
-});
 
 export default router;

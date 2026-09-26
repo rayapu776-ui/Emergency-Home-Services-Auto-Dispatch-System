@@ -23,131 +23,7 @@ export default function TechnicianLoginPage({ onLoginSuccess, onBackToHome }) {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-
-  // Forgot Password state
-  const [isResetFlow, setIsResetFlow] = useState(false);
-  const [resetStep, setResetStep] = useState("request"); // 'request' | 'verify'
-  const [resetIdentifier, setResetIdentifier] = useState("");
-  const [resetSessionToken, setResetSessionToken] = useState("");
-  const [resetMaskedDestination, setResetMaskedDestination] = useState("");
-  const [resetCode, setResetCode] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [resetCooldown, setResetCooldown] = useState(0);
-
-  // Cooldown countdown timer
-  React.useEffect(() => {
-    let timer;
-    if (resetCooldown > 0) {
-      timer = setTimeout(() => setResetCooldown((c) => c - 1), 1000);
-    }
-    return () => clearTimeout(timer);
-  }, [resetCooldown]);
-
-  // Step 1: Send Reset Verification Code
-  const handleSendResetCode = async (e) => {
-    if (e) e.preventDefault();
-    setErrorMessage("");
-    setSuccessMessage("");
-
-    const trimmed = resetIdentifier.trim();
-    if (!trimmed) {
-      setErrorMessage("Please enter your registered mobile number or email address.");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const res = await technicianStore.forgotPassword(trimmed);
-      setResetSessionToken(res.tempSessionToken || "");
-      setResetMaskedDestination(res.maskedDestination || trimmed);
-      setResetCooldown(res.cooldownSeconds || 60);
-      setResetStep("verify");
-      setSuccessMessage(
-        res.message || "A 6-digit verification code has been dispatched."
-      );
-    } catch (err) {
-      console.error("Forgot password error:", err);
-      setErrorMessage(
-        err.response?.data?.error ||
-          "No partner account found with this email or mobile number."
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Step 2: Verify Code and Save New Password
-  const handleResetPasswordSubmit = async (e) => {
-    if (e) e.preventDefault();
-    setErrorMessage("");
-    setSuccessMessage("");
-
-    const trimmedCode = resetCode.trim();
-    if (trimmedCode.length !== 6 || !/^\d{6}$/.test(trimmedCode)) {
-      setErrorMessage("Please enter the complete 6-digit verification code.");
-      return;
-    }
-    if (!newPassword || newPassword.length < 6) {
-      setErrorMessage("New password must be at least 6 characters long.");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setErrorMessage("New password and Confirm Password do not match.");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const res = await technicianStore.resetPassword({
-        tempSessionToken: resetSessionToken,
-        identifier: resetIdentifier.trim(),
-        code: trimmedCode,
-        newPassword,
-        confirmPassword,
-      });
-
-      setSuccessMessage(
-        res.message || "Password updated successfully! Please sign in with your new password."
-      );
-      setIdentifier(resetIdentifier.trim());
-      setPassword("");
-      setIsResetFlow(false);
-      setResetStep("request");
-      setResetCode("");
-      setNewPassword("");
-      setConfirmPassword("");
-    } catch (err) {
-      console.error("Reset password error:", err);
-      setErrorMessage(
-        err.response?.data?.error ||
-          "Failed to reset password. Please check the code and try again."
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Resend code handler
-  const handleResendResetCode = async () => {
-    if (resetCooldown > 0 || loading) return;
-    setErrorMessage("");
-    setSuccessMessage("Sending fresh code...");
-    try {
-      const res = await technicianStore.forgotPassword(resetIdentifier.trim());
-      setResetSessionToken(res.tempSessionToken || resetSessionToken);
-      setResetCooldown(res.cooldownSeconds || 60);
-      setResetCode("");
-      setSuccessMessage("A fresh verification code has been dispatched.");
-    } catch (err) {
-      setSuccessMessage("");
-      setErrorMessage(
-        err.response?.data?.error || "Unable to resend code right now."
-      );
-    }
-  };
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   // Direct Login: Submit identifier and password to access the Dashboard
   const handleLoginSubmit = async (e) => {
@@ -216,7 +92,7 @@ export default function TechnicianLoginPage({ onLoginSuccess, onBackToHome }) {
         {onBackToHome && (
           <button
             onClick={onBackToHome}
-            className="text-xs font-semibold text-slate-400 hover:text-white transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white/5 cursor-pointer"
+            className="text-xs font-semibold text-slate-400 hover:text-white transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white/5"
           >
             <span>Customer Website</span>
             <ArrowRight className="h-3.5 w-3.5" />
@@ -224,7 +100,7 @@ export default function TechnicianLoginPage({ onLoginSuccess, onBackToHome }) {
         )}
       </header>
 
-      {/* Main Card */}
+      {/* Main Login Card */}
       <main className="flex-1 flex items-center justify-center p-4 sm:p-6 my-6">
         <div className="w-full max-w-md bg-gradient-to-b from-slate-900/90 to-slate-950/90 border border-emerald-900/30 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl relative overflow-hidden">
           {/* Subtle Glow */}
@@ -246,14 +122,11 @@ export default function TechnicianLoginPage({ onLoginSuccess, onBackToHome }) {
               SERVICE PARTNER & TECHNICIAN
             </span>
             <h1 className="text-2xl font-black text-white tracking-tight">
-              {isResetFlow ? "Reset Password" : "Professional Login"}
+              Professional Login
             </h1>
             <p className="text-xs text-slate-400 max-w-xs mx-auto">
-              {isResetFlow
-                ? resetStep === "request"
-                  ? "Enter your registered number or email to receive a password reset verification code."
-                  : `Enter the 6-digit code sent to ${resetMaskedDestination} and choose a new password.`
-                : "Sign in with your registered number or email to access the professional operations dashboard."}
+              Sign in with your registered number or email to access the
+              professional operations dashboard.
             </p>
           </div>
 
@@ -273,269 +146,117 @@ export default function TechnicianLoginPage({ onLoginSuccess, onBackToHome }) {
             </div>
           )}
 
-          {/* RESET PASSWORD FLOW */}
-          {isResetFlow ? (
-            resetStep === "request" ? (
-              /* Reset Step 1: Identifier Input */
-              <form onSubmit={handleSendResetCode} className="space-y-4">
-                <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                    Registered Mobile Number or Email
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      required
-                      value={resetIdentifier}
-                      onChange={(e) => setResetIdentifier(e.target.value)}
-                      placeholder="Enter your registered number or email"
-                      className="w-full bg-slate-800/80 border border-slate-700/80 focus:border-emerald-500 rounded-2xl py-3 pl-10 pr-4 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
-                    />
-                    <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-500" />
-                  </div>
-                </div>
-
+          {/* Forgot Password Notification Dialog */}
+          {showForgotPassword && (
+            <div className="mb-5 p-4 rounded-2xl bg-emerald-950/40 border border-emerald-800/50 text-xs space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-emerald-300">
+                  Password Reset Support
+                </span>
                 <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 text-white font-bold py-3.5 rounded-2xl text-sm transition-all shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 cursor-pointer mt-2"
+                  type="button"
+                  onClick={() => setShowForgotPassword(false)}
+                  className="text-slate-400 hover:text-white"
                 >
-                  {loading ? (
-                    <>
-                      <RefreshCw className="h-4 w-4 animate-spin" />
-                      <span>Sending Code...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Send Verification Code</span>
-                      <ArrowRight className="h-4 w-4" />
-                    </>
-                  )}
+                  ✕
                 </button>
-
-                <div className="pt-2 text-center">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsResetFlow(false);
-                      setErrorMessage("");
-                      setSuccessMessage("");
-                    }}
-                    className="text-xs text-slate-400 hover:text-white transition-colors cursor-pointer"
-                  >
-                    ← Back to Professional Login
-                  </button>
-                </div>
-              </form>
-            ) : (
-              /* Reset Step 2: Verification Code & New Password */
-              <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                    6-Digit Verification Code
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    maxLength={6}
-                    value={resetCode}
-                    onChange={(e) => setResetCode(e.target.value.replace(/\D/g, ""))}
-                    placeholder="Enter 6-digit code"
-                    className="w-full bg-slate-800/80 border border-slate-700/80 focus:border-emerald-500 rounded-2xl py-3 px-4 text-center tracking-widest text-lg font-mono font-bold text-white placeholder:text-slate-500 placeholder:text-sm placeholder:tracking-normal focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
-                  />
-                  <div className="mt-1 flex items-center justify-between text-[11px]">
-                    <span className="text-slate-500">Sent to {resetMaskedDestination}</span>
-                    <button
-                      type="button"
-                      disabled={resetCooldown > 0 || loading}
-                      onClick={handleResendResetCode}
-                      className="text-emerald-400 hover:text-emerald-300 disabled:text-slate-600 font-semibold cursor-pointer"
-                    >
-                      {resetCooldown > 0 ? `Resend code in ${resetCooldown}s` : "Resend code"}
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                    New Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showNewPassword ? "text" : "password"}
-                      required
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Enter new password (min. 6 chars)"
-                      className="w-full bg-slate-800/80 border border-slate-700/80 focus:border-emerald-500 rounded-2xl py-3 pl-10 pr-11 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
-                    />
-                    <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-500" />
-                    <button
-                      type="button"
-                      onClick={() => setShowNewPassword(!showNewPassword)}
-                      className="absolute right-3.5 top-3.5 text-slate-400 hover:text-white cursor-pointer"
-                    >
-                      {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                    Confirm New Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showConfirmPassword ? "text" : "password"}
-                      required
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="Confirm your new password"
-                      className="w-full bg-slate-800/80 border border-slate-700/80 focus:border-emerald-500 rounded-2xl py-3 pl-10 pr-11 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
-                    />
-                    <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-500" />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3.5 top-3.5 text-slate-400 hover:text-white cursor-pointer"
-                    >
-                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 text-white font-bold py-3.5 rounded-2xl text-sm transition-all shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 cursor-pointer mt-2"
-                >
-                  {loading ? (
-                    <>
-                      <RefreshCw className="h-4 w-4 animate-spin" />
-                      <span>Updating Password...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Save New Password & Log In</span>
-                      <ArrowRight className="h-4 w-4" />
-                    </>
-                  )}
-                </button>
-
-                <div className="pt-2 text-center">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setResetStep("request");
-                      setErrorMessage("");
-                      setSuccessMessage("");
-                    }}
-                    className="text-xs text-slate-400 hover:text-white transition-colors cursor-pointer"
-                  >
-                    ← Change email or mobile number
-                  </button>
-                </div>
-              </form>
-            )
-          ) : (
-            /* Direct Login Form */
-            <form onSubmit={handleLoginSubmit} className="space-y-4">
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                  Mobile Number or Email
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    required
-                    value={identifier}
-                    onChange={(e) => setIdentifier(e.target.value)}
-                    placeholder="Enter your number or email"
-                    className="w-full bg-slate-800/80 border border-slate-700/80 focus:border-emerald-500 rounded-2xl py-3 pl-10 pr-4 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
-                  />
-                  <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-500" />
-                </div>
               </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                    Password
-                  </label>
-                  {/* Clean Arrow-Style Action */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setErrorMessage("");
-                      setSuccessMessage("");
-                      setResetIdentifier(identifier.trim());
-                      setResetStep("request");
-                      setIsResetFlow(true);
-                    }}
-                    className="inline-flex items-center gap-1 text-[11px] text-emerald-400 hover:text-emerald-300 transition-colors font-semibold group cursor-pointer"
-                  >
-                    <span>Forgot Password?</span>
-                    <span className="text-[10px] text-emerald-400 font-bold group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
-                      <span>Reset Password</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </span>
-                  </button>
-                </div>
-                <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
-                    className="w-full bg-slate-800/80 border border-slate-700/80 focus:border-emerald-500 rounded-2xl py-3 pl-10 pr-11 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
-                  />
-                  <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-500" />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-3.5 text-slate-400 hover:text-white cursor-pointer"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 text-white font-bold py-3.5 rounded-2xl text-sm transition-all shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 cursor-pointer mt-2"
-              >
-                {loading ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 animate-spin" />
-                    <span>Signing in...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Sign In to Dashboard</span>
-                    <ArrowRight className="h-4 w-4" />
-                  </>
-                )}
-              </button>
-
-              <div className="pt-2 text-center">
-                <p className="text-xs text-slate-400">
-                  Don't have an account?{" "}
-                  <a
-                    href="/professionals/register"
-                    className="text-emerald-400 font-bold hover:text-emerald-300 hover:underline inline-flex items-center gap-1"
-                  >
-                    <span>Create Professional Account</span>
-                    <ArrowRight className="w-3 h-3" />
-                  </a>
-                </p>
-              </div>
-            </form>
+              <p className="text-slate-300 text-[11px] leading-relaxed">
+                For partner security, password resets are processed via dispatch
+                operations or your registered emergency contact number. Contact
+                field dispatch at{" "}
+                <strong className="text-white">+91 98101 11223</strong> or
+                request a password reset from administrator.
+              </p>
+            </div>
           )}
+
+          {/* Direct Login Form */}
+          <form onSubmit={handleLoginSubmit} className="space-y-4">
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                Mobile Number or Email
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  required
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder="Enter your number or email"
+                  className="w-full bg-slate-800/80 border border-slate-700/80 focus:border-emerald-500 rounded-2xl py-3 pl-10 pr-4 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                />
+                <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-500" />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  Password
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPassword(true)}
+                  className="text-[11px] text-emerald-400 hover:text-emerald-300 transition-colors font-semibold"
+                >
+                  Forgot Password?
+                </button>
+              </div>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  className="w-full bg-slate-800/80 border border-slate-700/80 focus:border-emerald-500 rounded-2xl py-3 pl-10 pr-11 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                />
+                <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-500" />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-3.5 text-slate-400 hover:text-white cursor-pointer"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 text-white font-bold py-3.5 rounded-2xl text-sm transition-all shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 cursor-pointer mt-2"
+            >
+              {loading ? (
+                <>
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  <span>Signing in...</span>
+                </>
+              ) : (
+                <>
+                  <span>Sign In to Dashboard</span>
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
+            </button>
+
+            <div className="pt-2 text-center">
+              <p className="text-xs text-slate-400">
+                Don't have an account?{" "}
+                <a
+                  href="/professionals/register"
+                  className="text-emerald-400 font-bold hover:text-emerald-300 hover:underline inline-flex items-center gap-1"
+                >
+                  <span>Create Professional Account</span>
+                  <ArrowRight className="w-3 h-3" />
+                </a>
+              </p>
+            </div>
+          </form>
         </div>
       </main>
 

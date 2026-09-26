@@ -101,24 +101,15 @@ export const otpService = {
   /**
    * Look up user by either email or phone number
    * @param {string} identifier
-   * @param {string} [preferredRole] - Optional role ('customer' | 'technician' | 'admin') to prioritize
    */
-  async findUserByIdentifier(identifier, preferredRole = null) {
+  async findUserByIdentifier(identifier) {
     if (!identifier) return null;
     const raw = identifier.trim();
 
     if (raw.includes("@")) {
-      const email = raw.toLowerCase();
-      if (preferredRole) {
-        const user = await query.get(
-          "SELECT * FROM users WHERE LOWER(email) = ? ORDER BY (CASE WHEN role = ? THEN 0 ELSE 1 END) LIMIT 1",
-          [email, preferredRole],
-        );
-        if (user) return user;
-      }
       return await query.get(
-        "SELECT * FROM users WHERE LOWER(email) = ?",
-        [email],
+        "SELECT * FROM users WHERE LOWER(email) = LOWER(?)",
+        [raw],
       );
     }
 
@@ -127,39 +118,24 @@ export const otpService = {
     if (!rawDigits) return null;
     const normalized = normalizePhone(raw);
 
-    // First try direct match with role preference if supplied
-    if (preferredRole) {
-      let user = await query.get(
-        "SELECT * FROM users WHERE (phone = ? OR phone LIKE ?) ORDER BY (CASE WHEN role = ? THEN 0 ELSE 1 END) LIMIT 1",
-        [raw, `%${normalized}`, preferredRole],
-      );
-      if (user) return user;
-    } else {
-      let user = await query.get(
-        "SELECT * FROM users WHERE phone = ? OR phone LIKE ?",
-        [raw, `%${normalized}`],
-      );
-      if (user) return user;
-    }
-
-    // Fetch all users with non-null phone to match normalized digits
-    const allUsersWithPhone = await query.all(
-      "SELECT * FROM users WHERE phone IS NOT NULL AND phone != ''",
+    // First try direct match
+    let user = await query.get(
+      "SELECT * FROM users WHERE phone = ? OR phone LIKE ?",
+      [raw, `%${normalized}`],
     );
-    const matchedUsers = allUsersWithPhone.filter((u) => {
-      const uNormalized = normalizePhone(u.phone);
-      return uNormalized === normalized || u.phone.includes(rawDigits);
-    });
 
-    if (matchedUsers.length > 0) {
-      if (preferredRole) {
-        const preferred = matchedUsers.find((u) => u.role === preferredRole);
-        if (preferred) return preferred;
-      }
-      return matchedUsers[0];
+    if (!user) {
+      // Fetch all users with non-null phone to match normalized digits
+      const allUsersWithPhone = await query.all(
+        "SELECT * FROM users WHERE phone IS NOT NULL AND phone != ''",
+      );
+      user = allUsersWithPhone.find((u) => {
+        const uNormalized = normalizePhone(u.phone);
+        return uNormalized === normalized || u.phone.includes(rawDigits);
+      });
     }
 
-    return null;
+    return user || null;
   },
 
   /**
