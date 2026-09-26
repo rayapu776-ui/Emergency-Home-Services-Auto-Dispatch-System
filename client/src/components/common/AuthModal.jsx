@@ -72,11 +72,41 @@ export default function AuthModal({
   onSuccess,
   onCancel,
 }) {
-  const { loginStep1, verifyOtp, resendOtp, register, demoLogin } = useAuth();
+  const {
+    login,
+    register,
+    forgotPassword,
+    resetPassword,
+    loginStep1,
+    verifyOtp,
+    resendOtp,
+    demoLogin,
+  } = useAuth();
   const [accountType, setAccountType] = useState("customer"); // "customer" | "professional"
-  const [screen, setScreen] = useState("login"); // "login" | "signup" | "otp"
+  const [screen, setScreen] = useState("login"); // "login" | "signup" | "otp" | "forgot"
   const [loginValue, setLoginValue] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+
+  // Customer Forgot Password State
+  const [custResetStep, setCustResetStep] = useState("request"); // 'request' | 'verify'
+  const [custResetIdentifier, setCustResetIdentifier] = useState("");
+  const [custResetToken, setCustResetToken] = useState("");
+  const [custResetMasked, setCustResetMasked] = useState("");
+  const [custResetCode, setCustResetCode] = useState("");
+  const [custNewPassword, setCustNewPassword] = useState("");
+  const [custConfirmPassword, setCustConfirmPassword] = useState("");
+  const [custShowNewPassword, setCustShowNewPassword] = useState(false);
+  const [custShowConfirmPassword, setCustShowConfirmPassword] = useState(false);
+  const [custResetCooldown, setCustResetCooldown] = useState(0);
+  const [custResetLoading, setCustResetLoading] = useState(false);
+
+  useEffect(() => {
+    let timer;
+    if (custResetCooldown > 0) {
+      timer = setTimeout(() => setCustResetCooldown((c) => c - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [custResetCooldown]);
 
   // OTP state (Customer)
   const [otpSession, setOtpSession] = useState(null);
@@ -91,7 +121,28 @@ export default function AuthModal({
   const [profLoading, setProfLoading] = useState(false);
   const [profError, setProfError] = useState("");
   const [profStatus, setProfStatus] = useState("");
-  const [profShowForgot, setProfShowForgot] = useState(false);
+
+  // Professional Forgot Password State
+  const [profScreen, setProfScreen] = useState("login"); // 'login' | 'forgot'
+  const [profResetStep, setProfResetStep] = useState("request"); // 'request' | 'verify'
+  const [profResetIdentifier, setProfResetIdentifier] = useState("");
+  const [profResetToken, setProfResetToken] = useState("");
+  const [profResetMasked, setProfResetMasked] = useState("");
+  const [profResetCode, setProfResetCode] = useState("");
+  const [profNewPassword, setProfNewPassword] = useState("");
+  const [profConfirmPassword, setProfConfirmPassword] = useState("");
+  const [profShowNewPassword, setProfShowNewPassword] = useState(false);
+  const [profShowConfirmPassword, setProfShowConfirmPassword] = useState(false);
+  const [profResetCooldown, setProfResetCooldown] = useState(0);
+
+  useEffect(() => {
+    let timer;
+    if (profResetCooldown > 0) {
+      timer = setTimeout(() => setProfResetCooldown((c) => c - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [profResetCooldown]);
+
   const [profOtpSession, setProfOtpSession] = useState(null);
   const [profOtpDigits, setProfOtpDigits] = useState(["", "", "", "", "", ""]);
   const profOtpInputRefs = useRef([]);
@@ -126,6 +177,7 @@ export default function AuthModal({
   const modalRef = useRef(null);
   const isSignup = screen === "signup";
   const isOtp = screen === "otp";
+  const isForgot = screen === "forgot";
 
   const handleCancelAndClose = () => {
     if (onCancel) onCancel();
@@ -399,6 +451,194 @@ export default function AuthModal({
     }
   };
 
+  // Customer Forgot Password Handlers
+  const handleCustomerForgotRequest = async (e) => {
+    if (e) e.preventDefault();
+    resetMessage();
+    const trimmed = custResetIdentifier.trim();
+    if (!trimmed) {
+      return setError("Please enter your registered email address or mobile number.");
+    }
+    setCustResetLoading(true);
+    setStatus("Verifying account...");
+    try {
+      const res = await forgotPassword(trimmed, "customer");
+      setCustResetToken(res.tempSessionToken || "");
+      setCustResetMasked(res.maskedDestination || trimmed);
+      setCustResetCooldown(res.cooldownSeconds || 60);
+      setCustResetStep("verify");
+      setStatus("");
+    } catch (err) {
+      setStatus("");
+      console.error("[Auth] Forgot password error:", err);
+      setError(
+        err.response?.data?.error ||
+          "No account found with this email or mobile number."
+      );
+    } finally {
+      setCustResetLoading(false);
+    }
+  };
+
+  const handleCustomerResetSubmit = async (e) => {
+    if (e) e.preventDefault();
+    resetMessage();
+    const cleanCode = custResetCode.trim();
+    if (cleanCode.length !== 6 || !/^\d{6}$/.test(cleanCode)) {
+      return setError("Please enter the complete 6-digit verification code.");
+    }
+    if (!custNewPassword || custNewPassword.length < 6) {
+      return setError("Password must be at least 6 characters long.");
+    }
+    if (custNewPassword !== custConfirmPassword) {
+      return setError("Passwords do not match.");
+    }
+    setCustResetLoading(true);
+    setStatus("Updating password...");
+    try {
+      const res = await resetPassword({
+        tempSessionToken: custResetToken,
+        identifier: custResetIdentifier.trim(),
+        code: cleanCode,
+        newPassword: custNewPassword,
+        confirmPassword: custConfirmPassword,
+      });
+      setStatus(
+        res.message || "Password updated successfully! Please sign in with your new password."
+      );
+      setLoginValue(custResetIdentifier.trim());
+      setLoginPassword("");
+      setScreen("login");
+      setCustResetStep("request");
+      setCustResetCode("");
+      setCustNewPassword("");
+      setCustConfirmPassword("");
+    } catch (err) {
+      setStatus("");
+      console.error("[Auth] Reset password error:", err);
+      setError(
+        err.response?.data?.error ||
+          "Failed to reset password. Please check the code and try again."
+      );
+    } finally {
+      setCustResetLoading(false);
+    }
+  };
+
+  const handleCustomerResendReset = async () => {
+    if (custResetCooldown > 0 || custResetLoading) return;
+    resetMessage();
+    setStatus("Resending code...");
+    try {
+      const res = await forgotPassword(custResetIdentifier.trim(), "customer");
+      setCustResetToken(res.tempSessionToken || custResetToken);
+      setCustResetCooldown(res.cooldownSeconds || 60);
+      setCustResetCode("");
+      setStatus("A fresh verification code has been dispatched.");
+      setTimeout(() => setStatus(""), 4000);
+    } catch (err) {
+      setStatus("");
+      setError(
+        err.response?.data?.error || "Unable to resend verification code."
+      );
+    }
+  };
+
+  // Professional Forgot Password Handlers
+  const handleProfForgotRequest = async (e) => {
+    if (e) e.preventDefault();
+    setProfError("");
+    setProfStatus("");
+    const trimmed = profResetIdentifier.trim();
+    if (!trimmed) {
+      return setProfError("Please enter your registered number or email.");
+    }
+    setProfLoading(true);
+    setProfStatus("Verifying account...");
+    try {
+      const res = await technicianStore.forgotPassword(trimmed);
+      setProfResetToken(res.tempSessionToken || "");
+      setProfResetMasked(res.maskedDestination || trimmed);
+      setProfResetCooldown(res.cooldownSeconds || 60);
+      setProfResetStep("verify");
+      setProfStatus("");
+    } catch (err) {
+      setProfStatus("");
+      console.error("[Auth] Prof forgot password error:", err);
+      setProfError(
+        err.response?.data?.error ||
+          "No partner account found with this email or mobile number."
+      );
+    } finally {
+      setProfLoading(false);
+    }
+  };
+
+  const handleProfResetSubmit = async (e) => {
+    if (e) e.preventDefault();
+    setProfError("");
+    setProfStatus("");
+    const cleanCode = profResetCode.trim();
+    if (cleanCode.length !== 6 || !/^\d{6}$/.test(cleanCode)) {
+      return setProfError("Please enter the complete 6-digit verification code.");
+    }
+    if (!profNewPassword || profNewPassword.length < 6) {
+      return setProfError("Password must be at least 6 characters long.");
+    }
+    if (profNewPassword !== profConfirmPassword) {
+      return setProfError("Passwords do not match.");
+    }
+    setProfLoading(true);
+    setProfStatus("Updating password...");
+    try {
+      const res = await technicianStore.resetPassword({
+        tempSessionToken: profResetToken,
+        identifier: profResetIdentifier.trim(),
+        code: cleanCode,
+        newPassword: profNewPassword,
+        confirmPassword: profConfirmPassword,
+      });
+      setProfStatus(
+        res.message || "Password updated successfully! Please sign in with your new password."
+      );
+      setProfIdentifier(profResetIdentifier.trim());
+      setProfPassword("");
+      setProfScreen("login");
+      setProfResetStep("request");
+      setProfResetCode("");
+      setProfNewPassword("");
+      setProfConfirmPassword("");
+    } catch (err) {
+      setProfStatus("");
+      console.error("[Auth] Prof reset password error:", err);
+      setProfError(
+        err.response?.data?.error ||
+          "Failed to reset password. Please check the code and try again."
+      );
+    } finally {
+      setProfLoading(false);
+    }
+  };
+
+  const handleProfResendReset = async () => {
+    if (profResetCooldown > 0 || profLoading) return;
+    setProfError("");
+    setProfStatus("Resending code...");
+    try {
+      const res = await technicianStore.forgotPassword(profResetIdentifier.trim());
+      setProfResetToken(res.tempSessionToken || profResetToken);
+      setProfResetCooldown(res.cooldownSeconds || 60);
+      setProfResetCode("");
+      setProfStatus("A fresh verification code has been dispatched.");
+      setTimeout(() => setProfStatus(""), 4000);
+    } catch (err) {
+      setProfStatus("");
+      setProfError(
+        err.response?.data?.error || "Unable to resend verification code."
+      );
+    }
+  };
+
   // Professional Login Handlers
   const submitProfLogin = async (e) => {
     if (e) e.preventDefault();
@@ -628,7 +868,7 @@ export default function AuthModal({
         </div>
 
         {/* Account Type Selector: Customer vs Professional */}
-        {!isOtp && !profOtpSession && (
+        {!isOtp && !profOtpSession && !isForgot && profScreen !== "forgot" && (
           <div className="mt-4 mb-3 grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-2xl w-full border border-slate-200 box-border">
             <button
               type="button"
@@ -679,126 +919,280 @@ export default function AuthModal({
               </p>
             </div>
 
-            {/* Forgot Password Helper Banner */}
-            {profShowForgot && (
-              <div className="mb-4 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs space-y-1.5 text-emerald-950 animate-fade-in">
-                <div className="flex items-center justify-between font-bold text-emerald-900">
-                  <span>Password Assistance</span>
+            {profScreen === "forgot" ? (
+              /* PROFESSIONAL FORGOT PASSWORD VIEW */
+              <div className="space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                   <button
                     type="button"
-                    onClick={() => setProfShowForgot(false)}
-                    className="text-slate-400 hover:text-slate-700"
+                    onClick={() => {
+                      setProfScreen("login");
+                      setProfError("");
+                      setProfStatus("");
+                    }}
+                    className="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1 cursor-pointer font-semibold"
                   >
-                    ✕
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <span>Back to Professional Login</span>
                   </button>
                 </div>
-                <p className="text-slate-600 text-[11px] leading-relaxed">
-                  For partner security, credential resets are assisted by
-                  dispatch operations. Contact partner desk at{" "}
-                  <strong className="text-slate-900">+91 98101 11223</strong> or
-                  verify via your registered emergency contact.
-                </p>
-              </div>
-            )}
 
-            <form onSubmit={submitProfLogin} className="auth-form space-y-3">
-              {/* Identifier Input */}
-              <label className="auth-field">
-                <div className="flex items-center justify-between mb-1">
-                  <span>Mobile Number or Email</span>
-                  {profDetectedType === "phone" && (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
-                      <Phone className="h-3 w-3" /> Phone
-                    </span>
-                  )}
-                  {profDetectedType === "email" && (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
-                      <Mail className="h-3 w-3" /> Email
-                    </span>
-                  )}
-                </div>
-                <div className="relative">
-                  <input
-                    className="auth-input pr-10"
-                    value={profIdentifier}
-                    onChange={(e) => setProfIdentifier(e.target.value)}
-                    placeholder="Enter your number or email"
-                    autoComplete="username"
-                    required
-                  />
-                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
-                    {profDetectedType === "email" ? (
-                      <Mail className="h-4 w-4 text-emerald-600" />
-                    ) : profDetectedType === "phone" ? (
-                      <Phone className="h-4 w-4 text-emerald-600" />
-                    ) : (
-                      <KeyRound className="h-4 w-4 text-slate-400" />
+                {profResetStep === "request" ? (
+                  /* Step 1: Identifier */
+                  <form onSubmit={handleProfForgotRequest} className="space-y-3">
+                    <label className="auth-field">
+                      <span>Registered Mobile Number or Email</span>
+                      <input
+                        className="auth-input"
+                        value={profResetIdentifier}
+                        onChange={(e) => setProfResetIdentifier(e.target.value)}
+                        placeholder="Enter your registered number or email"
+                        required
+                        autoFocus
+                      />
+                    </label>
+
+                    {profError && (
+                      <p className="auth-error" role="alert">
+                        {profError}
+                      </p>
+                    )}
+                    {profStatus && (
+                      <p className="auth-status">
+                        <Check /> {profStatus}
+                      </p>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={profLoading}
+                      className="w-full py-3 px-5 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs sm:text-sm transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer mt-2"
+                    >
+                      {profLoading ? (
+                        <LoaderCircle className="animate-spin" />
+                      ) : (
+                        <>
+                          <span>Send Verification Code</span>
+                          <ArrowRight className="w-4 h-4" />
+                        </>
+                      )}
+                    </button>
+                  </form>
+                ) : (
+                  /* Step 2: Code and New Password */
+                  <form onSubmit={handleProfResetSubmit} className="space-y-3">
+                    <label className="auth-field">
+                      <div className="flex items-center justify-between mb-1">
+                        <span>6-Digit Verification Code</span>
+                        <button
+                          type="button"
+                          disabled={profResetCooldown > 0 || profLoading}
+                          onClick={handleProfResendReset}
+                          className="text-[11px] text-emerald-700 hover:text-emerald-900 disabled:text-slate-400 font-semibold cursor-pointer"
+                        >
+                          {profResetCooldown > 0
+                            ? `Resend in ${profResetCooldown}s`
+                            : "Resend Code"}
+                        </button>
+                      </div>
+                      <input
+                        className="auth-input text-center tracking-widest text-lg font-mono font-bold"
+                        maxLength={6}
+                        value={profResetCode}
+                        onChange={(e) =>
+                          setProfResetCode(e.target.value.replace(/\D/g, ""))
+                        }
+                        placeholder="000000"
+                        required
+                        autoFocus
+                      />
+                      <span className="text-[11px] text-slate-400 mt-1 block">
+                        Sent to {profResetMasked}
+                      </span>
+                    </label>
+
+                    <label className="auth-field">
+                      <span>New Password (min 6 characters)</span>
+                      <div className="auth-password-wrap">
+                        <input
+                          className="auth-input"
+                          value={profNewPassword}
+                          onChange={(e) => setProfNewPassword(e.target.value)}
+                          placeholder="Create new password"
+                          type={profShowNewPassword ? "text" : "password"}
+                          required
+                        />
+                        <button
+                          type="button"
+                          className="auth-password-toggle"
+                          onClick={() => setProfShowNewPassword(!profShowNewPassword)}
+                        >
+                          {profShowNewPassword ? <EyeOff /> : <Eye />}
+                        </button>
+                      </div>
+                    </label>
+
+                    <label className="auth-field">
+                      <span>Confirm New Password</span>
+                      <div className="auth-password-wrap">
+                        <input
+                          className="auth-input"
+                          value={profConfirmPassword}
+                          onChange={(e) => setProfConfirmPassword(e.target.value)}
+                          placeholder="Confirm new password"
+                          type={profShowConfirmPassword ? "text" : "password"}
+                          required
+                        />
+                        <button
+                          type="button"
+                          className="auth-password-toggle"
+                          onClick={() => setProfShowConfirmPassword(!profShowConfirmPassword)}
+                        >
+                          {profShowConfirmPassword ? <EyeOff /> : <Eye />}
+                        </button>
+                      </div>
+                    </label>
+
+                    {profError && (
+                      <p className="auth-error" role="alert">
+                        {profError}
+                      </p>
+                    )}
+                    {profStatus && (
+                      <p className="auth-status">
+                        <Check /> {profStatus}
+                      </p>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={profLoading}
+                      className="w-full py-3 px-5 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs sm:text-sm transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer mt-2"
+                    >
+                      {profLoading ? (
+                        <LoaderCircle className="animate-spin" />
+                      ) : (
+                        <>
+                          <span>Save New Password & Log In</span>
+                          <ArrowRight className="w-4 h-4" />
+                        </>
+                      )}
+                    </button>
+                  </form>
+                )}
+              </div>
+            ) : (
+              /* PROFESSIONAL LOGIN FORM */
+              <form onSubmit={submitProfLogin} className="auth-form space-y-3">
+                {/* Identifier Input */}
+                <label className="auth-field">
+                  <div className="flex items-center justify-between mb-1">
+                    <span>Mobile Number or Email</span>
+                    {profDetectedType === "phone" && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                        <Phone className="h-3 w-3" /> Phone
+                      </span>
+                    )}
+                    {profDetectedType === "email" && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                        <Mail className="h-3 w-3" /> Email
+                      </span>
                     )}
                   </div>
-                </div>
-              </label>
+                  <div className="relative">
+                    <input
+                      className="auth-input pr-10"
+                      value={profIdentifier}
+                      onChange={(e) => setProfIdentifier(e.target.value)}
+                      placeholder="Enter your number or email"
+                      autoComplete="username"
+                      required
+                    />
+                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                      {profDetectedType === "email" ? (
+                        <Mail className="h-4 w-4 text-emerald-600" />
+                      ) : profDetectedType === "phone" ? (
+                        <Phone className="h-4 w-4 text-emerald-600" />
+                      ) : (
+                        <KeyRound className="h-4 w-4 text-slate-400" />
+                      )}
+                    </div>
+                  </div>
+                </label>
 
-              {/* Password Input */}
-              <label className="auth-field">
-                <span>Password</span>
-                <div className="auth-password-wrap">
-                  <input
-                    className="auth-input"
-                    value={profPassword}
-                    onChange={(e) => setProfPassword(e.target.value)}
-                    placeholder="Enter your password"
-                    type={profShowPassword ? "text" : "password"}
-                    autoComplete="current-password"
-                  />
+                {/* Password Input */}
+                <label className="auth-field">
+                  <span>Password</span>
+                  <div className="auth-password-wrap">
+                    <input
+                      className="auth-input"
+                      value={profPassword}
+                      onChange={(e) => setProfPassword(e.target.value)}
+                      placeholder="Enter your password"
+                      type={profShowPassword ? "text" : "password"}
+                      autoComplete="current-password"
+                    />
+                    <button
+                      type="button"
+                      className="auth-password-toggle"
+                      onClick={() => setProfShowPassword(!profShowPassword)}
+                      aria-label={
+                        profShowPassword ? "Hide password" : "Show password"
+                      }
+                    >
+                      {profShowPassword ? <EyeOff /> : <Eye />}
+                    </button>
+                  </div>
+                </label>
+
+                {/* Clean Arrow-Style Action */}
+                <div className="flex items-center justify-between text-xs pt-0.5">
                   <button
                     type="button"
-                    className="auth-password-toggle"
-                    onClick={() => setProfShowPassword(!profShowPassword)}
-                    aria-label={
-                      profShowPassword ? "Hide password" : "Show password"
-                    }
+                    onClick={() => {
+                      setProfError("");
+                      setProfStatus("");
+                      setProfResetIdentifier(profIdentifier.trim());
+                      setProfResetStep("request");
+                      setProfScreen("forgot");
+                    }}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-800 hover:text-emerald-950 transition-colors group cursor-pointer"
                   >
-                    {profShowPassword ? <EyeOff /> : <Eye />}
+                    <span>Forgot Password?</span>
+                    <span className="text-[11px] text-emerald-600 font-bold group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
+                      <span>Reset Password</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </span>
                   </button>
                 </div>
-              </label>
 
-              <div className="flex items-center justify-between text-xs pt-0.5">
-                <button
-                  type="button"
-                  onClick={() => setProfShowForgot(!profShowForgot)}
-                  className="text-emerald-800 hover:text-emerald-950 font-bold hover:underline"
-                >
-                  Forgot Password?
-                </button>
-              </div>
-
-              {profError && (
-                <p className="auth-error" role="alert">
-                  {profError}
-                </p>
-              )}
-              {profStatus && (
-                <p className="auth-status">
-                  <Check /> {profStatus}
-                </p>
-              )}
-
-              <button
-                type="submit"
-                disabled={profLoading}
-                className="w-full py-3.5 px-6 rounded-2xl bg-slate-950 hover:bg-emerald-800 text-white font-bold text-xs sm:text-sm transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer mt-1"
-              >
-                {profLoading ? (
-                  <LoaderCircle className="animate-spin" />
-                ) : (
-                  <>
-                    <span>Sign In to Dashboard</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
+                {profError && (
+                  <p className="auth-error" role="alert">
+                    {profError}
+                  </p>
                 )}
-              </button>
-            </form>
+                {profStatus && (
+                  <p className="auth-status">
+                    <Check /> {profStatus}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={profLoading}
+                  className="w-full py-3.5 px-6 rounded-2xl bg-slate-950 hover:bg-emerald-800 text-white font-bold text-xs sm:text-sm transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer mt-1"
+                >
+                  {profLoading ? (
+                    <LoaderCircle className="animate-spin" />
+                  ) : (
+                    <>
+                      <span>Sign In to Dashboard</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+              </form>
+            )}
 
             {/* Create Professional Account Link */}
             <div className="mt-5 pt-3 border-t border-slate-100 text-center">
@@ -818,6 +1212,178 @@ export default function AuthModal({
                 Create Professional Account
               </button>
             </div>
+          </div>
+        ) : isForgot ? (
+          /* CUSTOMER FORGOT PASSWORD SCREEN */
+          <div className="mt-1 text-left w-full animate-fade-in">
+            <div className="mb-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setScreen("login");
+                  resetMessage();
+                }}
+                className="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1 cursor-pointer font-semibold mb-2"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Back to Customer Login</span>
+              </button>
+              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-800 block mb-0.5">
+                CUSTOMER ACCOUNT RECOVERY
+              </span>
+              <h2 className="display-font text-2xl font-bold text-slate-950">
+                Reset Password
+              </h2>
+              <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                {custResetStep === "request"
+                  ? "Enter your registered email address or mobile number to receive a 6-digit verification code."
+                  : `Enter the 6-digit code sent to ${custResetMasked} and choose a new password.`}
+              </p>
+            </div>
+
+            {custResetStep === "request" ? (
+              <form onSubmit={handleCustomerForgotRequest} className="space-y-3">
+                <label className="auth-field">
+                  <span>Registered Mobile Number or Email</span>
+                  <input
+                    className="auth-input"
+                    value={custResetIdentifier}
+                    onChange={(e) => setCustResetIdentifier(e.target.value)}
+                    placeholder="Enter your registered number or email"
+                    required
+                    autoFocus
+                  />
+                </label>
+
+                {error && (
+                  <p className="auth-error" role="alert">
+                    {error}
+                  </p>
+                )}
+                {status && (
+                  <p className="auth-status">
+                    <Check /> {status}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={custResetLoading}
+                  className="w-full py-3 px-5 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs sm:text-sm transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer mt-2"
+                >
+                  {custResetLoading ? (
+                    <LoaderCircle className="animate-spin" />
+                  ) : (
+                    <>
+                      <span>Send Verification Code</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleCustomerResetSubmit} className="space-y-3">
+                <label className="auth-field">
+                  <div className="flex items-center justify-between mb-1">
+                    <span>6-Digit Verification Code</span>
+                    <button
+                      type="button"
+                      disabled={custResetCooldown > 0 || custResetLoading}
+                      onClick={handleCustomerResendReset}
+                      className="text-[11px] text-emerald-700 hover:text-emerald-900 disabled:text-slate-400 font-semibold cursor-pointer"
+                    >
+                      {custResetCooldown > 0
+                        ? `Resend in ${custResetCooldown}s`
+                        : "Resend Code"}
+                    </button>
+                  </div>
+                  <input
+                    className="auth-input text-center tracking-widest text-lg font-mono font-bold"
+                    maxLength={6}
+                    value={custResetCode}
+                    onChange={(e) =>
+                      setCustResetCode(e.target.value.replace(/\D/g, ""))
+                    }
+                    placeholder="000000"
+                    required
+                    autoFocus
+                  />
+                  <span className="text-[11px] text-slate-400 mt-1 block">
+                    Sent to {custResetMasked}
+                  </span>
+                </label>
+
+                <label className="auth-field">
+                  <span>New Password (min 6 characters)</span>
+                  <div className="auth-password-wrap">
+                    <input
+                      className="auth-input"
+                      value={custNewPassword}
+                      onChange={(e) => setCustNewPassword(e.target.value)}
+                      placeholder="Create new password"
+                      type={custShowNewPassword ? "text" : "password"}
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="auth-password-toggle"
+                      onClick={() => setCustShowNewPassword(!custShowNewPassword)}
+                    >
+                      {custShowNewPassword ? <EyeOff /> : <Eye />}
+                    </button>
+                  </div>
+                </label>
+
+                <label className="auth-field">
+                  <span>Confirm New Password</span>
+                  <div className="auth-password-wrap">
+                    <input
+                      className="auth-input"
+                      value={custConfirmPassword}
+                      onChange={(e) => setCustConfirmPassword(e.target.value)}
+                      placeholder="Confirm new password"
+                      type={custShowConfirmPassword ? "text" : "password"}
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="auth-password-toggle"
+                      onClick={() =>
+                        setCustShowConfirmPassword(!custShowConfirmPassword)
+                      }
+                    >
+                      {custShowConfirmPassword ? <EyeOff /> : <Eye />}
+                    </button>
+                  </div>
+                </label>
+
+                {error && (
+                  <p className="auth-error" role="alert">
+                    {error}
+                  </p>
+                )}
+                {status && (
+                  <p className="auth-status">
+                    <Check /> {status}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={custResetLoading}
+                  className="w-full py-3 px-5 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs sm:text-sm transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer mt-2"
+                >
+                  {custResetLoading ? (
+                    <LoaderCircle className="animate-spin" />
+                  ) : (
+                    <>
+                      <span>Save New Password & Log In</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+              </form>
+            )}
           </div>
         ) : (
           /* STEP 1: LOGIN OR SIGNUP SCREEN */
@@ -963,16 +1529,25 @@ export default function AuthModal({
                     value={loginPassword}
                     onChange={(event) => setLoginPassword(event.target.value)}
                   />
-                  <button
-                    type="button"
-                    className="auth-forgot"
-                    onClick={() => {
-                      setError("");
-                      setStatus("Password recovery will be available soon.");
-                    }}
-                  >
-                    Forgot password?
-                  </button>
+                  {/* Clean Arrow-Style Action */}
+                  <div className="flex items-center justify-between text-xs pt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        resetMessage();
+                        setCustResetIdentifier(loginValue.trim());
+                        setCustResetStep("request");
+                        setScreen("forgot");
+                      }}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-800 hover:text-emerald-950 transition-colors group cursor-pointer"
+                    >
+                      <span>Forgot Password?</span>
+                      <span className="text-[11px] text-emerald-600 font-bold group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
+                        <span>Reset Password</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </span>
+                    </button>
+                  </div>
                 </>
               )}
 

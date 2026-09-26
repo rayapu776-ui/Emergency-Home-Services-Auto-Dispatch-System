@@ -7,13 +7,14 @@ import otpService from "../services/otpService.js";
 
 const router = express.Router();
 
-// Register new user
+// Register new user (Customer or Technician self-registration)
 router.post("/register", async (req, res) => {
   try {
     const {
       name,
       email,
       password,
+      confirmPassword,
       role = "customer",
       phone,
       address,
@@ -21,17 +22,53 @@ router.post("/register", async (req, res) => {
       vehicle_type,
     } = req.body;
 
-    if (!name || !email || !password) {
-      return res
-        .status(400)
-        .json({ error: "Name, email, and password are required" });
+    if (!name || typeof name !== "string" || !name.trim()) {
+      return res.status(400).json({ error: "Please enter your full name." });
     }
 
-    const existing = await query.get("SELECT id FROM users WHERE email = ?", [
-      email,
-    ]);
-    if (existing) {
-      return res.status(400).json({ error: "Email is already registered" });
+    if (!email || typeof email !== "string" || !email.trim()) {
+      return res.status(400).json({ error: "Please enter your email address." });
+    }
+
+    const trimmedEmail = email.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      return res.status(400).json({ error: "Please enter a valid email address." });
+    }
+
+    if (!password) {
+      return res.status(400).json({ error: "Please enter a password." });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ error: "Password must be at least 6 characters long." });
+    }
+
+    if (confirmPassword && password !== confirmPassword) {
+      return res.status(400).json({ error: "Passwords do not match." });
+    }
+
+    const trimmedPhone = phone ? String(phone).trim() : null;
+    if (trimmedPhone) {
+      const cleanDigits = trimmedPhone.replace(/\D/g, "");
+      if (cleanDigits.length < 8) {
+        return res.status(400).json({ error: "Please enter a valid phone number (at least 8 digits)." });
+      }
+    }
+
+    const existingEmail = await query.get(
+      "SELECT id FROM users WHERE LOWER(email) = ?",
+      [trimmedEmail],
+    );
+    if (existingEmail) {
+      return res.status(400).json({ error: "An account with this email already exists." });
+    }
+
+    if (trimmedPhone) {
+      const existingPhone = await otpService.findUserByIdentifier(trimmedPhone, role);
+      if (existingPhone) {
+        return res.status(400).json({ error: "An account with this phone number already exists." });
+      }
     }
 
     if (!["customer", "technician"].includes(role)) {
@@ -50,11 +87,11 @@ router.post("/register", async (req, res) => {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         userId,
-        name,
-        email,
+        name.trim(),
+        trimmedEmail,
         passwordHash,
         role,
-        phone || null,
+        trimmedPhone,
         address || "Delhi NCR",
         lat,
         lon,
@@ -65,8 +102,8 @@ router.post("/register", async (req, res) => {
     if (role === "technician") {
       const techId = uuidv4();
       await query.run(
-        `INSERT INTO technicians (id, user_id, category, latitude, longitude, is_online, is_busy, rating, total_jobs, vehicle_type)
-         VALUES (?, ?, ?, ?, ?, 1, 0, 4.9, 0, ?)`,
+        `INSERT INTO technicians (id, user_id, category, latitude, longitude, is_online, is_busy, rating, total_jobs, vehicle_type, status)
+         VALUES (?, ?, ?, ?, ?, 0, 0, 5.0, 0, ?, 'Pending Verification')`,
         [
           techId,
           userId,
@@ -79,22 +116,24 @@ router.post("/register", async (req, res) => {
       technicianData = {
         id: techId,
         category: category || "Plumbing",
-        is_online: 1,
+        status: "Pending Verification",
+        is_online: 0,
         is_busy: 0,
-        rating: 4.9,
+        rating: 5.0,
       };
     }
 
-    const token = generateToken({ id: userId, email, role, name });
+    const token = generateToken({ id: userId, email: trimmedEmail, role, name: name.trim() });
     res.status(201).json({
+      success: true,
       token,
       user: {
         id: userId,
-        name,
-        email,
+        name: name.trim(),
+        email: trimmedEmail,
         role,
-        phone,
-        address,
+        phone: trimmedPhone,
+        address: address || "Delhi NCR",
         latitude: lat,
         longitude: lon,
         technician: technicianData,
@@ -235,10 +274,58 @@ router.post("/register-technician", async (req, res) => {
       ],
     );
 
+    const token = generateToken({
+      id: userId,
+      email: trimmedEmail,
+      role: "technician",
+      name: displayName,
+    });
+
+    const technicianProfile = {
+      id: techId,
+      user_id: userId,
+      category: category || "Plumbing",
+      status: "Pending Verification",
+      is_online: 0,
+      is_busy: 0,
+      rating: 5.0,
+      total_jobs: 0,
+      skills: skills || "",
+      experience_years: Number(experience_years) || 1,
+      experience_description:
+        experience_description ||
+        (account_type === "company"
+          ? `Company operations managed by ${authorized_person}`
+          : ""),
+      id_document_type:
+        id_document_type ||
+        (account_type === "company"
+          ? "GST / Business License"
+          : "Government Photo ID"),
+      id_document_url: id_document_url || "",
+      account_type,
+      company_name: account_type === "company" ? displayName : null,
+      authorized_person: account_type === "company" ? authorized_person?.trim() : null,
+      service_areas: service_areas || location || "Delhi NCR",
+    };
+
     res.status(201).json({
       success: true,
       message:
         "Professional application submitted successfully. Your account is now Pending Verification.",
+      token,
+      user: {
+        id: userId,
+        name: displayName,
+        email: trimmedEmail,
+        role: "technician",
+        phone: phone || null,
+        address: resolvedAddress,
+        avatar: defaultAvatar,
+        latitude: lat,
+        longitude: lon,
+        technician: technicianProfile,
+      },
       application: {
         id: techId,
         userId,
@@ -642,6 +729,12 @@ router.post("/reset-password", async (req, res) => {
       });
     }
 
+    if (confirmPassword && effectiveNewPassword !== confirmPassword) {
+      return res.status(400).json({
+        error: "New password and Confirm Password do not match.",
+      });
+    }
+
     const verifyResult = await otpService.verifyOtp(sessionRef, inputCode);
     if (!verifyResult.success) {
       return res.status(400).json({
@@ -679,17 +772,24 @@ router.post("/login", async (req, res) => {
     if (!inputIdentifier || !password) {
       return res
         .status(400)
-        .json({ error: "Email or phone number and password are required" });
+        .json({ error: "Please enter your registered email/phone and password." });
     }
 
-    const user = await otpService.findUserByIdentifier(inputIdentifier);
+    const user = await otpService.findUserByIdentifier(
+      inputIdentifier,
+      "customer",
+    );
     if (!user) {
-      return res.status(401).json({ error: "Invalid email/phone or password" });
+      return res
+        .status(401)
+        .json({ error: "Invalid email/mobile number or password." });
     }
 
     const isMatch = bcrypt.compareSync(password, user.password_hash);
     if (!isMatch) {
-      return res.status(401).json({ error: "Invalid email/phone or password" });
+      return res
+        .status(401)
+        .json({ error: "Invalid email/mobile number or password." });
     }
 
     // Role check: Prevent technician from logging in through Customer portal

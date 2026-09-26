@@ -361,10 +361,10 @@ export default function ProfessionalRegisterForm({ onNavigate }) {
         <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 pt-2">
           <button
             type="button"
-            onClick={() => onNavigate("/technician/login")}
+            onClick={() => onNavigate("/technician/dashboard")}
             className="w-full sm:flex-1 py-3.5 px-6 rounded-xl sm:rounded-2xl bg-slate-950 hover:bg-emerald-800 text-white font-bold text-xs sm:text-sm transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
           >
-            <span>Proceed to Professional Login</span>
+            <span>Open Professional Dashboard</span>
             <ArrowRight className="w-4 h-4" />
           </button>
           <button

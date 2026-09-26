@@ -1237,15 +1237,3 @@ export default function createTechnicianRouter(io) {
 
   return router;
 }
-de = ?, longitude = ? WHERE id = ?",
-        [latitude, longitude, tech.id],
-      );
-
-      res.json({ success: true, latitude, longitude });
-    } catch (err) {
-      res.status(500).json({ error: "Failed to update coordinates" });
-    }
-  });
-
-  return router;
-}

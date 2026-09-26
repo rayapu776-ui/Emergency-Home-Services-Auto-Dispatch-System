@@ -126,6 +126,16 @@ export function AuthProvider({ children }) {
     return newUser;
   };
 
+  const forgotPassword = async (identifier, role = "customer") => {
+    const res = await api.post("/auth/forgot-password", { identifier, role });
+    return res.data;
+  };
+
+  const resetPassword = async (data) => {
+    const res = await api.post("/auth/reset-password", data);
+    return res.data;
+  };
+
   const logout = () => {
     setToken(null);
     setUser(null);
@@ -154,6 +164,8 @@ export function AuthProvider({ children }) {
         resendCode,
         demoLogin,
         register,
+        forgotPassword,
+        resetPassword,
         logout,
         updateUser,
       }}

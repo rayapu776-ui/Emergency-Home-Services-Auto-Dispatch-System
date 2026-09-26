@@ -46,7 +46,8 @@ class TechnicianStore {
   }
 
   isLoggedIn() {
-    return !!this.getToken() && !!this.getTechnician();
+    const user = this.getTechnician();
+    return !!this.getToken() && !!user && (user.role === "technician" || user.role === "admin");
   }
 
   getAvailability() {
@@ -203,6 +204,34 @@ class TechnicianStore {
 
   async registerTechnician(formData) {
     const res = await techApi.post("/auth/register-technician", formData);
+    if (res.data?.token && res.data?.user) {
+      this.saveSession(res.data.token, res.data.user);
+    }
+    return res.data;
+  }
+
+  async forgotPassword(identifier) {
+    const res = await techApi.post("/professional/auth/forgot-password", {
+      identifier,
+      role: "technician",
+    });
+    return res.data;
+  }
+
+  async resetPassword({
+    tempSessionToken,
+    identifier,
+    code,
+    newPassword,
+    confirmPassword,
+  }) {
+    const res = await techApi.post("/professional/auth/reset-password", {
+      tempSessionToken,
+      identifier,
+      code,
+      newPassword,
+      confirmPassword,
+    });
     return res.data;
   }
 
