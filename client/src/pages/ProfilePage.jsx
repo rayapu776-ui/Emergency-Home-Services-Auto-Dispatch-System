@@ -52,6 +52,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useSocket } from "../context/SocketContext";
 import { allServicesCatalog } from "../data/servicesData";
 import userStore from "../services/userStore";
 import { promotionsData } from "../data/promotionsData";
@@ -473,6 +474,17 @@ export default function ProfilePage({
   onAuthOpen,
 }) {
   const { user, updateUser, logout } = useAuth();
+  const { socket, joinRoom } = useSocket();
+
+  const formatBookingDate = (date) =>
+    new Intl.DateTimeFormat(undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric" }).format(date);
+  const availableRescheduleDates = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() + index);
+    return { value: date.toISOString().slice(0, 10), label: formatBookingDate(date) };
+  });
+  const rescheduleSlots = ["09:00 AM - 10:30 AM", "12:00 PM - 01:30 PM", "03:30 PM - 05:00 PM", "06:00 PM - 07:30 PM"];
 
   // Active Menu Navigation Tab
   // 'overview' | 'bookings' | 'addresses' | 'payments' | 'saved' | 'notifications' | 'offers' | 'support' | 'settings' | 'logout'
@@ -601,18 +613,16 @@ export default function ProfilePage({
 
   // Real Persistent Bookings Data
   const [bookings, setBookings] = useState(() => {
-    return userStore.getBookings(user?.id);
+    return [];
   });
 
   useEffect(() => {
-    const local = userStore.getBookings(user?.id);
-    setBookings(local);
     if (user?.id) {
-      userStore.fetchBookingsFromApi(user.id).then((apiBookings) => {
-        if (Array.isArray(apiBookings)) {
-          setBookings(apiBookings);
-        }
-      });
+      userStore.fetchBookingsFromApi(user.id)
+        .then(setBookings)
+        .catch((error) => showToast(error.message));
+    } else {
+      setBookings([]);
     }
   }, [user?.id]);
 
@@ -728,7 +738,7 @@ export default function ProfilePage({
   });
 
   // Reschedule Form state
-  const [rescheduleDate, setRescheduleDate] = useState("Tomorrow, 20 Sep");
+  const [rescheduleDate, setRescheduleDate] = useState(availableRescheduleDates[0].value);
   const [rescheduleTime, setRescheduleTime] = useState("12:00 PM - 01:30 PM");
 
   // Cancel Form state
@@ -973,49 +983,58 @@ export default function ProfilePage({
   // Reschedule Booking Handler
   const handleConfirmReschedule = async () => {
     if (!rescheduleBookingTarget) return;
-    const updated = await userStore.rescheduleBooking(
-      user?.id,
-      rescheduleBookingTarget.id,
-      rescheduleDate,
-      rescheduleTime,
-    );
-    if (updated) setBookings(updated);
-    showToast(
-      `Booking #${rescheduleBookingTarget.id} rescheduled to ${rescheduleDate} (${rescheduleTime})!`,
-    );
-    setRescheduleBookingTarget(null);
+    try {
+      const updated = await userStore.rescheduleBooking(user?.id, rescheduleBookingTarget.id, rescheduleDate, rescheduleTime);
+      if (updated) setBookings(updated);
+      showToast(`Booking #${rescheduleBookingTarget.id} rescheduled to ${rescheduleDate} (${rescheduleTime})!`);
+      setRescheduleBookingTarget(null);
+    } catch (error) {
+      showToast(error.message);
+    }
   };
+
+  const openReschedule = (booking) => {
+    const savedDate = /^\d{4}-\d{2}-\d{2}$/.test(booking.scheduledDate || "") ? booking.scheduledDate : availableRescheduleDates[0].value;
+    setRescheduleDate(availableRescheduleDates.some((d) => d.value === savedDate) ? savedDate : availableRescheduleDates[0].value);
+    setRescheduleTime(rescheduleSlots.includes(booking.scheduledTime) ? booking.scheduledTime : rescheduleSlots[0]);
+    setRescheduleBookingTarget(booking);
+  };
+
+  useEffect(() => {
+    if (!socket || !user?.id) return undefined;
+    const activeIds = bookings.map((booking) => booking.id);
+    activeIds.forEach((id) => joinRoom(`request_${id}`));
+    const refreshBookings = () => userStore.fetchBookingsFromApi(user.id).then(setBookings);
+    socket.on("request_updated", refreshBookings);
+    return () => socket.off("request_updated", refreshBookings);
+  }, [socket, user?.id, bookings.map((booking) => booking.id).join(",")]);
 
   // Cancel Booking Handler
   const handleConfirmCancellation = async () => {
     if (!cancelBookingTarget) return;
-    const updated = await userStore.cancelBooking(
-      user?.id,
-      cancelBookingTarget.id,
-      cancelReason,
-    );
-    if (updated) setBookings(updated);
-    showToast(
-      `Booking #${cancelBookingTarget.id} has been cancelled. Refund initiated if applicable.`,
-    );
-    setCancelBookingTarget(null);
+    try {
+      const updated = await userStore.cancelBooking(user?.id, cancelBookingTarget.id, cancelReason);
+      if (updated) setBookings(updated);
+      showToast(`Booking #${cancelBookingTarget.id} has been cancelled. Refund initiated if applicable.`);
+      setCancelBookingTarget(null);
+    } catch (error) {
+      showToast(error.message);
+    }
   };
 
   // Complete Booking Handler
   const handleCompleteBooking = async (target) => {
     if (!target) return;
-    const updated = await userStore.completeBooking(user?.id, target.id);
-    if (updated) setBookings(updated);
-    if (selectedBookingForDetails?.id === target.id) {
-      setSelectedBookingForDetails((prev) => ({
-        ...prev,
-        status: "Completed",
-        statusStep: 4,
-      }));
+    try {
+      const updated = await userStore.completeBooking(user?.id, target.id);
+      if (updated) setBookings(updated);
+      if (selectedBookingForDetails?.id === target.id) {
+        setSelectedBookingForDetails((prev) => ({ ...prev, status: "Completed", statusStep: 4 }));
+      }
+      showToast(`Booking #${target.id} marked as completed! You can now rate your technician.`);
+    } catch (error) {
+      showToast(error.message);
     }
-    showToast(
-      `Booking #${target.id} marked as completed! You can now rate your technician.`,
-    );
   };
 
   // Submit Rating & Review Handler
@@ -1205,7 +1224,7 @@ export default function ProfilePage({
     const query = guestTrackingInput.trim().toLowerCase();
     if (!query) {
       setGuestTrackingError(
-        "Please enter a Booking ID (e.g. AY-9402) or phone number.",
+        "Please enter your Booking ID or service name.",
       );
       return;
     }
@@ -1222,7 +1241,7 @@ export default function ProfilePage({
       setSelectedBookingForDetails(found);
     } else {
       setGuestTrackingError(
-        `No booking found matching "${guestTrackingInput}". Try entering AY-9402 or AY-8911.`,
+        `No booking found matching "${guestTrackingInput}". Check the Booking ID and try again.`,
       );
     }
   };
@@ -1343,13 +1362,13 @@ export default function ProfilePage({
               </span>
             </div>
             <p className="text-xs text-slate-500">
-              Enter your Booking ID (e.g. AY-9402 or AY-8911) or contact number
+              Enter your Booking ID or service name
               to track technician dispatch and view receipts without signing in.
             </p>
             <div className="flex flex-col sm:flex-row gap-2">
               <input
                 type="text"
-                placeholder="Enter Booking ID (e.g. AY-9402)..."
+                placeholder="Enter Booking ID..."
                 value={guestTrackingInput}
                 onChange={(e) => {
                   setGuestTrackingInput(e.target.value);
@@ -1625,7 +1644,7 @@ export default function ProfilePage({
                   {(b.status === "Confirmed" || b.status === "In Progress") && (
                     <button
                       type="button"
-                      onClick={() => setRescheduleBookingTarget(b)}
+                      onClick={() => openReschedule(b)}
                       className="rounded-lg sm:rounded-xl border border-slate-200 bg-white px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-[11px] sm:text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
                     >
                       Reschedule
@@ -2123,7 +2142,7 @@ export default function ProfilePage({
                                 <button
                                   type="button"
                                   onClick={() =>
-                                    setRescheduleBookingTarget(nextBooking)
+                                    openReschedule(nextBooking)
                                   }
                                   className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
                                 >
@@ -2637,16 +2656,16 @@ export default function ProfilePage({
                           title: "Universal Doorstep Discount",
                           desc: "Applicable on all Home Cleaning, AC, Electrical & Plumbing services",
                           validUntil: "30 Sep 2026",
-                          minOrder: "$25",
+                          minOrder: "₹649",
                           color: "emerald",
                         },
                         {
                           code: "CLEAN15",
-                          discount: "$15 OFF",
+                          discount: "₹399 OFF",
                           title: "Deep Home Clean Refresh",
                           desc: "Special discount on Kitchen, Bathroom & Full Home Refresh clean",
                           validUntil: "15 Oct 2026",
-                          minOrder: "$30",
+                          minOrder: "₹799",
                           color: "teal",
                         },
                         {
@@ -2655,16 +2674,16 @@ export default function ProfilePage({
                           title: "AC Foam-Jet Combo Deal",
                           desc: "Free gas pressure & electrical load audit with every AC service",
                           validUntil: "31 Oct 2026",
-                          minOrder: "$35",
+                          minOrder: "₹899",
                           color: "amber",
                         },
                         {
                           code: "FIRST50",
-                          discount: "Flat $10 OFF",
+                          discount: "Flat ₹200 OFF",
                           title: "Welcome Bonus Voucher",
                           desc: "Special new customer token valid on your next appointment",
                           validUntil: "31 Dec 2026",
-                          minOrder: "$20",
+                          minOrder: "₹499",
                           color: "purple",
                         },
                       ].map((coupon) => (
@@ -3366,11 +3385,11 @@ export default function ProfilePage({
                 </div>
                 <div className="flex justify-between text-slate-600">
                   <span>Safety & Equipment Fee</span>
-                  <span>$2.50</span>
+                  <span>₹50</span>
                 </div>
                 <div className="flex justify-between text-slate-600">
                   <span>Taxes & GST</span>
-                  <span>$1.00</span>
+                  <span>₹20</span>
                 </div>
                 <div className="flex justify-between font-bold text-slate-900 pt-1 border-t border-slate-100">
                   <span>Total Amount</span>
@@ -3471,23 +3490,18 @@ export default function ProfilePage({
                   Select New Date
                 </label>
                 <div className="grid grid-cols-2 gap-2">
-                  {[
-                    "Tomorrow, 20 Sep",
-                    "Sat, 21 Sep",
-                    "Sun, 22 Sep",
-                    "Mon, 23 Sep",
-                  ].map((dateOption) => (
+                  {availableRescheduleDates.map((dateOption) => (
                     <button
-                      key={dateOption}
+                      key={dateOption.value}
                       type="button"
-                      onClick={() => setRescheduleDate(dateOption)}
+                      onClick={() => setRescheduleDate(dateOption.value)}
                       className={`rounded-2xl p-2.5 font-bold border transition-all text-center cursor-pointer ${
-                        rescheduleDate === dateOption
+                        rescheduleDate === dateOption.value
                           ? "bg-slate-950 text-white border-slate-950"
                           : "bg-white text-slate-700 border-slate-200 hover:border-slate-300"
                       }`}
                     >
-                      {dateOption}
+                      {dateOption.label}
                     </button>
                   ))}
                 </div>
@@ -3498,12 +3512,16 @@ export default function ProfilePage({
                   Select New Time Slot
                 </label>
                 <div className="grid grid-cols-2 gap-2">
-                  {[
-                    "09:00 AM - 10:30 AM",
-                    "12:00 PM - 01:30 PM",
-                    "03:30 PM - 05:00 PM",
-                    "06:00 PM - 07:30 PM",
-                  ].map((timeOption) => (
+                  {rescheduleSlots.filter((timeOption) => {
+                    if (rescheduleDate !== availableRescheduleDates[0].value) return true;
+                    const match = timeOption.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+                    if (!match) return false;
+                    let hour = Number(match[1]) % 12;
+                    if (match[3].toUpperCase() === "PM") hour += 12;
+                    const start = new Date();
+                    start.setHours(hour, Number(match[2]), 0, 0);
+                    return start > new Date();
+                  }).map((timeOption) => (
                     <button
                       key={timeOption}
                       type="button"
@@ -4224,7 +4242,7 @@ export default function ProfilePage({
                         const val = e.target.value
                           .replace(/\D/g, "")
                           .slice(0, 16);
-                        const formatted = val.replace(/(.{4})/g, "$1 ").trim();
+                        const formatted = val.replace(/.{4}/g, (group) => `${group} `).trim();
                         setNewPaymentForm({
                           ...newPaymentForm,
                           cardNumber: formatted,

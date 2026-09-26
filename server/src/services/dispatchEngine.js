@@ -15,7 +15,10 @@ export const dispatchEngine = {
       `SELECT t.*, u.name, u.phone, u.avatar
        FROM technicians t
        JOIN users u ON t.user_id = u.id
-       WHERE t.category = ? AND t.is_online = 1 AND t.is_busy = 0`,
+       WHERE t.category = ?
+         AND t.is_online = 1
+         AND t.is_busy = 0
+         AND (t.status = 'Approved' OR t.status IS NULL)`,
       [category],
     );
 
@@ -31,6 +34,9 @@ export const dispatchEngine = {
         tech.longitude,
       );
       const etaMinutes = calculateETA(distanceKm);
+
+      // The radius is enforced server-side; a browser cannot widen it.
+      if (distanceKm > 15) continue;
 
       // Scoring formula: prioritize proximity heavily, boost high ratings, slightly penalize higher historical response times
       const proximityScore = 100 / (1 + distanceKm * 0.8);
@@ -48,8 +54,8 @@ export const dispatchEngine = {
       });
     }
 
-    // Sort descending by composite score
-    candidates.sort((a, b) => b.compositeScore - a.compositeScore);
+    // Dispatch and the customer list both prefer the nearest eligible pro.
+    candidates.sort((a, b) => a.distanceKm - b.distanceKm || b.compositeScore - a.compositeScore);
     return candidates;
   },
 

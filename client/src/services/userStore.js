@@ -29,24 +29,18 @@ export const userStore = {
     try {
       const res = await api.get("/requests/my");
       if (Array.isArray(res.data)) {
-        // Merge with locally stored bookings to ensure immediate UI consistency
-        const local = this.getBookings(userId);
-        const map = new Map();
-        local.forEach((b) => map.set(b.id, b));
-        res.data.forEach((b) => map.set(b.id, { ...map.get(b.id), ...b }));
-        const merged = Array.from(map.values()).sort(
+        // The server is the authority. Never merge stale browser data into a
+        // customer's history: that is how old demo/local orders reappear.
+        const bookings = [...res.data].sort(
           (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0),
         );
-        this.saveBookings(userId, merged);
-        return merged;
+        this.saveBookings(userId, bookings);
+        return bookings;
       }
     } catch (err) {
-      console.warn(
-        "Could not fetch remote bookings, using local store:",
-        err.message,
-      );
+      throw new Error(err.response?.data?.error || "Could not load your bookings. Please refresh and try again.");
     }
-    return this.getBookings(userId);
+    return [];
   },
 
   saveBookings(userId, bookings) {
@@ -102,7 +96,7 @@ export const userStore = {
     try {
       await api.post(`/requests/${bookingId}/complete`);
     } catch (err) {
-      console.warn("Remote completion call error:", err);
+      throw new Error(err.response?.data?.error || "Could not save the booking completion.");
     }
     const updated = this.updateBooking(userId, bookingId, {
       status: "Completed",
@@ -126,7 +120,7 @@ export const userStore = {
         feedback: feedback || "",
       });
     } catch (err) {
-      console.warn("Remote rating call error:", err);
+      throw new Error(err.response?.data?.error || "Could not save your rating.");
     }
 
     const updated = this.updateBooking(userId, bookingId, {
@@ -152,7 +146,7 @@ export const userStore = {
         scheduledTime,
       });
     } catch (err) {
-      console.warn("Remote reschedule call error:", err);
+      throw new Error(err.response?.data?.error || "Could not save the rescheduled appointment");
     }
     const updated = this.updateBooking(userId, bookingId, {
       scheduledDate,
@@ -171,7 +165,7 @@ export const userStore = {
     try {
       await api.post(`/requests/${bookingId}/cancel`, { reason });
     } catch (err) {
-      console.warn("Remote cancel call error:", err);
+      throw new Error(err.response?.data?.error || "Could not cancel this booking.");
     }
     const updated = this.updateBooking(userId, bookingId, {
       status: "Cancelled",
@@ -242,7 +236,7 @@ export const userStore = {
         .post("/user/cart", {
           slug: item.slug || item.name.toLowerCase().replace(/\s+/g, "-"),
           name: item.name,
-          price: item.price || "$29",
+          price: item.price || "₹749",
           quantity: (current[existingIndex]?.quantity || 0) + 1,
           image: item.image,
         })

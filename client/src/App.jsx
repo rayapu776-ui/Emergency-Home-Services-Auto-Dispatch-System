@@ -117,6 +117,9 @@ function CustomerAndAdminApp() {
     if (
       location.pathname === "/" ||
       location.pathname === "/services" ||
+      location.pathname.startsWith("/services/") ||
+      location.pathname.startsWith("/category/") ||
+      location.pathname === "/offers" ||
       location.pathname === "/checkout" ||
       location.pathname === "/bookings" ||
       location.pathname === "/profile"
@@ -251,6 +254,9 @@ export default function App() {
               <Route path="profile" element={<TechnicianProfilePage />} />
               <Route path="*" element={<Navigate to="/technician/dashboard" replace />} />
             </Route>
+
+            {/* Explicit Customer Checkout Route */}
+            <Route path="/checkout" element={<CustomerAndAdminApp />} />
 
             {/* 3. Customer & Admin Portal Routes */}
             <Route path="*" element={<CustomerAndAdminApp />} />

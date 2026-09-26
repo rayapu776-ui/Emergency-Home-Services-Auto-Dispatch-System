@@ -26,6 +26,9 @@ import {
   getServiceGallery,
 } from "../data/servicesData";
 
+const FALLBACK_SERVICE_IMAGE =
+  "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=900&q=85";
+
 export default function ServiceDetailPage({
   service,
   onHome,
@@ -42,13 +45,17 @@ export default function ServiceDetailPage({
   const [copiedCoupon, setCopiedCoupon] = useState(false);
 
   // Interactive booking date chips
-  const dateSlots = [
-    { id: "today", label: "Today", date: "19 Sep" },
-    { id: "tomorrow", label: "Tomorrow", date: "20 Sep" },
-    { id: "sat", label: "Saturday", date: "21 Sep" },
-    { id: "sun", label: "Sunday", date: "22 Sep" },
-  ];
-  const [selectedDate, setSelectedDate] = useState("today");
+  const dateSlots = Array.from({ length: 4 }, (_, index) => {
+    const value = new Date();
+    value.setHours(0, 0, 0, 0);
+    value.setDate(value.getDate() + index);
+    return {
+      id: value.toISOString().slice(0, 10),
+      label: index === 0 ? "Today" : index === 1 ? "Tomorrow" : `Day ${index + 1}`,
+      date: new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short" }).format(value),
+    };
+  });
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
 
   // Interactive booking time slot chips
   const timeSlots = [
@@ -72,7 +79,7 @@ export default function ServiceDetailPage({
   const handleAdd = () => {
     onAddToCart?.({
       ...service,
-      selectedDate: dateSlots.find((d) => d.id === selectedDate)?.date,
+      selectedDate: dateSlots.find((d) => d.id === selectedDate)?.id,
       selectedTime,
     });
     setAddedAnimation(true);
@@ -84,11 +91,11 @@ export default function ServiceDetailPage({
     onBookNow?.(
       {
         ...service,
-        selectedDate: `${chosenDateObj?.label}, ${chosenDateObj?.date}`,
+        selectedDate: chosenDateObj?.id,
         selectedTime,
       },
       {
-        scheduledDate: `${chosenDateObj?.label}, ${chosenDateObj?.date}`,
+        scheduledDate: chosenDateObj?.id,
         scheduledTime: selectedTime,
       },
     );
@@ -160,9 +167,10 @@ export default function ServiceDetailPage({
             <div className="relative overflow-hidden rounded-3xl border border-white/80 bg-white/80 shadow-md backdrop-blur-md">
               <div className="relative aspect-[16/11] sm:aspect-[16/10] overflow-hidden bg-slate-100">
                 <img
-                  src={selectedImage}
+                  src={selectedImage || FALLBACK_SERVICE_IMAGE}
                   alt={service?.name}
                   className="h-full w-full object-cover transition-all duration-500 hover:scale-105"
+                  onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = FALLBACK_SERVICE_IMAGE; }}
                 />
                 <span className="absolute top-4 left-4 rounded-full bg-slate-950/80 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white backdrop-blur-sm shadow-sm">
                   {service?.category || "Doorstep Service"}
@@ -193,9 +201,10 @@ export default function ServiceDetailPage({
                     }`}
                   >
                     <img
-                      src={imgUrl}
+                      src={imgUrl || FALLBACK_SERVICE_IMAGE}
                       alt={`Thumbnail ${idx + 1}`}
                       className="h-full w-full object-cover"
+                      onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = FALLBACK_SERVICE_IMAGE; }}
                     />
                     {isActive && (
                       <span className="absolute inset-0 bg-emerald-600/15" />
@@ -267,7 +276,7 @@ export default function ServiceDetailPage({
                   Transparent Price
                 </div>
                 <p className="text-base font-black text-emerald-800 mt-0.5">
-                  {service?.price || "From $29"}
+                  {service?.price || "From ₹749"}
                 </p>
               </div>
             </div>
@@ -638,9 +647,10 @@ export default function ServiceDetailPage({
                     className="cursor-pointer overflow-hidden aspect-[16/10] bg-slate-100 relative"
                   >
                     <img
-                      src={item.image}
+                      src={item.image || FALLBACK_SERVICE_IMAGE}
                       alt={item.name}
                       className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = FALLBACK_SERVICE_IMAGE; }}
                     />
                     <span className="absolute top-2.5 left-2.5 rounded-md bg-white/90 px-2 py-0.5 text-[10px] font-bold text-slate-800 backdrop-blur-xs">
                       {item.category}

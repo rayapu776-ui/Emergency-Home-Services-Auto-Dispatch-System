@@ -72,7 +72,7 @@ export default function AuthModal({
   onSuccess,
   onCancel,
 }) {
-  const { loginStep1, verifyOtp, resendOtp, register, demoLogin } = useAuth();
+  const { login, loginStep1, verifyOtp, resendOtp, register } = useAuth();
   const [accountType, setAccountType] = useState("customer"); // "customer" | "professional"
   const [screen, setScreen] = useState("login"); // "login" | "signup" | "otp"
   const [loginValue, setLoginValue] = useState("");
@@ -195,20 +195,6 @@ export default function AuthModal({
           : event.target.value,
     }));
 
-  const socialLogin = async (provider) => {
-    resetMessage();
-    setStatus(`Connecting with ${provider}...`);
-    try {
-      await demoLogin("customer");
-      setStatus("Signed in successfully");
-      if (onSuccess) onSuccess();
-      window.setTimeout(onClose, 300);
-    } catch {
-      setStatus("");
-      setError(`${provider} sign-in is unavailable right now.`);
-    }
-  };
-
   // Step 1: Submit email/phone and password to trigger 2FA
   const submitLogin = async (event) => {
     event.preventDefault();
@@ -237,8 +223,9 @@ export default function AuthModal({
 
     setStatus("Signing in...");
     try {
-      await login(trimmedValue, loginPassword);
+      const loggedUser = await login(trimmedValue, loginPassword);
       setStatus("Sign in successful!");
+      if (onSuccess) onSuccess(loggedUser);
       setTimeout(() => {
         onClose();
       }, 400);
@@ -997,33 +984,6 @@ export default function AuthModal({
                 )}
               </button>
             </form>
-
-            <div className="auth-or">
-              <span>Or continue with</span>
-            </div>
-            <div className="auth-socials">
-              <button
-                type="button"
-                onClick={() => socialLogin("Google")}
-                className="auth-social"
-              >
-                <b className="auth-google">G</b> Google
-              </button>
-              <button
-                type="button"
-                onClick={() => socialLogin("Apple")}
-                className="auth-social"
-              >
-                <Apple /> Apple
-              </button>
-              <button
-                type="button"
-                onClick={() => socialLogin("Facebook")}
-                className="auth-social"
-              >
-                <b className="auth-facebook">f</b> Facebook
-              </button>
-            </div>
 
             <p className="auth-switch">
               {isSignup ? "Already have an account?" : "Don’t have an account?"}{" "}

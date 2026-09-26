@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowRight,
   Bath,
@@ -78,7 +79,7 @@ const makeServices = (items) =>
     ...item,
     rating: item.rating || (4.7 + (index % 3) / 10).toFixed(1),
     reviews: item.reviews || `${(2.4 + index * 0.7).toFixed(1)}k`,
-    price: item.price || `From $${19 + index * 5}`,
+    price: item.price || `From ₹${19 + index * 5}`,
   }));
 const rails = {
   noteworthy: makeServices([
@@ -88,53 +89,53 @@ const rails = {
     { name: "AC foam-jet service", image: images.appliance, badge: "New" },
   ]),
   salon: makeServices([
-    { name: "Roll-on waxing", image: images.salon, price: "From $24" },
-    { name: "Crystal rose pedicure", image: images.spa, price: "From $32" },
-    { name: "Power glow cleanup", image: images.salon, price: "From $29" },
-    { name: "Spatula waxing", image: images.salon, price: "From $19" },
+    { name: "Roll-on waxing", image: images.salon, price: "From ₹599" },
+    { name: "Crystal rose pedicure", image: images.spa, price: "From ₹799" },
+    { name: "Power glow cleanup", image: images.salon, price: "From ₹749" },
+    { name: "Spatula waxing", image: images.salon, price: "From ₹499" },
   ]),
   spa: makeServices([
-    { name: "Leg Relief Massage", image: images.massage, price: "From $39" },
-    { name: "Quick Comfort Therapy", image: images.spa, price: "From $35" },
+    { name: "Leg Relief Massage", image: images.massage, price: "From ₹999" },
+    { name: "Quick Comfort Therapy", image: images.spa, price: "From ₹899" },
     {
       name: "Top-to-Toe Stress Relief",
       image: images.massage,
-      price: "From $59",
+      price: "From ₹1499",
     },
-    { name: "Full Body Massage & Scrub", image: images.spa, price: "From $69" },
-    { name: "Back Relief Massage", image: images.massage, price: "From $32" },
+    { name: "Full Body Massage & Scrub", image: images.spa, price: "From ₹1799" },
+    { name: "Back Relief Massage", image: images.massage, price: "From ₹799" },
   ]),
   appliance: makeServices([
-    { name: "AC Repair", image: images.appliance, price: "From $29" },
-    { name: "Foam-Jet AC Service", image: images.appliance, price: "From $35" },
+    { name: "AC Repair", image: images.appliance, price: "From ₹749" },
+    { name: "Foam-Jet AC Service", image: images.appliance, price: "From ₹899" },
     {
       name: "Water Purifier Service",
       image: images.purifier,
-      price: "From $24",
+      price: "From ₹599",
     },
-    { name: "TV Check-up", image: images.smart, price: "From $19" },
+    { name: "TV Check-up", image: images.smart, price: "From ₹499" },
   ]),
   repairs: makeServices([
-    { name: "Electrician visit", image: images.repair, price: "From $19" },
-    { name: "Electrical Installation", image: images.smart, price: "From $29" },
-    { name: "Plumbing service", image: images.repair, price: "From $24" },
-    { name: "Fan Repair", image: images.repair, price: "From $19" },
-    { name: "Fixture Installation", image: images.home, price: "From $25" },
-    { name: "Carpenter visit", image: images.moving, price: "From $29" },
+    { name: "Electrician visit", image: images.repair, price: "From ₹499" },
+    { name: "Electrical Installation", image: images.smart, price: "From ₹749" },
+    { name: "Plumbing service", image: images.repair, price: "From ₹599" },
+    { name: "Fan Repair", image: images.repair, price: "From ₹499" },
+    { name: "Fixture Installation", image: images.home, price: "From ₹649" },
+    { name: "Carpenter visit", image: images.moving, price: "From ₹749" },
   ]),
   menMassage: makeServices([
-    { name: "Quick Comfort Therapy", image: images.massage, price: "From $35" },
-    { name: "Leg Relief Massage", image: images.spa, price: "From $39" },
-    { name: "Top-to-Toe Relief", image: images.massage, price: "From $59" },
-    { name: "Back Relief Massage", image: images.spa, price: "From $32" },
+    { name: "Quick Comfort Therapy", image: images.massage, price: "From ₹899" },
+    { name: "Leg Relief Massage", image: images.spa, price: "From ₹999" },
+    { name: "Top-to-Toe Relief", image: images.massage, price: "From ₹1499" },
+    { name: "Back Relief Massage", image: images.spa, price: "From ₹799" },
   ]),
   menSalon: makeServices([
-    { name: "Haircut", image: images.haircut, price: "From $20" },
-    { name: "Beard Styling", image: images.haircut, price: "From $15" },
-    { name: "Hair Styling", image: images.salon, price: "From $22" },
-    { name: "Facial", image: images.salon, price: "From $29" },
-    { name: "Head Massage", image: images.massage, price: "From $19" },
-    { name: "Hair Spa", image: images.salon, price: "From $35" },
+    { name: "Haircut", image: images.haircut, price: "From ₹499" },
+    { name: "Beard Styling", image: images.haircut, price: "From ₹399" },
+    { name: "Hair Styling", image: images.salon, price: "From ₹549" },
+    { name: "Facial", image: images.salon, price: "From ₹749" },
+    { name: "Head Massage", image: images.massage, price: "From ₹499" },
+    { name: "Hair Spa", image: images.salon, price: "From ₹899" },
   ]),
 };
 
@@ -316,7 +317,7 @@ function ServiceRail({
                 className="block w-full text-left"
               >
                 <div className="relative aspect-[1.16/0.82] overflow-hidden bg-slate-100">
-                  <img src={item.image} alt={item.name} draggable="false" />
+                  <img src={item.image || images.cleaning} alt={item.name} draggable="false" onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = images.cleaning; }} />
                   {item.badge && (
                     <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider">
                       {item.badge}
@@ -368,7 +369,7 @@ function DarkImageCards({ onBook }) {
               onClick={() => onBook({ name })}
               className="image-tile"
             >
-              <img src={src} alt={name} />
+              <img src={src || images.home} alt={name} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = images.home; }} />
               <span className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/10 to-transparent" />
               <span className="absolute bottom-4 left-4 text-left text-lg font-bold text-white">
                 {name}
@@ -653,9 +654,10 @@ function AllServicesCatalogPage({
                       className="relative aspect-[16/10] bg-slate-100 overflow-hidden cursor-pointer"
                     >
                       <img
-                        src={item.image}
+                        src={item.image || images.cleaning}
                         alt={item.name}
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = images.cleaning; }}
                       />
                       <span className="absolute top-3 left-3 rounded-md bg-slate-950/80 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-xs">
                         {item.category}
@@ -758,7 +760,7 @@ function DedicatedPage({
       image: images.home,
       rating: "4.9",
       reviews: "2.8k",
-      price: "From $29",
+      price: "From ₹749",
       provider: "Argent Your professionals",
     };
   const items = isCategory
@@ -811,7 +813,7 @@ function DedicatedPage({
             </button>
           </div>
           <div className="hero-image">
-            <img src={category?.image || service.image} alt={title} />
+            <img src={category?.image || service.image || images.home} alt={title} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = images.home; }} />
           </div>
         </div>
         <div className="mt-20">
@@ -831,7 +833,7 @@ function DedicatedPage({
                   className="block w-full text-left"
                 >
                   <div className="aspect-[1.16/0.82] overflow-hidden">
-                    <img src={item.image} alt={item.name} />
+                    <img src={item.image || images.cleaning} alt={item.name} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = images.cleaning; }} />
                   </div>
                   <div className="p-4">
                     <h3 className="font-bold capitalize">{item.name}</h3>
@@ -890,13 +892,60 @@ function DedicatedPage({
   );
 }
 
+class CheckoutErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("Checkout component error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex-1 flex flex-col items-center justify-center px-4 py-24 text-center">
+          <div className="h-16 w-16 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mb-4 shadow-xs">
+            <ShoppingBag className="h-8 w-8" />
+          </div>
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900">
+            Checkout Temporary Error
+          </h1>
+          <p className="mx-auto mt-2 max-w-sm text-sm text-slate-600">
+            We could not display the checkout interface right now. Please return to your service and try again.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              this.setState({ hasError: false });
+              this.props.onBack?.();
+            }}
+            className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-6 py-3.5 text-sm font-bold text-white shadow-md hover:bg-emerald-800 transition-colors cursor-pointer"
+          >
+            <span>Back to Booking</span>
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
+  const routerLocation = useLocation();
+  const routerNavigate = useNavigate();
   const { user, isAuthenticated: authIsAuthenticated } = useAuth();
   const isAuthenticated = Boolean(authIsAuthenticated || user);
   const [authOpen, setAuthOpen] = useState(false);
-  const [route, setRoute] = useState(() => window.location.pathname || "/");
+  const [route, setRoute] = useState(() => routerLocation?.pathname || window.location.pathname || "/");
   const [routeHistory, setRouteHistory] = useState(() => [
-    window.location.pathname || "/",
+    routerLocation?.pathname || window.location.pathname || "/",
   ]);
   const [location, setLocation] = useState(() => {
     try {
@@ -906,6 +955,38 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
     }
   });
 
+  const getPersistedDraft = () => {
+    try {
+      const saved =
+        sessionStorage.getItem("argent_checkout_booking") ||
+        localStorage.getItem("argent_checkout_booking") ||
+        sessionStorage.getItem("argent_pending_booking") ||
+        localStorage.getItem("argent_pending_booking");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return null;
+  };
+
+  const initialDraft = getPersistedDraft();
+
+  const [checkoutService, setCheckoutService] = useState(() => initialDraft?.service || null);
+  const [checkoutStateReady, setCheckoutStateReady] = useState(true);
+  const [appliedCoupon, setAppliedCoupon] = useState(() => initialDraft?.couponCode || "");
+  const [cartOpen, setCartOpen] = useState(false);
+  const [cartItems, setCartItems] = useState(() => {
+    return userStore.getCart(user?.id);
+  });
+
+  useEffect(() => {
+    if (routerLocation?.pathname && routerLocation.pathname !== route) {
+      setRoute(routerLocation.pathname);
+      setRouteHistory((prev) => {
+        if (prev[prev.length - 1] === routerLocation.pathname) return prev;
+        return [...prev, routerLocation.pathname];
+      });
+    }
+  }, [routerLocation?.pathname]);
+
   useEffect(() => {
     if (location) {
       try {
@@ -913,12 +994,6 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
       } catch {}
     }
   }, [location]);
-  const [cartOpen, setCartOpen] = useState(false);
-  const [checkoutService, setCheckoutService] = useState(null);
-  const [appliedCoupon, setAppliedCoupon] = useState("");
-  const [cartItems, setCartItems] = useState(() => {
-    return userStore.getCart(user?.id);
-  });
 
   useEffect(() => {
     const activeCart = userStore.getCart(user?.id);
@@ -929,6 +1004,22 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
       });
     }
   }, [user?.id]);
+
+  // Checkout draft restoration
+  useEffect(() => {
+    try {
+      const draft = getPersistedDraft();
+      if (draft) {
+        if (draft.service) setCheckoutService(draft.service);
+        if (draft.couponCode) setAppliedCoupon(draft.couponCode);
+        if (draft.location) setLocation(draft.location);
+      }
+    } catch (err) {
+      console.warn("Failed restoring checkout draft:", err);
+    } finally {
+      setCheckoutStateReady(true);
+    }
+  }, []);
 
   const handleAddToCart = (item) => {
     const updated = userStore.addToCart(user?.id, item);
@@ -959,9 +1050,12 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
         return;
       }
     }
-    if (route === path) return;
     setRouteHistory((prev) => [...prev, path]);
-    window.history.pushState({ path }, "", path);
+    try {
+      routerNavigate(path);
+    } catch {
+      window.history.pushState({ path }, "", path);
+    }
     setRoute(path);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -969,7 +1063,11 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
   const goHome = () => {
     if (route === "/") return;
     setRouteHistory((prev) => [...prev, "/"]);
-    window.history.pushState({ path: "/" }, "", "/");
+    try {
+      routerNavigate("/");
+    } catch {
+      window.history.pushState({ path: "/" }, "", "/");
+    }
     setRoute("/");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -980,7 +1078,11 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
       newHistory.pop(); // remove current route
       const previousRoute = newHistory[newHistory.length - 1];
       setRouteHistory(newHistory);
-      window.history.pushState({ path: previousRoute }, "", previousRoute);
+      try {
+        routerNavigate(previousRoute);
+      } catch {
+        window.history.pushState({ path: previousRoute }, "", previousRoute);
+      }
       setRoute(previousRoute);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } else if (route !== "/" && route !== "/profile") {
@@ -1019,11 +1121,15 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
   useEffect(() => {
     if (user) {
       try {
-        const pendingStr = sessionStorage.getItem("argent_pending_booking");
+        const pendingStr =
+          sessionStorage.getItem("argent_pending_booking") ||
+          localStorage.getItem("argent_pending_booking");
         if (pendingStr) {
           const pending = JSON.parse(pendingStr);
           if (pending?.service) {
             setCheckoutService(pending.service);
+            sessionStorage.setItem("argent_checkout_booking", JSON.stringify(pending));
+            localStorage.setItem("argent_checkout_booking", JSON.stringify(pending));
           }
           if (pending?.couponCode) {
             setAppliedCoupon(pending.couponCode);
@@ -1032,6 +1138,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
             setLocation(pending.location);
           }
           sessionStorage.removeItem("argent_pending_booking");
+          localStorage.removeItem("argent_pending_booking");
           if (pending?.action === "checkout") {
             navigate("/checkout");
           }
@@ -1051,11 +1158,17 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
 
   const handleAuthSuccess = () => {
     try {
-      const pendingStr = sessionStorage.getItem("argent_pending_booking");
+      const pendingStr =
+        sessionStorage.getItem("argent_pending_booking") ||
+        localStorage.getItem("argent_pending_booking") ||
+        sessionStorage.getItem("argent_checkout_booking") ||
+        localStorage.getItem("argent_checkout_booking");
       if (pendingStr) {
         const pending = JSON.parse(pendingStr);
         if (pending?.service) {
           setCheckoutService(pending.service);
+          sessionStorage.setItem("argent_checkout_booking", JSON.stringify(pending));
+          localStorage.setItem("argent_checkout_booking", JSON.stringify(pending));
         }
         if (pending?.couponCode) {
           setAppliedCoupon(pending.couponCode);
@@ -1064,16 +1177,20 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
           setLocation(pending.location);
         }
         sessionStorage.removeItem("argent_pending_booking");
+        localStorage.removeItem("argent_pending_booking");
+        setAuthOpen(false);
         navigate("/checkout");
         return;
       }
     } catch (err) {
       console.warn("Failed restoring booking on auth success:", err);
     }
+    setAuthOpen(false);
   };
 
   const handleAuthCancel = () => {
     sessionStorage.removeItem("argent_pending_booking");
+    localStorage.removeItem("argent_pending_booking");
     setAuthOpen(false);
     if (route === "/checkout") {
       goHome();
@@ -1081,27 +1198,84 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
   };
 
   const handleProtectedBooking = (item, extra = {}) => {
+    if (!item) return false;
+
+    const selectedDate =
+      extra.scheduledDate ||
+      item.selectedDate ||
+      new Date().toISOString().slice(0, 10);
+    const selectedTime =
+      extra.scheduledTime || item.selectedTime || "12:00 PM - 01:30 PM";
+    const customerLocation =
+      extra.location || item.location || location || "Delhi NCR";
+    const couponCode =
+      extra.couponCode || appliedCoupon || item.couponCode || "";
+    const bookingId =
+      extra.bookingId ||
+      item.bookingId ||
+      (item.id && String(item.id).startsWith("AY-") ? item.id : "");
+    const image =
+      item.image ||
+      item.service_image ||
+      images.cleaning;
+    const price =
+      item.price ||
+      (item.inrPrice
+        ? `₹${item.inrPrice}`
+        : item.numericPrice
+          ? `₹${item.numericPrice}`
+          : "₹599");
+    const finalAmount =
+      extra.finalAmount ||
+      item.finalAmount ||
+      item.totalPaid ||
+      (typeof item.numericPrice === "number" ? item.numericPrice : null);
+
+    const checkoutDraft = {
+      ...item,
+      id: item.id || item.slug || "service",
+      name: item.name || item.service_name || "Home Service",
+      category: item.category || "Doorstep Care",
+      image,
+      price,
+      selectedDate,
+      selectedTime,
+      location: customerLocation,
+      customerLocation,
+      bookingId,
+      couponCode,
+      finalAmount,
+    };
+
+    const bookingPayload = {
+      service: checkoutDraft,
+      couponCode,
+      location: customerLocation,
+      action: "checkout",
+      timestamp: Date.now(),
+    };
+
+    try {
+      sessionStorage.setItem("argent_checkout_booking", JSON.stringify(bookingPayload));
+      localStorage.setItem("argent_checkout_booking", JSON.stringify(bookingPayload));
+    } catch (e) {
+      console.warn("Storage write failed:", e);
+    }
+
+    setCheckoutService(checkoutDraft);
+    if (couponCode) setAppliedCoupon(couponCode);
+
     if (!user) {
-      const pending = {
-        service: item,
-        serviceId: item?.slug || item?.id || item?.name,
-        couponCode: extra.couponCode || appliedCoupon || "",
-        location: extra.location || location,
-        scheduledDate: extra.scheduledDate || item?.selectedDate || "",
-        scheduledTime: extra.scheduledTime || item?.selectedTime || "",
-        action: "checkout",
-        timestamp: Date.now(),
-      };
-      sessionStorage.setItem("argent_pending_booking", JSON.stringify(pending));
+      try {
+        sessionStorage.setItem("argent_pending_booking", JSON.stringify(bookingPayload));
+        localStorage.setItem("argent_pending_booking", JSON.stringify(bookingPayload));
+      } catch (e) {
+        console.warn("Storage write failed:", e);
+      }
       setAuthOpen(true);
       return false;
     }
-    setCheckoutService({
-      ...item,
-      selectedDate: extra.scheduledDate || item?.selectedDate,
-      selectedTime: extra.scheduledTime || item?.selectedTime,
-    });
-    if (extra.couponCode) setAppliedCoupon(extra.couponCode);
+
     navigate("/checkout");
     return true;
   };
@@ -1248,9 +1422,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
           onBack={goBack}
           onNavigateToService={(slug) => navigate(`/services/${slug}`)}
           onBookService={(service, coupon) => {
-            setCheckoutService(service);
-            if (coupon) setAppliedCoupon(coupon);
-            navigate("/checkout");
+            handleProtectedBooking(service, { couponCode: coupon });
           }}
           onNavigateAdmin={onNavigateAdmin}
           onNavigateTechnician={onNavigateTechnician}
@@ -1305,6 +1477,82 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
       />
     );
 
+  if (route === "/checkout" && !checkoutStateReady)
+    return (
+      <div className="min-h-screen bg-[#f6f7f3] text-slate-950 flex flex-col">
+        <ArgentNavbar
+          onLogoClick={goHome}
+          onAuthOpen={() => setAuthOpen(true)}
+          onProfileClick={() => navigate("/profile")}
+          onCartClick={() => setCartOpen(true)}
+          cartCount={cartItems.length}
+          location={location}
+          onLocationChange={setLocation}
+          services={allServicesCatalog}
+          onSelectService={(item) => navigate(`/services/${item.slug}`)}
+          currentRoute={route}
+          onNavigate={navigate}
+        />
+        <div className="flex-1 flex flex-col items-center justify-center px-4 py-24 text-center">
+          <div className="w-10 h-10 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mb-4" />
+          <h2 className="text-lg font-bold text-slate-900">Loading Checkout...</h2>
+          <p className="text-sm text-slate-500 mt-1">Preparing your booking and payment details</p>
+        </div>
+        <Footer
+          onNavigate={(path) => (path === "/" ? goHome() : navigate(path))}
+        />
+      </div>
+    );
+
+  if (route === "/checkout" && !checkoutService)
+    return (
+      <div className="min-h-screen bg-[#f6f7f3] text-slate-950 flex flex-col">
+        <ArgentNavbar
+          onLogoClick={goHome}
+          onAuthOpen={() => setAuthOpen(true)}
+          onProfileClick={() => navigate("/profile")}
+          onCartClick={() => setCartOpen(true)}
+          cartCount={cartItems.length}
+          location={location}
+          onLocationChange={setLocation}
+          services={allServicesCatalog}
+          onSelectService={(item) => navigate(`/services/${item.slug}`)}
+          currentRoute={route}
+          onNavigate={navigate}
+        />
+        <div className="flex-1 flex flex-col items-center justify-center px-4 py-24 text-center">
+          <div className="h-16 w-16 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mb-4 shadow-xs">
+            <ShoppingBag className="h-8 w-8" />
+          </div>
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900">
+            Your booking details are unavailable
+          </h1>
+          <p className="mx-auto mt-2 max-w-sm text-sm text-slate-600">
+            Select a service, date, and time before continuing to checkout.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate("/services")}
+            className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-6 py-3.5 text-sm font-bold text-white shadow-md hover:bg-emerald-800 transition-colors cursor-pointer"
+          >
+            <span>Back to Booking</span>
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        </div>
+        <Footer
+          onNavigate={(path) => (path === "/" ? goHome() : navigate(path))}
+        />
+        {authOpen && (
+          <AuthPanel
+            onClose={() => setAuthOpen(false)}
+            onNavigate={navigate}
+            onSuccess={handleAuthSuccess}
+            onCancel={handleAuthCancel}
+          />
+        )}
+      </div>
+    );
+
   if (route === "/checkout")
     return (
       <div className="min-h-screen bg-[#f6f7f3] text-slate-950 selection:bg-emerald-200 pb-20 md:pb-0">
@@ -1321,25 +1569,33 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
           currentRoute={route}
           onNavigate={navigate}
         />
-        <PaymentPage
-          service={checkoutService || allServicesCatalog[0]}
-          onHome={goBack}
-          onGoHome={goHome}
-          onViewBookings={() => navigate("/bookings")}
-          onOrderCreated={(orderData) => {
-            userStore.addBooking(user?.id, orderData);
-            if (orderData.slug) {
-              const remaining = userStore.removeFromCart(
-                user?.id,
-                orderData.slug,
-              );
-              setCartItems(remaining);
-            }
-          }}
-          initialLocation={location}
-          initialPromoCode={appliedCoupon}
-          onAuthRequired={() => setAuthOpen(true)}
-        />
+        <CheckoutErrorBoundary onBack={() => navigate("/services")}>
+          <PaymentPage
+            service={checkoutService}
+            onHome={() => {
+              if (checkoutService?.slug) {
+                navigate(`/services/${checkoutService.slug}`);
+              } else {
+                goBack();
+              }
+            }}
+            onGoHome={goHome}
+            onViewBookings={() => navigate("/bookings")}
+            onOrderCreated={(orderData) => {
+              userStore.addBooking(user?.id, orderData);
+              if (orderData.slug) {
+                const remaining = userStore.removeFromCart(
+                  user?.id,
+                  orderData.slug,
+                );
+                setCartItems(remaining);
+              }
+            }}
+            initialLocation={location}
+            initialPromoCode={appliedCoupon}
+            onAuthRequired={() => setAuthOpen(true)}
+          />
+        </CheckoutErrorBoundary>
         <Footer
           onNavigate={(path) => (path === "/" ? goHome() : navigate(path))}
         />
@@ -1375,7 +1631,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
         image: images.home,
         rating: "4.9",
         reviews: "2.8k",
-        price: "From $29",
+        price: "From ₹749",
         numericPrice: 29,
         targetAudience: "unisex",
         slug: slug,
@@ -1713,7 +1969,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
                   className="category-card"
                 >
                   <div className="category-image">
-                    <img src={src} alt={name} />
+                    <img src={src || images.home} alt={name} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = images.home; }} />
                     <span>
                       <Icon className="h-4 w-4" />
                     </span>

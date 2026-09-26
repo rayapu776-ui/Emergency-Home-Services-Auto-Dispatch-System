@@ -712,7 +712,7 @@ export default function createTechnicianRouter(io) {
   router.post("/jobs/:id/accept", authenticateToken, async (req, res) => {
     try {
       const tech = await query.get(
-        `SELECT t.*, u.name, u.phone FROM technicians t JOIN users u ON t.user_id = u.id WHERE t.user_id = ?`,
+        `SELECT t.*, u.name, u.phone, u.avatar FROM technicians t JOIN users u ON t.user_id = u.id WHERE t.user_id = ?`,
         [req.user.id],
       );
       if (!tech)
@@ -744,13 +744,24 @@ export default function createTechnicianRouter(io) {
           .json({ error: `Job is already ${request.status.toLowerCase()}` });
       }
 
-      // Update request status to ACCEPTED and assign to this technician
-      await query.run(
+      const distanceKm = calculateDistance(request.latitude, request.longitude, tech.latitude, tech.longitude);
+      if (distanceKm > 15 || tech.is_busy !== 0) {
+        return res.status(409).json({ error: "This job is no longer available for acceptance." });
+      }
+
+      // Conditional update is the claim. SQLite applies it atomically, so the
+      // first valid professional wins and later simultaneous attempts affect 0 rows.
+      const claim = await query.run(
         `UPDATE service_requests 
          SET status = 'ACCEPTED', technician_id = ?, updated_at = CURRENT_TIMESTAMP 
-         WHERE id = ?`,
-        [tech.id, req.params.id],
+         WHERE id = ?
+           AND status IN ('REQUESTED', 'AUTO_DISPATCHED', 'ASSIGNED')
+           AND (technician_id IS NULL OR technician_id = ?)`,
+        [tech.id, req.params.id, tech.id],
       );
+      if (claim.changes !== 1) {
+        return res.status(409).json({ error: "Another professional has already claimed this job." });
+      }
 
       // Update technician status
       await query.run(
@@ -800,7 +811,10 @@ export default function createTechnicianRouter(io) {
         technician: {
           id: tech.id,
           name: tech.name,
-          phone: tech.phone,
+          rating: tech.rating,
+          completedJobs: tech.total_jobs,
+          avatar: tech.avatar || null,
+          etaMinutes: request.eta_minutes,
         },
       });
       io.to("role_admin").emit("job_accepted", {
@@ -1226,18 +1240,6 @@ export default function createTechnicianRouter(io) {
 
       await query.run(
         "UPDATE technicians SET latitude = ?, longitude = ? WHERE id = ?",
-        [latitude, longitude, tech.id],
-      );
-
-      res.json({ success: true, latitude, longitude });
-    } catch (err) {
-      res.status(500).json({ error: "Failed to update coordinates" });
-    }
-  });
-
-  return router;
-}
-de = ?, longitude = ? WHERE id = ?",
         [latitude, longitude, tech.id],
       );
 

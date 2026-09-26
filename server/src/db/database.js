@@ -68,6 +68,8 @@ export async function initDb() {
     { col: "total_paid", type: "TEXT" },
     { col: "payment_method", type: "TEXT" },
     { col: "completed_at", type: "TEXT" },
+    { col: "offer_amount", type: "REAL" },
+    { col: "dispatch_expires_at", type: "TEXT" },
   ];
 
   for (const { col, type } of columnsToAdd) {
@@ -172,12 +174,29 @@ export async function initDb() {
     console.error("Error creating tables:", err);
   }
 
-  // Safely clean up demo technician accounts while strictly preserving real user-created accounts
+  // Remove only explicitly marked demo accounts/data. A real customer's
+  // booking must survive even if it was once assigned to a demo technician.
   try {
-    const demoTechUsers = await query.all(
-      `SELECT id FROM users WHERE role = 'technician' AND (email LIKE '%@demo.com' OR email = 'technician@example.com')`,
+    const demoUsers = await query.all(
+      `SELECT id, role FROM users
+       WHERE email LIKE '%@demo.com' OR email = 'technician@example.com'`,
     );
-    for (const u of demoTechUsers) {
+    const demoUserIds = demoUsers.map((u) => u.id);
+
+    // Demo customer bookings and their history are safe to remove because
+    // their owning account is explicitly marked as demo.
+    for (const userId of demoUserIds) {
+      const demoRequests = await query.all(
+        `SELECT id FROM service_requests WHERE customer_id = ?`,
+        [userId],
+      );
+      for (const request of demoRequests) {
+        await query.run(`DELETE FROM status_logs WHERE request_id = ?`, [request.id]);
+        await query.run(`DELETE FROM service_requests WHERE id = ?`, [request.id]);
+      }
+    }
+
+    for (const u of demoUsers.filter((user) => user.role === "technician")) {
       const tech = await query.get(
         `SELECT id FROM technicians WHERE user_id = ?`,
         [u.id],
@@ -188,14 +207,16 @@ export async function initDb() {
           [tech.id],
         );
         await query.run(
-          `DELETE FROM service_requests WHERE technician_id = ?`,
+          `UPDATE service_requests
+           SET technician_id = NULL, status = 'REQUESTED', updated_at = CURRENT_TIMESTAMP
+           WHERE technician_id = ?`,
           [tech.id],
         );
         await query.run(`DELETE FROM technicians WHERE id = ?`, [tech.id]);
       }
-      await query.run(`DELETE FROM user_notifications WHERE user_id = ?`, [
-        u.id,
-      ]);
+    }
+    for (const u of demoUsers) {
+      await query.run(`DELETE FROM user_notifications WHERE user_id = ?`, [u.id]);
       await query.run(`DELETE FROM users WHERE id = ?`, [u.id]);
     }
   } catch (cleanErr) {

@@ -9,6 +9,9 @@ import {
   X,
 } from "lucide-react";
 
+const FALLBACK_SERVICE_IMAGE =
+  "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=400&q=85";
+
 export default function CartDrawer({
   isOpen,
   onClose,
@@ -22,11 +25,11 @@ export default function CartDrawer({
   const subtotal = items.reduce(
     (sum, item) =>
       sum +
-      (parseFloat(item.price.replace(/[^0-9.]/g, "")) || 29) *
+      (parseFloat(item.price.replace(/[^0-9.]/g, "")) || 749) *
         (item.quantity || 1),
     0,
   );
-  const fee = items.length > 0 ? 3.5 : 0;
+  const fee = items.length > 0 ? 49 : 0;
   const total = subtotal + fee;
 
   return (
@@ -87,19 +90,18 @@ export default function CartDrawer({
             ) : (
               items.map((item) => {
                 const numericPrice =
-                  parseFloat(item.price.replace(/[^0-9.]/g, "")) || 29;
+                  parseFloat(item.price.replace(/[^0-9.]/g, "")) || 749;
                 return (
                   <div
                     key={item.slug || item.name}
                     className="flex gap-4 p-4 rounded-2xl border border-slate-100 bg-slate-50/60 hover:bg-slate-50 transition-colors"
                   >
-                    {item.image && (
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="h-16 w-16 rounded-xl object-cover shrink-0 border border-slate-200/60"
-                      />
-                    )}
+                    <img
+                      src={item.image || FALLBACK_SERVICE_IMAGE}
+                      alt={item.name}
+                      className="h-16 w-16 rounded-xl object-cover shrink-0 border border-slate-200/60"
+                      onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = FALLBACK_SERVICE_IMAGE; }}
+                    />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
                         <h4 className="text-sm font-bold text-slate-900 truncate">
@@ -114,7 +116,7 @@ export default function CartDrawer({
                         </button>
                       </div>
                       <p className="text-xs font-semibold text-emerald-800 mt-0.5">
-                        ${numericPrice.toFixed(2)}
+                        ₹{numericPrice.toLocaleString("en-IN")}
                       </p>
 
                       <div className="flex items-center justify-between mt-3">
@@ -147,7 +149,7 @@ export default function CartDrawer({
                           </button>
                         </div>
                         <span className="text-xs font-extrabold text-slate-900">
-                          ${(numericPrice * (item.quantity || 1)).toFixed(2)}
+                          ₹{(numericPrice * (item.quantity || 1)).toLocaleString("en-IN")}
                         </span>
                       </div>
                     </div>
@@ -164,18 +166,18 @@ export default function CartDrawer({
                 <div className="flex justify-between">
                   <span>Subtotal</span>
                   <span className="font-bold text-slate-900">
-                    ${subtotal.toFixed(2)}
+                    ₹{subtotal.toLocaleString("en-IN")}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span>Safety & Service Fee</span>
                   <span className="font-bold text-slate-900">
-                    ${fee.toFixed(2)}
+                    ₹{fee.toLocaleString("en-IN")}
                   </span>
                 </div>
                 <div className="flex justify-between border-t border-slate-100 pt-2 text-sm font-black text-slate-900">
                   <span>Total Amount</span>
-                  <span className="text-emerald-800">${total.toFixed(2)}</span>
+                  <span className="text-emerald-800">₹{total.toLocaleString("en-IN")}</span>
                 </div>
               </div>
 

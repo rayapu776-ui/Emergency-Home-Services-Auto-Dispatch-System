@@ -737,62 +737,6 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// Instant Demo Login (Zero credentials friction for testing)
-router.post("/demo-login", async (req, res) => {
-  try {
-    const { role = "customer", category = "Plumbing" } = req.body;
-
-    let targetEmail = "customer@demo.com";
-    if (role === "admin") {
-      targetEmail = "admin@demo.com";
-    } else if (role === "technician") {
-      return res.status(403).json({
-        error:
-          "Demo technician accounts have been permanently removed. Please sign in with your registered professional account.",
-      });
-    }
-
-    const user = await query.get("SELECT * FROM users WHERE email = ?", [
-      targetEmail,
-    ]);
-    if (!user) {
-      return res.status(404).json({ error: "Demo account not found" });
-    }
-
-    let technicianData = null;
-    if (user.role === "technician") {
-      technicianData = await query.get(
-        "SELECT * FROM technicians WHERE user_id = ?",
-        [user.id],
-      );
-    }
-
-    const token = generateToken({
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      name: user.name,
-    });
-    res.json({
-      token,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        phone: user.phone,
-        address: user.address,
-        latitude: user.latitude,
-        longitude: user.longitude,
-        technician: technicianData,
-      },
-    });
-  } catch (err) {
-    console.error("Demo login error:", err);
-    res.status(500).json({ error: "Failed demo login" });
-  }
-});
-
 // Get current logged-in user profile
 router.get("/me", authenticateToken, async (req, res) => {
   try {

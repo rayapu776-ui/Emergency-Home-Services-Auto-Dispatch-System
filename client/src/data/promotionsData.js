@@ -30,7 +30,7 @@ export const promotionsData = [
     discount: "FLAT ₹200 OFF",
     couponCode: "FIRST200",
     discountType: "flat",
-    discountValue: 10, // $10 / ₹200 equivalent
+    discountValue: 10, // ₹200 / ₹200 equivalent
     description:
       "Experience hassle-free repairs, grooming, AC servicing, and doorstep maintenance with instant discount.",
     ctaText: "Claim Offer",

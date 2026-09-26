@@ -19,8 +19,8 @@ export default function createRequestRouter(io) {
           priority = "High",
           description,
           address,
-          latitude = 28.6139,
-          longitude = 77.209,
+          latitude,
+          longitude,
           service_name,
           service_slug,
           service_image,
@@ -31,38 +31,57 @@ export default function createRequestRouter(io) {
           payment_method,
         } = req.body;
 
-        if (!category && !service_name) {
+        const normalizedCategory = String(category || "").trim();
+        const normalizedServiceName = String(service_name || "").trim();
+        const normalizedDate = String(scheduled_date || "").trim();
+        const normalizedTime = String(scheduled_time || "").trim();
+
+        if (!normalizedCategory || !normalizedServiceName) {
           return res.status(400).json({
-            error: "Category or service name is required",
+            error: "A valid service and service category are required.",
           });
         }
 
-        const requestId = `AY-${Math.floor(10000 + Math.random() * 90000)}`;
+        const lat = Number(latitude);
+        const lon = Number(longitude);
+        if (!address?.trim() || !Number.isFinite(lat) || !Number.isFinite(lon)) {
+          return res.status(400).json({ error: "A real service address and GPS coordinates are required. Enable location or select a mapped address." });
+        }
+        const bookingDate = new Date(`${normalizedDate}T00:00:00`);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (
+          !/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate) ||
+          Number.isNaN(bookingDate.getTime()) ||
+          bookingDate < today
+        ) {
+          return res.status(400).json({ error: "Choose a valid service date that is not in the past." });
+        }
+        if (!normalizedTime || normalizedTime.length > 80) {
+          return res.status(400).json({ error: "A valid service date and time slot are required." });
+        }
+
+        // A compact public ID that customers can quote. Check for a collision
+        // before insert rather than relying on a frontend-generated order ID.
+        let requestId;
+        for (let attempt = 0; attempt < 5; attempt += 1) {
+          const candidate = `AY-${Math.floor(100000 + Math.random() * 900000)}`;
+          const exists = await query.get("SELECT id FROM service_requests WHERE id = ?", [candidate]);
+          if (!exists) {
+            requestId = candidate;
+            break;
+          }
+        }
+        if (!requestId) return res.status(503).json({ error: "Could not generate a booking ID. Please try again." });
         const customerId = req.user.id;
         const bookingDesc =
           description ||
-          `Service booking for ${service_name || "Doorstep Service"}`;
+          `Service booking for ${normalizedServiceName}`;
 
-        // Find best certified technician for this category
-        let tech = await query.get(
-          `SELECT t.*, u.name, u.phone, u.avatar
-           FROM technicians t
-           JOIN users u ON t.user_id = u.id
-           WHERE t.category = ?
-           ORDER BY t.rating DESC LIMIT 1`,
-          [category],
-        );
-        if (!tech) {
-          tech = await query.get(
-            `SELECT t.*, u.name, u.phone, u.avatar
-             FROM technicians t
-             JOIN users u ON t.user_id = u.id
-             ORDER BY t.rating DESC LIMIT 1`,
-          );
-        }
-
-        const techId = tech ? tech.id : null;
-        const initialStatus = techId ? "ASSIGNED" : "REQUESTED";
+        // A booking is never assigned at random. The dispatch engine applies
+        // online, verified, availability, category and 15 km constraints.
+        const techId = null;
+        const initialStatus = "REQUESTED";
 
         await query.run(
           `INSERT INTO service_requests (
@@ -73,22 +92,21 @@ export default function createRequestRouter(io) {
             requestId,
             customerId,
             techId,
-            category || "Doorstep Service",
+            normalizedCategory,
             priority,
             bookingDesc,
-            address ||
-              "Flat 402, Green Glen Heights, Sector 62, Noida, Uttar Pradesh",
-            latitude,
-            longitude,
+            address.trim(),
+            lat,
+            lon,
             initialStatus,
-            service_name || "Doorstep Service",
+            normalizedServiceName,
             service_slug || "service",
             service_image ||
               "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=400&q=85",
-            scheduled_date || "Today",
-            scheduled_time || "Priority Slot",
-            price || "$29.00",
-            total_paid || "$32.50",
+            normalizedDate,
+            normalizedTime,
+            price || "₹0",
+            total_paid || price || "₹0",
             payment_method || "UPI",
           ],
         );
@@ -107,36 +125,10 @@ export default function createRequestRouter(io) {
             [
               uuidv4(),
               customerId,
-              `Booking Confirmed: ${service_name || "Doorstep Service"}`,
-              `Your booking #${requestId} is confirmed for ${scheduled_date || "Today"} (${scheduled_time || "Priority Slot"}).`,
+              `Booking Created: ${normalizedServiceName}`,
+              `Your booking #${requestId} is scheduled for ${normalizedDate} (${normalizedTime}). We are finding an available professional.`,
             ],
           );
-
-          if (tech) {
-            await query.run(
-              `INSERT INTO user_notifications (id, user_id, title, description, type, unread)
-               VALUES (?, ?, ?, ?, 'dispatch', 1)`,
-              [
-                uuidv4(),
-                customerId,
-                `Service Provider Assigned: ${tech.name}`,
-                `${tech.name} (${tech.phone || "+91 98101 11223"}) has been assigned to your booking #${requestId}.`,
-              ],
-            );
-
-            if (tech.user_id) {
-              await query.run(
-                `INSERT INTO user_notifications (id, user_id, title, description, type, unread)
-                 VALUES (?, ?, ?, ?, 'dispatch', 1)`,
-                [
-                  uuidv4(),
-                  tech.user_id,
-                  `New Job Dispatched: #${requestId}`,
-                  `You have a new booking for ${service_name || "Doorstep Service"} at ${address || "Customer Address"}.`,
-                ],
-              );
-            }
-          }
         } catch (notifErr) {
           console.warn("Notification insert error:", notifErr);
         }
@@ -144,46 +136,36 @@ export default function createRequestRouter(io) {
         // Notify Admin room of new booking
         io.to("role_admin").emit("new_emergency_alert", {
           requestId,
-          category: category || "General",
+          category: normalizedCategory,
           priority,
-          address: address || "Customer Address",
+          address: address.trim(),
           customerName: req.user.name,
         });
 
+        const dispatch = await dispatchEngine.autoDispatch(requestId, io);
+        const nearbyProfessionals = await dispatchEngine.findEligibleTechnicians(normalizedCategory, lat, lon);
         const created = {
           id: requestId,
           orderId: requestId,
-          serviceName: service_name || "Doorstep Service",
-          category: category || "Doorstep Service",
+          serviceName: normalizedServiceName,
+          category: normalizedCategory,
           image:
             service_image ||
             "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=400&q=85",
           slug: service_slug || "service",
-          scheduledDate: scheduled_date || "Today",
-          scheduledTime: scheduled_time || "Priority Slot",
-          status: "Confirmed",
-          statusStep: 2,
-          price: price || "$29.00",
-          totalPaid: total_paid || "$32.50",
+          scheduledDate: normalizedDate,
+          scheduledTime: normalizedTime,
+          status: dispatch.success ? "Searching for professional" : "No professional available",
+          statusStep: 1,
+          price: price || "₹0",
+          totalPaid: total_paid || price || "₹0",
           paymentMethod: payment_method || "UPI",
-          address: address || "Customer Address",
+          address: address.trim(),
           rating: null,
           feedback: null,
-          technician: tech
-            ? {
-                id: tech.id,
-                name: tech.name || "Assigned Professional",
-                phone: tech.phone || "",
-                rating: String(tech.rating || "0.0"),
-                reviews: String(tech.total_jobs || "0"),
-                experience: tech.experience_years
-                  ? `${tech.experience_years} years`
-                  : "Verified Partner",
-                avatar:
-                  tech.avatar ||
-                  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80",
-              }
-            : null,
+          technician: null,
+          nearbyProfessionals: nearbyProfessionals.map((t) => ({ id: t.id, name: t.name, avatar: t.avatar || null, category: t.category, distanceKm: t.distanceKm, rating: t.rating, completedJobs: t.total_jobs, verified: true, etaMinutes: t.etaMinutes, availability: "ONLINE" })),
+          dispatchMessage: dispatch.success ? "Nearby professionals are being contacted." : "No available professional found within 15 km.",
         };
 
         res.status(201).json(created);
@@ -224,6 +206,8 @@ export default function createRequestRouter(io) {
             ? "Completed"
             : isCancelled
               ? "Cancelled"
+              : sr.status === "REQUESTED" || sr.status === "AUTO_DISPATCHED"
+                ? "Searching for professional"
               : isInProgress
                 ? "In Progress"
                 : "Confirmed";
@@ -256,7 +240,7 @@ export default function createRequestRouter(io) {
             rating: sr.rating,
             feedback: sr.feedback,
             createdAt: sr.created_at,
-            technician: sr.technician_id
+            technician: ["ACCEPTED", "ON_THE_WAY", "ARRIVED", "IN_PROGRESS", "COMPLETED"].includes(sr.status) && sr.technician_id
               ? {
                   id: sr.technician_id,
                   name: sr.technician_name || "Assigned Professional",
@@ -537,12 +521,29 @@ export default function createRequestRouter(io) {
       );
       if (!currentReq)
         return res.status(404).json({ error: "Request not found" });
+      if (req.user.role !== "admin" && currentReq.customer_id !== req.user.id) {
+        return res.status(403).json({ error: "Only the customer can reschedule this booking" });
+      }
+      if (currentReq.status === "COMPLETED" || currentReq.status === "CANCELLED") {
+        return res.status(400).json({ error: "This booking can no longer be rescheduled" });
+      }
+      const date = new Date(`${scheduledDate}T00:00:00`);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(scheduledDate || "") || Number.isNaN(date.getTime())) {
+        return res.status(400).json({ error: "Choose a valid future service date" });
+      }
+      const slotStart = String(scheduledTime || "").match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+      if (!slotStart) return res.status(400).json({ error: "Choose a valid available time slot" });
+      let hour = Number(slotStart[1]) % 12;
+      if (slotStart[3].toUpperCase() === "PM") hour += 12;
+      const requestedStart = new Date(date);
+      requestedStart.setHours(hour, Number(slotStart[2]), 0, 0);
+      if (requestedStart <= new Date()) return res.status(400).json({ error: "Past dates and time slots are not available" });
 
       await query.run(
         `UPDATE service_requests SET scheduled_date = ?, scheduled_time = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
         [
-          scheduledDate || "Tomorrow",
-          scheduledTime || "10:00 AM",
+          scheduledDate,
+          scheduledTime,
           req.params.id,
         ],
       );
@@ -572,9 +573,30 @@ export default function createRequestRouter(io) {
         );
       } catch {}
 
-      res.json({ success: true, message: "Booking rescheduled successfully" });
+      const updated = await query.get("SELECT * FROM service_requests WHERE id = ?", [req.params.id]);
+      io.to(`request_${req.params.id}`).emit("request_updated", updated);
+      res.json({ success: true, message: "Booking rescheduled successfully", booking: updated });
     } catch (err) {
       res.status(500).json({ error: "Failed to reschedule booking" });
+    }
+  });
+
+  // Customer-approved offer increase. A new dispatch pass is started only
+  // after the customer explicitly supplies a higher amount.
+  router.post("/:id/increase-offer", authenticateToken, requireRole("customer"), async (req, res) => {
+    try {
+      const request = await query.get("SELECT * FROM service_requests WHERE id = ? AND customer_id = ?", [req.params.id, req.user.id]);
+      if (!request) return res.status(404).json({ error: "Booking not found" });
+      if (["ACCEPTED", "ON_THE_WAY", "ARRIVED", "IN_PROGRESS", "COMPLETED", "CANCELLED"].includes(request.status)) return res.status(400).json({ error: "This request cannot receive a new offer" });
+      const amount = Number(req.body.offerAmount);
+      const current = Number(request.offer_amount || String(request.price || "").replace(/[^0-9.]/g, ""));
+      if (!Number.isFinite(amount) || amount <= current) return res.status(400).json({ error: "The new offer must be higher than the current offer" });
+      await query.run("UPDATE service_requests SET offer_amount = ?, price = ?, status = 'REQUESTED', technician_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [amount, `₹${amount}`, request.id]);
+      const dispatch = await dispatchEngine.autoDispatch(request.id, io);
+      res.json({ success: true, offerAmount: amount, dispatch });
+    } catch (err) {
+      console.error("Increase offer error:", err);
+      res.status(500).json({ error: "Could not update the service offer" });
     }
   });
 

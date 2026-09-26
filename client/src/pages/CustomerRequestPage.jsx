@@ -14,15 +14,16 @@ export default function CustomerRequestPage({ onRequestCreated }) {
   const [category, setCategory] = useState("Plumbing");
   const [address, setAddress] = useState("");
   const [description, setDescription] = useState("");
-  const [coordinates, setCoordinates] = useState({
-    latitude: 28.6315,
-    longitude: 77.2167,
-  });
+  const [coordinates, setCoordinates] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const submitRequest = async (event) => {
     event.preventDefault();
+    if (!coordinates) {
+      setError("Enable location permission or select your service point on the map before requesting service.");
+      return;
+    }
     setLoading(true);
     setError("");
     try {
@@ -31,7 +32,10 @@ export default function CustomerRequestPage({ onRequestCreated }) {
         priority: "High",
         description,
         address,
-        ...coordinates,
+        latitude: coordinates.latitude,
+        longitude: coordinates.longitude,
+        scheduled_date: new Date().toISOString().slice(0, 10),
+        scheduled_time: "ASAP",
       });
       onRequestCreated?.(response.data.id);
     } catch (err) {
@@ -50,7 +54,7 @@ export default function CustomerRequestPage({ onRequestCreated }) {
           latitude: coords.latitude,
           longitude: coords.longitude,
         }),
-      () => setError("Location access was unavailable."),
+      () => setError("Location permission was denied. Select your service point on the map or enable location permission."),
     );
 
   return (
@@ -127,7 +131,7 @@ export default function CustomerRequestPage({ onRequestCreated }) {
           </button>
         </div>
         <EmergencyMap
-          center={[coordinates.latitude, coordinates.longitude]}
+          center={coordinates ? [coordinates.latitude, coordinates.longitude] : undefined}
           isInteractive
           onLocationSelect={(location) =>
             setCoordinates({ latitude: location.lat, longitude: location.lng })

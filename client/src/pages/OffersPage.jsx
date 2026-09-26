@@ -17,11 +17,11 @@ import { allServicesCatalog } from "../data/servicesData";
 const ACTIVE_COUPONS = [
   {
     code: "ARGENT50",
-    discount: "Flat $50 OFF",
+    discount: "Flat ₹200 OFF",
     title: "Sitewide Welcome Savings",
     description:
-      "Get $50 off on all doorstep services with a cart value of $149 or more.",
-    minOrder: "$149",
+      "Get ₹200 off on all doorstep services with a cart value of ₹1,499 or more.",
+    minOrder: "₹1,499",
     expiry: "Valid till end of month",
     badge: "Most Popular",
     color: "from-emerald-900 to-emerald-950",
@@ -33,7 +33,7 @@ const ACTIVE_COUPONS = [
     title: "Deep Sanitization Special",
     description:
       "Enjoy 20% discount on complete home deep cleaning, kitchen & bathroom packages.",
-    minOrder: "$39",
+    minOrder: "₹999",
     expiry: "Limited slots today",
     badge: "Trending",
     color: "from-teal-900 to-slate-950",
@@ -45,7 +45,7 @@ const ACTIVE_COUPONS = [
     title: "First Doorstep Inspection Free",
     description:
       "Zero diagnostic fee on your very first emergency plumbing, electrical, or appliance service.",
-    minOrder: "$0",
+    minOrder: "₹0",
     expiry: "New customers only",
     badge: "Zero Risk",
     color: "from-indigo-950 to-slate-950",
@@ -57,7 +57,7 @@ const ACTIVE_COUPONS = [
     title: "Salon & Spa Care Bundle",
     description:
       "Pamper yourself with 25% discount on all at-home salon, waxing, facial, and massage therapies.",
-    minOrder: "$49",
+    minOrder: "₹1199",
     expiry: "Valid this week",
     badge: "Self-Care",
     color: "from-rose-950 to-slate-950",
@@ -65,11 +65,11 @@ const ACTIVE_COUPONS = [
   },
   {
     code: "EMERGENCY10",
-    discount: "Instant $10 OFF",
+    discount: "Instant ₹200 OFF",
     title: "Priority Rapid Dispatch",
     description:
-      "Direct $10 deduction applied automatically on priority electrical and plumbing repairs.",
-    minOrder: "$25",
+      "Direct ₹200 deduction applied automatically on priority electrical and plumbing repairs.",
+    minOrder: "₹649",
     expiry: "24/7 Support",
     badge: "Emergency",
     color: "from-amber-950 to-slate-950",
@@ -82,9 +82,9 @@ const COMBO_PACKAGES = [
     id: "combo-1",
     title: "Summer Fresh Comfort Package",
     services: "AC Foam-Jet Cleaning + Living Room Refresh Clean",
-    originalPrice: "$70",
-    comboPrice: "$49",
-    savings: "Save $21",
+    originalPrice: "₹1,499",
+    comboPrice: "₹1199",
+    savings: "Save ₹300",
     image:
       "https://images.unsplash.com/photo-1631545806609-1e3b0a4d7a87?auto=format&fit=crop&w=600&q=85",
     coupon: "ARGENT50",
@@ -94,9 +94,9 @@ const COMBO_PACKAGES = [
     id: "combo-2",
     title: "Total Radiance Glow Duo",
     services: "Power Glow Cleanup + Crystal Rose Pedicure",
-    originalPrice: "$61",
-    comboPrice: "$45",
-    savings: "Save $16",
+    originalPrice: "₹1,399",
+    comboPrice: "₹999",
+    savings: "Save ₹400",
     image:
       "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=600&q=85",
     coupon: "FESTIVE25",
@@ -106,9 +106,9 @@ const COMBO_PACKAGES = [
     id: "combo-3",
     title: "Safe Home Electrical & Plumbing Health Check",
     services: "Master Fuse & Earthing Check + Tap Leakage & Trap Inspection",
-    originalPrice: "$45",
-    comboPrice: "$29",
-    savings: "Save $16",
+    originalPrice: "₹999",
+    comboPrice: "₹749",
+    savings: "Save ₹250",
     image:
       "https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=600&q=85",
     coupon: "EMERGENCY10",

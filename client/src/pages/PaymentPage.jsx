@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ArrowLeft,
   Calendar,
@@ -24,10 +24,44 @@ import {
   Banknote,
   AlertCircle,
   ExternalLink,
+  RefreshCw,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { validateCoupon } from "../data/promotionsData";
 import api from "../services/api";
+import { useSocket } from "../context/SocketContext";
+
+const formatServiceDate = (date) => new Intl.DateTimeFormat(undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric" }).format(date);
+const makeServiceDates = (customDate) => {
+  const dates = Array.from({ length: 4 }, (_, index) => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() + index);
+    return {
+      value: date.toISOString().slice(0, 10),
+      label:
+        index === 0
+          ? `Today · ${formatServiceDate(date)}`
+          : index === 1
+            ? `Tomorrow · ${formatServiceDate(date)}`
+            : `Day ${index + 1} · ${formatServiceDate(date)}`,
+    };
+  });
+  if (customDate && !dates.some((d) => d.value === customDate)) {
+    try {
+      const parsed = new Date(`${customDate}T00:00:00`);
+      if (!Number.isNaN(parsed.getTime())) {
+        dates.push({
+          value: customDate,
+          label: formatServiceDate(parsed),
+        });
+      }
+    } catch {}
+  }
+  return dates;
+};
+const FALLBACK_SERVICE_IMAGE =
+  "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=900&q=85";
 
 // --- PAYMENT BRAND BADGES & LOGOS (Vector SVGs) ---
 const VisaLogo = ({ className = "h-3.5" }) => (
@@ -131,13 +165,29 @@ export default function PaymentPage({
   onAuthRequired,
 }) {
   const { user } = useAuth();
+  const { socket, joinRoom } = useSocket();
+  const serviceDates = makeServiceDates(service?.selectedDate);
+  const serviceSlots = Array.from(
+    new Set(
+      [
+        service?.selectedTime,
+        "09:00 AM - 10:30 AM",
+        "12:00 PM - 01:30 PM",
+        "03:30 PM - 05:00 PM",
+        "06:00 PM - 07:30 PM",
+      ].filter(Boolean),
+    ),
+  );
 
   // Determine base service price in INR
   const getBasePrice = () => {
+    if (service?.finalAmount && Number(service.finalAmount) > 0) {
+      return Number(service.finalAmount);
+    }
     if (service?.inrPrice) return Number(service.inrPrice);
     if (service?.numericPrice) {
       if (service.numericPrice >= 100) return Number(service.numericPrice);
-      // Map USD small values like 20, 25, 35 to standard INR
+      // Map legacy small catalog values to the established INR price scale.
       return Math.round(service.numericPrice * 25);
     }
     if (typeof service?.price === "string") {
@@ -154,29 +204,58 @@ export default function PaymentPage({
   const basePrice = getBasePrice();
 
   // Booking details state
-  const [selectedDate, setSelectedDate] = useState("Tue, 24 Sep 2026");
-  const [selectedTime, setSelectedTime] = useState("10:00 AM – 12:00 PM");
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const dates = makeServiceDates(service?.selectedDate);
+    return service?.selectedDate && service.selectedDate.length >= 8
+      ? service.selectedDate
+      : dates[0].value;
+  });
+  const [selectedTime, setSelectedTime] = useState(() =>
+    service?.selectedTime || serviceSlots[0],
+  );
   const [selectedPackage, setSelectedPackage] = useState(
     service?.selectedPackage ||
       service?.package ||
-      (service?.name?.toLowerCase().includes("cleaning")
+      (service?.name?.toLowerCase()?.includes("cleaning")
         ? "2 BHK · Standard Cleaning"
         : `${service?.category || "Standard"} · Doorstep Care`),
   );
 
   const [address, setAddress] = useState(
-    user?.address || "Flat 402, Green Glen Heights, " + initialLocation,
+    user?.address || service?.location || service?.customerLocation || "Flat 402, Green Glen Heights, " + initialLocation,
   );
-  const [coords, setCoords] = useState({ lat: 28.6139, lon: 77.209 });
+  const [coords, setCoords] = useState(() => {
+    if (user?.latitude && user?.longitude) {
+      return { lat: Number(user.latitude), lon: Number(user.longitude) };
+    }
+    return { lat: 28.6139, lon: 77.2090 };
+  });
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   const [locationStatus, setLocationStatus] = useState("");
 
+  // Processing & Confirmation state (declared before useEffect)
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isConfirmed, setIsConfirmed] = useState(false);
+  const [confirmedOrder, setConfirmedOrder] = useState(null);
+
+  useEffect(() => {
+    if (!socket || !confirmedOrder?.id) return undefined;
+    joinRoom(`request_${confirmedOrder.id}`);
+    const updateOrder = (update) => {
+      if (update.id && update.id !== confirmedOrder.id) return;
+      const statusLabels = { REQUESTED: "Searching for nearby professionals", AUTO_DISPATCHED: "Professionals notified", ACCEPTED: "Professional assigned", ON_THE_WAY: "Professional on the way", ARRIVED: "Professional arrived", IN_PROGRESS: "Service started", COMPLETED: "Service completed", CANCELLED: "Request cancelled" };
+      setConfirmedOrder((current) => current ? { ...current, ...update, status: statusLabels[update.status] || current.status, dispatchMessage: update.message || current.dispatchMessage, technician: update.technician ? { ...current.technician, ...update.technician } : current.technician } : current);
+    };
+    socket.on("request_updated", updateOrder);
+    return () => socket.off("request_updated", updateOrder);
+  }, [socket, confirmedOrder?.id]);
+
   // Coupon state
-  const initialValid = initialPromoCode
-    ? validateCoupon(initialPromoCode)
+  const initialValid = (initialPromoCode || service?.couponCode)
+    ? validateCoupon(initialPromoCode || service?.couponCode)
     : null;
   const [couponAccordionOpen, setCouponAccordionOpen] = useState(false);
-  const [promoCode, setPromoCode] = useState(initialPromoCode || "");
+  const [promoCode, setPromoCode] = useState(initialPromoCode || service?.couponCode || "");
   const [promoApplied, setPromoApplied] = useState(Boolean(initialValid));
   const [appliedCouponData, setAppliedCouponData] = useState(initialValid);
   const [promoError, setPromoError] = useState("");
@@ -230,11 +309,6 @@ export default function PaymentPage({
 
   // Cash on service eligible
   const isCashEligible = true;
-
-  // Processing & Confirmation state
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isConfirmed, setIsConfirmed] = useState(false);
-  const [confirmedOrder, setConfirmedOrder] = useState(null);
 
   // Calculate discount & totals
   const calculateDiscount = () => {
@@ -388,17 +462,31 @@ export default function PaymentPage({
           }
         } catch (err) {
           console.warn("Geocoding failed:", err);
-          setLocationStatus("Could not resolve address automatically");
+            setCoords({ lat, lon });
+            setLocationStatus("GPS coordinates captured. Please enter your service address.");
         } finally {
           setIsDetectingLocation(false);
         }
       },
       () => {
         setIsDetectingLocation(false);
-        setLocationStatus("GPS permission was denied");
+        setLocationStatus("Location permission was denied. Enable location or enter and select a service address before requesting service.");
       },
       { timeout: 10000, enableHighAccuracy: true },
     );
+  };
+
+  const resolveManualAddress = async () => {
+    if (coords || address.trim().length < 5) return;
+    try {
+      const response = await fetch(`/api/location/search?query=${encodeURIComponent(address.trim())}`);
+      const match = (await response.json()).suggestions?.find((item) => Number.isFinite(Number(item.lat)) && Number.isFinite(Number(item.lon)));
+      if (match) {
+        setAddress(match.formattedAddress);
+        setCoords({ lat: Number(match.lat), lon: Number(match.lon) });
+        setLocationStatus("Service address matched. You can request a professional.");
+      } else setLocationStatus("We could not map that address. Enable location or enter a more specific address.");
+    } catch { setLocationStatus("We could not map that address. Enable location or enter a more specific address."); }
   };
 
   // Execute payment & create real order
@@ -407,6 +495,8 @@ export default function PaymentPage({
       if (onAuthRequired) onAuthRequired();
       return;
     }
+    const currentCoords = coords || (user?.latitude && user?.longitude ? { lat: Number(user.latitude), lon: Number(user.longitude) } : { lat: 28.6139, lon: 77.2090 });
+    const currentAddress = (address && address.trim()) || user?.address || "Flat 402, Green Glen Heights, " + initialLocation;
 
     setIsProcessing(true);
 
@@ -430,14 +520,14 @@ export default function PaymentPage({
         category: service?.category || "Home Cleaning",
         priority: "High",
         description: `Service booking for ${service?.name || "Home Service"} (${selectedPackage}) on ${selectedDate} (${selectedTime})`,
-        address: address,
-        latitude: coords.lat || 28.6139,
-        longitude: coords.lon || 77.209,
+        address: currentAddress,
+        latitude: currentCoords.lat,
+        longitude: currentCoords.lon,
         service_name: service?.name || "Home Service",
         service_slug: service?.slug || "home-cleaning",
         service_image:
           service?.image ||
-          "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=400&q=85",
+          FALLBACK_SERVICE_IMAGE,
         scheduled_date: selectedDate,
         scheduled_time: selectedTime,
         package_name: selectedPackage,
@@ -447,53 +537,67 @@ export default function PaymentPage({
       });
       createdRecord = res.data;
     } catch (err) {
-      console.warn("Backend request error:", err);
+      setIsProcessing(false);
+      setLocationStatus(err.response?.data?.error || "We could not create the service request.");
+      return;
     }
 
-    setTimeout(() => {
-      setIsProcessing(false);
-      const orderId =
-        createdRecord?.id || `AY-${Math.floor(10000 + Math.random() * 90000)}`;
+    setIsProcessing(false);
+    const orderId = createdRecord.id;
 
-      const assignedTech = createdRecord?.technician || {
-        id: "assigned-tech",
-        name: "Verified Professional",
-        rating: "4.8",
-        reviews: "50+",
-        experience: "Certified",
-        phone: "+91 98000 00000",
-        avatar:
-          "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80",
-      };
-
-      const orderData = {
+    const orderData = {
         id: orderId,
         orderId: orderId,
-        serviceName: service?.name || "Home Cleaning",
-        category: service?.category || "Home Care",
+        serviceName: createdRecord.serviceName || service?.name || "Home Service",
+        category: createdRecord.category || service?.category || "Home Service",
         package: selectedPackage,
-        image:
-          service?.image ||
-          "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=400&q=85",
-        slug: service?.slug || "home-cleaning",
-        scheduledDate: selectedDate,
-        scheduledTime: selectedTime,
-        address: address,
-        price: `₹${basePrice}`,
-        totalPaid: `₹${totalAmount}`,
+        image: createdRecord.image || service?.image || FALLBACK_SERVICE_IMAGE,
+        slug: createdRecord.slug || service?.slug || "home-cleaning",
+        scheduledDate: createdRecord.scheduledDate || selectedDate,
+        scheduledTime: createdRecord.scheduledTime || selectedTime,
+        address: createdRecord.address || currentAddress,
+        price: createdRecord.price || `₹${basePrice}`,
+        totalPaid: createdRecord.totalPaid || `₹${totalAmount}`,
         customerName: user?.name || "Valued Customer",
         paymentMethod: paymentMethodLabel,
         paymentMethodUsed: paymentMethodLabel,
-        status: "Confirmed",
-        statusStep: 2,
-        technician: assignedTech,
+        status: createdRecord.status || "Searching for nearby professionals",
+        statusStep: createdRecord.statusStep || 1,
+        technician: null,
+        nearbyProfessionals: createdRecord.nearbyProfessionals || [],
+        dispatchMessage: createdRecord.dispatchMessage || "Professionals in your area have been notified.",
         createdAt: new Date().toISOString(),
-      };
+    };
 
-      setConfirmedOrder(orderData);
-      setIsConfirmed(true);
-      onOrderCreated?.(orderData);
-    }, 1200);
+    setConfirmedOrder(orderData);
+    setIsConfirmed(true);
+    try {
+      sessionStorage.removeItem("argent_checkout_booking");
+      localStorage.removeItem("argent_checkout_booking");
+      sessionStorage.removeItem("argent_pending_booking");
+      localStorage.removeItem("argent_pending_booking");
+    } catch {}
+    onOrderCreated?.(orderData);
+  };
+
+  const increaseOffer = async (amount) => {
+    if (!confirmedOrder?.id) return;
+    try {
+      const response = await api.post(`/requests/${confirmedOrder.id}/increase-offer`, { offerAmount: amount });
+      setConfirmedOrder((current) => ({ ...current, price: `₹${amount}`, status: "Searching for professional", dispatchMessage: response.data.dispatch?.success ? "Updated offer sent to nearby professionals." : "No available professional found within 15 km." }));
+    } catch (error) {
+      setConfirmedOrder((current) => ({ ...current, dispatchMessage: error.response?.data?.error || "Could not update the service offer." }));
+    }
+  };
+
+  const cancelPendingRequest = async () => {
+    if (!confirmedOrder?.id) return;
+    try {
+      await api.post(`/requests/${confirmedOrder.id}/cancel`);
+      setConfirmedOrder((current) => ({ ...current, status: "Request cancelled", dispatchMessage: "Your request was cancelled." }));
+    } catch {
+      setConfirmedOrder((current) => ({ ...current, dispatchMessage: "Could not cancel the request. Please try again." }));
+    }
   };
 
   // --- POST-PAYMENT: ORDER CONFIRMATION VIEW ---
@@ -508,7 +612,7 @@ export default function PaymentPage({
                 <CheckCircle2 className="h-10 w-10 text-white" />
               </div>
               <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
-                Payment Successful & Booking Confirmed!
+                Booking Confirmed ✓
               </h1>
               <p className="text-emerald-100 text-xs sm:text-sm font-medium">
                 Order ID:{" "}
@@ -521,14 +625,15 @@ export default function PaymentPage({
               {/* Service Card */}
               <div className="flex items-center gap-4 rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
                 <img
-                  src={confirmedOrder.image}
+                  src={confirmedOrder.image || FALLBACK_SERVICE_IMAGE}
                   alt={confirmedOrder.serviceName}
                   className="h-16 w-16 rounded-xl object-cover border border-slate-200 shrink-0"
+                  onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = FALLBACK_SERVICE_IMAGE; }}
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
-                      Confirmed
+                      {confirmedOrder.status}
                     </span>
                     <span className="text-[11px] font-semibold text-slate-500">
                       {confirmedOrder.package}
@@ -577,8 +682,8 @@ export default function PaymentPage({
                 </div>
               </div>
 
-              {/* Assigned Technician */}
-              <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4 space-y-3">
+              {/* Live dispatch status. No placeholder professional is shown. */}
+              {confirmedOrder.technician ? <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
                     Assigned Professional
@@ -607,7 +712,11 @@ export default function PaymentPage({
                     </div>
                   </div>
                 </div>
-              </div>
+              </div> : <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-bold text-emerald-950"><RefreshCw className="h-4 w-4 animate-spin" /> Finding nearby professionals...</div>
+                <p className="text-xs text-slate-600">{confirmedOrder.dispatchMessage || "Professionals notified. Waiting for acceptance."}</p>
+                {confirmedOrder.nearbyProfessionals?.length > 0 ? <div className="space-y-2">{confirmedOrder.nearbyProfessionals.map((pro) => <div key={pro.id} className="flex items-center gap-3 rounded-xl bg-white/80 p-2.5 text-xs"><div className="h-9 w-9 rounded-full bg-emerald-100 flex items-center justify-center font-black text-emerald-800">{pro.avatar ? <img src={pro.avatar} alt="" className="h-9 w-9 rounded-full object-cover" /> : pro.name?.slice(0, 1)}</div><div className="min-w-0 flex-1"><p className="font-bold text-slate-900 truncate">{pro.name}</p><p className="text-slate-500">{pro.category} · {pro.distanceKm} km · ★ {pro.rating}</p></div><div className="text-right text-slate-500"><p>Verified</p><p>~{pro.etaMinutes} min</p></div></div>)}</div> : <div className="space-y-2"><p className="rounded-xl bg-white/80 p-3 text-xs font-semibold text-slate-600">No professional accepted the request yet. You can wait, cancel, or increase your offer.</p><div className="flex flex-wrap gap-2">{[50, 100, 150].map((extra) => { const amount = Number(String(confirmedOrder.price).replace(/[^0-9.]/g, "")) + extra; return <button type="button" key={amount} onClick={() => increaseOffer(amount)} className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-bold text-emerald-800">₹{amount}</button>; })}<button type="button" onClick={cancelPendingRequest} className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-bold text-red-700">Cancel request</button></div></div>}
+              </div>}
 
               {/* Action Buttons */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
@@ -688,11 +797,11 @@ export default function PaymentPage({
               <div className="flex gap-4 items-center">
                 <img
                   src={
-                    service?.image ||
-                    "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=300&q=85"
+                    service?.image || FALLBACK_SERVICE_IMAGE
                   }
                   alt={service?.name || "Service"}
                   className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl object-cover border border-slate-200 shrink-0 shadow-2xs"
+                  onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = FALLBACK_SERVICE_IMAGE; }}
                 />
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex items-center gap-2">
@@ -720,22 +829,18 @@ export default function PaymentPage({
                     Service Date
                   </label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {[
-                      "Tue, 24 Sep 2026",
-                      "Wed, 25 Sep 2026",
-                      "Thu, 26 Sep 2026",
-                    ].map((date) => (
+                    {serviceDates.map((date) => (
                       <button
-                        key={date}
+                        key={date.value}
                         type="button"
-                        onClick={() => setSelectedDate(date)}
+                        onClick={() => setSelectedDate(date.value)}
                         className={`py-2 px-3 rounded-xl border text-center text-xs font-bold transition-all ${
-                          selectedDate === date
+                          selectedDate === date.value
                             ? "border-emerald-700 bg-emerald-50/70 text-emerald-900 shadow-2xs"
                             : "border-slate-200 text-slate-600 hover:bg-slate-50"
                         }`}
                       >
-                        {date}
+                        {date.label}
                       </button>
                     ))}
                   </div>
@@ -747,11 +852,22 @@ export default function PaymentPage({
                     Service Time Slot
                   </label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {[
-                      "10:00 AM – 12:00 PM",
-                      "1:00 PM – 3:00 PM",
-                      "4:00 PM – 6:00 PM",
-                    ].map((slot) => (
+                    {(() => {
+                      const isToday = selectedDate === serviceDates[0]?.value;
+                      if (!isToday) return serviceSlots;
+                      const now = new Date();
+                      const futureSlots = serviceSlots.filter((slot) => {
+                        if (slot === service?.selectedTime) return true;
+                        const match = slot.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+                        if (!match) return true;
+                        let hour = Number(match[1]) % 12;
+                        if (match[3].toUpperCase() === "PM") hour += 12;
+                        const start = new Date();
+                        start.setHours(hour, Number(match[2]), 0, 0);
+                        return start > now;
+                      });
+                      return futureSlots.length > 0 ? futureSlots : serviceSlots;
+                    })().map((slot) => (
                       <button
                         key={slot}
                         type="button"
@@ -797,6 +913,7 @@ export default function PaymentPage({
                       type="text"
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
+                      onBlur={resolveManualAddress}
                       placeholder="Enter flat / house no., street, area, city"
                       className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-3 text-xs text-slate-900 outline-none focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700 bg-white"
                     />

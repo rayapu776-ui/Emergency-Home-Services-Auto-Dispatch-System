@@ -510,7 +510,7 @@ function ServiceCategoryPage({ name, onNavigate }) {
                 A carefully scoped option with clear pricing, flexible
                 scheduling, and a vetted Argent Your professional.
               </p>
-              <p className="mt-5 font-bold">From ${29 + index * 20}</p>
+              <p className="mt-5 font-bold">From ₹{749 + index * 250}</p>
               <button
                 onClick={() => onNavigate(`/services/${name}-essential`)}
                 className="mt-5 rounded-xl bg-slate-950 px-4 py-3 text-xs font-bold text-white"

@@ -12,6 +12,9 @@ import {
   X,
   Zap,
 } from "lucide-react";
+
+const FALLBACK_SERVICE_IMAGE =
+  "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=900&q=85";
 import { allServicesCatalog } from "../data/servicesData";
 
 const CATEGORY_DEFINITIONS = {
@@ -312,9 +315,10 @@ export default function CategoryViewPage({
         {/* Decorative Background Image Overlay */}
         <div className="absolute right-0 top-0 bottom-0 w-1/2 opacity-20 pointer-events-none hidden md:block">
           <img
-            src={categoryDef.image}
+            src={categoryDef.image || FALLBACK_SERVICE_IMAGE}
             alt={categoryDef.title}
             className="w-full h-full object-cover"
+            onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = FALLBACK_SERVICE_IMAGE; }}
           />
           <div className="absolute inset-0 bg-gradient-to-r from-[#0c1613] to-transparent" />
         </div>
@@ -421,9 +425,10 @@ export default function CategoryViewPage({
                     className="relative aspect-[1.3/1] w-full overflow-hidden rounded-xl bg-slate-100 cursor-pointer"
                   >
                     <img
-                      src={item.image}
+                      src={item.image || FALLBACK_SERVICE_IMAGE}
                       alt={item.name}
                       className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = FALLBACK_SERVICE_IMAGE; }}
                     />
                     <div className="absolute top-2.5 right-2.5 flex items-center gap-1 rounded-full bg-slate-900/80 backdrop-blur-xs px-2 py-0.5 text-[11px] font-black text-white shadow-xs">
                       <Star className="h-3 w-3 fill-amber-400 text-amber-400" />

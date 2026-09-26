@@ -106,16 +106,6 @@ export function AuthProvider({ children }) {
     return newUser;
   };
 
-  const demoLogin = async (role = "customer", category = "Plumbing") => {
-    const res = await api.post("/auth/demo-login", { role, category });
-    const { token: newToken, user: newUser } = res.data;
-    setToken(newToken);
-    setUser(newUser);
-    localStorage.setItem("emergency_token", newToken);
-    localStorage.setItem("emergency_user", JSON.stringify(newUser));
-    return newUser;
-  };
-
   const register = async (userData) => {
     const res = await api.post("/auth/register", userData);
     const { token: newToken, user: newUser } = res.data;
@@ -152,7 +142,6 @@ export function AuthProvider({ children }) {
         verifyCode,
         resendOtp,
         resendCode,
-        demoLogin,
         register,
         logout,
         updateUser,
