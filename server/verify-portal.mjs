@@ -190,15 +190,15 @@ async function runTests() {
     const custToken = custReg.data.token;
 
     const reqRes = await axios.post(
-      `${API}/requests/book-instantly`,
+      `${API}/requests`,
       {
         category: "Electrical",
-        serviceName: "Emergency Wiring Repair",
+        service_name: "Emergency Wiring Repair",
         description: "Sparking switchboard in kitchen",
         address: "South Extension Part 2, New Delhi",
-        lat: 28.5678,
-        lon: 77.2189,
-        paymentMethod: "UPI",
+        latitude: 28.5678,
+        longitude: 77.2189,
+        payment_method: "UPI",
         price: "799",
       },
       { headers: { Authorization: `Bearer ${custToken}` } }
