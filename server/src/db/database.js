@@ -117,8 +117,6 @@ export async function initDb() {
     { col: "bank_ifsc", type: "TEXT" },
     { col: "bank_verification_status", type: "TEXT DEFAULT 'Not Connected'" },
     { col: "payout_status", type: "TEXT DEFAULT 'Active'" },
-    { col: "additional_categories", type: "TEXT" },
-    { col: "work_proofs", type: "TEXT" },
   ];
 
   for (const { col, type } of techColumnsToAdd) {

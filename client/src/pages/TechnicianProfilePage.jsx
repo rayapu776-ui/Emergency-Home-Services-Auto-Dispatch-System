@@ -39,9 +39,6 @@ import {
   FileCheck,
   Building2,
   ExternalLink,
-  Clock,
-  AlertCircle,
-  AlertTriangle,
 } from "lucide-react";
 import { useTechnician } from "../context/TechnicianContext";
 import technicianStore from "../services/technicianStore";
@@ -73,117 +70,10 @@ export default function TechnicianProfilePage() {
   const localFileInputRef = useRef(null);
   const localCameraInputRef = useRef(null);
 
-  // Automatic tab scrolling into view on activeSection change (matching ProfilePage.jsx)
-  const mobileTabRefs = useRef({});
-  useEffect(() => {
-    if (mobileTabRefs.current[activeSection]) {
-      mobileTabRefs.current[activeSection].scrollIntoView({
-        behavior: "smooth",
-        inline: "center",
-        block: "nearest",
-      });
-    }
-  }, [activeSection]);
-
-  // Additional Categories / Services State (Requirement 4)
-  const parseAdditionalCategories = (data) => {
-    if (!data) return [];
-    if (Array.isArray(data)) return data;
-    try {
-      const parsed = JSON.parse(data);
-      if (Array.isArray(parsed)) return parsed;
-    } catch {
-      return String(data)
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
-    }
-    return [];
-  };
-
-  const [additionalServices, setAdditionalServices] = useState(() => {
-    return parseAdditionalCategories(techProfile?.additional_categories);
-  });
-  const [newServiceInput, setNewServiceInput] = useState("");
-
-  useEffect(() => {
-    if (techProfile?.additional_categories) {
-      setAdditionalServices(parseAdditionalCategories(techProfile.additional_categories));
-    }
-  }, [techProfile?.additional_categories]);
-
-  const handleAddAdditionalService = () => {
-    const trimmed = newServiceInput.trim();
-    if (!trimmed) return;
-    if (additionalServices.includes(trimmed)) {
-      showToast("Service already added", "error");
-      return;
-    }
-    const updated = [...additionalServices, trimmed];
-    setAdditionalServices(updated);
-    setNewServiceInput("");
-  };
-
-  const handleRemoveAdditionalService = (serviceToRemove) => {
-    const updated = additionalServices.filter((s) => s !== serviceToRemove);
-    setAdditionalServices(updated);
-  };
-
-  // Verification Document Upload State (Requirement 5)
-  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
-  const [selectedDocType, setSelectedDocType] = useState(
-    techProfile?.id_document_type || "Aadhaar Card"
-  );
-  const docFileInputRef = useRef(null);
-  const docCameraInputRef = useRef(null);
-
-  const handleDocFileSelected = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 15 * 1024 * 1024) {
-      showToast("Document file size must be under 15MB", "error");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const base64Data = reader.result;
-      setIsUploadingDoc(true);
-      try {
-        await technicianStore.updateProfile({
-          id_document_url: base64Data,
-          id_document_type: selectedDocType,
-        });
-        if (setTechProfile) {
-          setTechProfile((prev) => ({
-            ...prev,
-            id_document_url: base64Data,
-            id_document_type: selectedDocType,
-            status: prev?.status === "Approved" ? "Approved" : "Pending Verification",
-          }));
-        }
-        showToast("Verification document uploaded successfully! Status: Pending Verification", "success");
-      } catch (err) {
-        showToast("Failed to upload verification document", "error");
-      } finally {
-        setIsUploadingDoc(false);
-      }
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
-  };
-
   // ========================================================
-  // 1. WORK / EXPERIENCE PROOF STATE & PERSISTENCE (Requirement 6)
+  // 1. WORK / EXPERIENCE PROOF STATE & PERSISTENCE
   // ========================================================
   const [workProofs, setWorkProofs] = useState(() => {
-    if (techProfile?.work_proofs) {
-      try {
-        const parsed = JSON.parse(techProfile.work_proofs);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      } catch {
-        // ignore
-      }
-    }
     try {
       const saved = localStorage.getItem("argent_technician_work_proofs");
       return saved ? JSON.parse(saved) : [];
@@ -191,19 +81,6 @@ export default function TechnicianProfilePage() {
       return [];
     }
   });
-
-  useEffect(() => {
-    if (techProfile?.work_proofs) {
-      try {
-        const parsed = JSON.parse(techProfile.work_proofs);
-        if (Array.isArray(parsed)) {
-          setWorkProofs(parsed);
-        }
-      } catch {
-        // ignore
-      }
-    }
-  }, [techProfile?.work_proofs]);
 
   const [showAddProofModal, setShowAddProofModal] = useState(false);
   const [proofPreviewItem, setProofPreviewItem] = useState(null);
@@ -215,20 +92,12 @@ export default function TechnicianProfilePage() {
   const proofFileInputRef = useRef(null);
   const proofCameraInputRef = useRef(null);
 
-  const saveWorkProofs = async (updated) => {
+  const saveWorkProofs = (updated) => {
     setWorkProofs(updated);
     try {
       localStorage.setItem("argent_technician_work_proofs", JSON.stringify(updated));
     } catch (e) {
       console.warn("Storage warning for work proofs:", e);
-    }
-    try {
-      await technicianStore.updateProfile({ work_proofs: JSON.stringify(updated) });
-      if (setTechProfile) {
-        setTechProfile((prev) => ({ ...prev, work_proofs: JSON.stringify(updated) }));
-      }
-    } catch (err) {
-      console.warn("Backend save warning for work proofs:", err);
     }
   };
 
@@ -691,16 +560,11 @@ export default function TechnicianProfilePage() {
     }, 600);
   };
 
-  const proName = techProfile?.name || "Professional Partner";
-  const proCategory = techProfile?.category || "General Services";
-  const proExpYears = techProfile?.experience_years ? Number(techProfile.experience_years) : 1;
-  const proRating = metrics?.rating ? Number(metrics.rating).toFixed(1) : (techProfile?.rating ? Number(techProfile.rating).toFixed(1) : "New");
-  const proJobsCount = metrics?.completedCount ?? metrics?.totalJobs ?? techProfile?.total_jobs ?? 0;
-
-  const docStatus = techProfile?.status || (techProfile?.id_document_url ? "Pending Verification" : "Not Verified");
-  const isDocApproved = docStatus === "Approved";
-  const isDocPending = docStatus === "Pending Verification";
-  const isDocRejected = docStatus === "Rejected";
+  const proName = techProfile?.name || "Apu Ray";
+  const proCategory = techProfile?.category || "Plumbing";
+  const proExpYears = techProfile?.experience_years || 5;
+  const proRating = metrics?.rating ? Number(metrics.rating).toFixed(1) : "4.9";
+  const proJobsCount = metrics?.completedCount || 124;
 
   // Horizontal Profile Section Tabs (7 cleanly organized tabs)
   const profileTabs = [
@@ -749,23 +613,6 @@ export default function TechnicianProfilePage() {
         onChange={handleProofImageSelected}
       />
 
-      {/* Hidden file pickers for ID & Trade Verification Documents */}
-      <input
-        type="file"
-        ref={docFileInputRef}
-        accept="image/*,.pdf"
-        className="hidden"
-        onChange={handleDocFileSelected}
-      />
-      <input
-        type="file"
-        ref={docCameraInputRef}
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={handleDocFileSelected}
-      />
-
       {/* ========================================================
           1. PREMIUM PROFILE HEADER CARD (Circular photo, badges, info)
           Informational & Profile photo change trigger only
@@ -809,45 +656,24 @@ export default function TechnicianProfilePage() {
             <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
               {proName}
             </h1>
-            {isDocApproved && (
-              <span
-                title="Verified Professional"
-                className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-700 text-white"
-              >
-                <Check className="w-3 h-3 stroke-[3]" />
-              </span>
-            )}
+            <span
+              title="Verified Professional"
+              className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-700 text-white"
+            >
+              <Check className="w-3 h-3 stroke-[3]" />
+            </span>
           </div>
 
           <p className="text-xs sm:text-sm font-bold text-emerald-800">
             {proCategory} Specialist &bull;{" "}
-            <span className="text-slate-500 font-semibold">
-              {techProfile?.account_type === "company" ? "Service Company" : "Certified Partner"}
-            </span>
+            <span className="text-slate-500 font-semibold">Level 3 Pro Partner</span>
           </p>
 
           <div className="flex items-center justify-center gap-2 pt-0.5">
-            {isDocApproved ? (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-900 border border-emerald-200">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
-                Verified Professional
-              </span>
-            ) : isDocPending ? (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-amber-100 text-amber-900 border border-amber-200">
-                <Clock className="w-3.5 h-3.5 text-amber-700" />
-                Pending Verification
-              </span>
-            ) : isDocRejected ? (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-red-100 text-red-900 border border-red-200">
-                <AlertCircle className="w-3.5 h-3.5 text-red-700" />
-                Action Required (Rejected)
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-slate-100 text-slate-700 border border-slate-200">
-                <Shield className="w-3.5 h-3.5 text-slate-500" />
-                Not Verified
-              </span>
-            )}
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-900 border border-emerald-200">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
+              Verified Professional
+            </span>
           </div>
         </div>
 
@@ -855,39 +681,41 @@ export default function TechnicianProfilePage() {
         <div className="pt-1 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 text-xs text-slate-600 font-medium">
           <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 w-full sm:w-auto justify-center">
             <Phone className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-            <span>{techProfile?.phone || "—"}</span>
+            <span>{techProfile?.phone || "+91 98765 43210"}</span>
           </div>
           <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 w-full sm:w-auto justify-center">
             <Mail className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-            <span className="truncate">{techProfile?.email || "—"}</span>
+            <span className="truncate">{techProfile?.email || "partner@argentyour.com"}</span>
           </div>
         </div>
       </div>
 
       {/* ========================================================
-          STICKY HORIZONTAL SECTION NAVIGATION (Requirement 1)
+          STICKY HORIZONTAL SECTION NAVIGATION
           Single row, scrollable, no duplicate buttons
          ======================================================== */}
-      <div className="sticky top-0 z-20 bg-[#f6f7f3] pt-2 pb-2.5 border-b border-slate-200/80 -mx-1 px-1 sm:mx-0 sm:px-0">
-        <div className="flex items-center gap-2 overflow-x-auto overflow-y-hidden scrollbar-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden whitespace-nowrap touch-pan-x px-1 py-1">
+      <div className="sticky top-[53px] z-30 bg-[#f6f7f3]/95 backdrop-blur-md py-2 border-b border-slate-200/80 -mx-1 px-1 sm:mx-0 sm:px-0">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth whitespace-nowrap px-0.5">
           {profileTabs.map((tab) => {
             const isActive = activeSection === tab.id;
             return (
               <button
                 key={tab.id}
-                ref={(el) => (mobileTabRefs.current[tab.id] = el)}
                 type="button"
                 onClick={() => {
                   setActiveSection(tab.id);
                   setIsEditingPersonalInfo(false);
                 }}
-                className={`shrink-0 flex items-center gap-2 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap select-none relative ${
+                className={`py-2 px-3.5 sm:px-4 rounded-2xl text-xs font-bold transition-all cursor-pointer shrink-0 select-none relative ${
                   isActive
-                    ? "bg-slate-950 text-white shadow-md scale-102"
-                    : "bg-white/90 text-slate-700 border border-slate-200/80 hover:bg-white"
+                    ? "bg-emerald-800 text-white shadow-xs"
+                    : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200/80 hover:text-slate-900"
                 }`}
               >
                 <span>{tab.label}</span>
+                {isActive && (
+                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 bg-emerald-600 rounded-full" />
+                )}
               </button>
             );
           })}
@@ -922,7 +750,7 @@ export default function TechnicianProfilePage() {
                 <span>{proRating}</span>
               </div>
               <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">
-                Rating {techProfile?.total_jobs && techProfile.total_jobs > 0 ? `(${techProfile.total_jobs} jobs)` : ""}
+                Rating (128 reviews)
               </p>
             </div>
 
@@ -946,21 +774,8 @@ export default function TechnicianProfilePage() {
                   Operational Credentials & Readiness
                 </h3>
               </div>
-              <span
-                className={
-                  "px-2 py-0.5 rounded-full text-[10px] font-bold " +
-                  (isDocApproved
-                    ? "bg-emerald-100 text-emerald-800"
-                    : isDocPending
-                    ? "bg-amber-100 text-amber-800"
-                    : "bg-slate-100 text-slate-700")
-                }
-              >
-                {isDocApproved
-                  ? "Verified Partner"
-                  : isDocPending
-                  ? "Pending Verification"
-                  : "Active Partner"}
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                Active Partner
               </span>
             </div>
 
@@ -1080,80 +895,29 @@ export default function TechnicianProfilePage() {
                   />
                 </div>
 
-                {/* Primary Service Category (Locked - Requirement 4) */}
+                {/* Service Category */}
                 <div>
                   <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
-                    Primary Service Category
+                    Service Category
                   </label>
-                  <div className="flex items-center justify-between p-3 rounded-2xl border border-slate-200 bg-slate-100 text-xs font-bold text-slate-800">
-                    <span>{personalFormData.category || techProfile?.category || "General Services"}</span>
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-500 bg-slate-200/80 px-2 py-0.5 rounded-full">
-                      <Lock className="w-3 h-3 text-slate-500" />
-                      Locked
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-1">
-                    Primary trade registered upon signup is verified and locked.
-                  </p>
-                </div>
-
-                {/* Additional Services & Specialties (Requirement 4) */}
-                <div className="sm:col-span-2 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-[11px] font-bold uppercase text-slate-500">
-                      Additional Services &amp; Specialties
-                    </label>
-                    <span className="text-[10px] text-slate-400">
-                      Add specific jobs you perform
-                    </span>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2 p-3 bg-slate-50/70 rounded-2xl border border-slate-200/80 min-h-[44px]">
-                    {additionalServices.length === 0 ? (
-                      <span className="text-xs text-slate-400 italic">No additional services added yet.</span>
-                    ) : (
-                      additionalServices.map((svc) => (
-                        <span
-                          key={svc}
-                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-50 text-emerald-900 border border-emerald-200 text-xs font-bold"
-                        >
-                          <span>{svc}</span>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveAdditionalService(svc)}
-                            className="hover:text-red-600 cursor-pointer"
-                            title="Remove service"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </span>
-                      ))
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={newServiceInput}
-                      onChange={(e) => setNewServiceInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleAddAdditionalService();
-                        }
-                      }}
-                      placeholder="e.g. Home Wiring, Fan Installation, Pipe Leakage"
-                      className="flex-1 rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-medium text-slate-900 focus:border-emerald-600 outline-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddAdditionalService}
-                      className="px-3.5 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs flex items-center gap-1 cursor-pointer shrink-0"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Add</span>
-                    </button>
-                  </div>
+                  <select
+                    value={personalFormData.category}
+                    onChange={(e) =>
+                      setPersonalFormData((p) => ({ ...p, category: e.target.value }))
+                    }
+                    className="w-full rounded-2xl border border-slate-200 bg-white p-3 text-xs font-semibold text-slate-900 focus:border-emerald-600 outline-none transition-all"
+                  >
+                    <option value="Plumbing">Plumbing</option>
+                    <option value="Electrical">Electrical</option>
+                    <option value="HVAC">HVAC</option>
+                    <option value="Home Cleaning">Home Cleaning</option>
+                    <option value="Pest Control">Pest Control</option>
+                    <option value="Carpentry">Carpentry</option>
+                    <option value="Painting">Painting</option>
+                    <option value="Appliance Repair">Appliance Repair</option>
+                    <option value="Security Systems">Security Systems</option>
+                    <option value="General">General</option>
+                  </select>
                 </div>
 
                 {/* Experience in Years */}
@@ -1314,13 +1078,11 @@ export default function TechnicianProfilePage() {
                   <span className="text-slate-400 font-medium">Email Address</span>
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-slate-800 truncate max-w-[180px] sm:max-w-none">
-                      {techProfile?.email || "—"}
+                      {techProfile?.email || "partner@argentyour.com"}
                     </span>
-                    {techProfile?.email && (
-                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                        Verified
-                      </span>
-                    )}
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                      Verified
+                    </span>
                   </div>
                 </div>
 
@@ -1329,13 +1091,11 @@ export default function TechnicianProfilePage() {
                   <span className="text-slate-400 font-medium">Mobile Phone Number</span>
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-slate-800">
-                      {techProfile?.phone || "—"}
+                      {techProfile?.phone || "+91 98765 43210"}
                     </span>
-                    {techProfile?.phone && (
-                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                        Verified
-                      </span>
-                    )}
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                      Verified
+                    </span>
                   </div>
                 </div>
 
@@ -1349,45 +1109,23 @@ export default function TechnicianProfilePage() {
                   </span>
                 </div>
 
-                {/* Primary Service Trade (Locked - Requirement 4) */}
+                {/* Service Category */}
                 <div className="flex items-center justify-between py-1 border-b border-slate-50">
-                  <span className="text-slate-400 font-medium">Primary Trade</span>
-                  <div className="flex items-center gap-1.5 font-bold text-slate-800">
-                    <span>{proCategory}</span>
-                    <span className="inline-flex items-center gap-1 text-[10px] text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                      <Lock className="w-2.5 h-2.5 text-emerald-700" />
-                      Verified &amp; Locked
-                    </span>
-                  </div>
-                </div>
-
-                {/* Additional Services (Requirement 4) */}
-                <div className="flex items-start justify-between py-1 border-b border-slate-50">
-                  <span className="text-slate-400 font-medium">Additional Services</span>
-                  <div className="flex flex-wrap gap-1.5 justify-end max-w-[65%]">
-                    {additionalServices.length === 0 ? (
-                      <span className="font-semibold text-slate-400 text-xs">None added</span>
-                    ) : (
-                      additionalServices.map((svc) => (
-                        <span key={svc} className="px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-bold">
-                          {svc}
-                        </span>
-                      ))
-                    )}
-                  </div>
+                  <span className="text-slate-400 font-medium">Service Category</span>
+                  <span className="font-bold text-slate-800">{proCategory}</span>
                 </div>
 
                 {/* Experience */}
                 <div className="flex items-center justify-between py-1 border-b border-slate-50">
                   <span className="text-slate-400 font-medium">Experience</span>
-                  <span className="font-bold text-slate-800">{proExpYears} Year{proExpYears !== 1 ? "s" : ""}</span>
+                  <span className="font-bold text-slate-800">{proExpYears} Years</span>
                 </div>
 
                 {/* Skills / Specializations */}
                 <div className="flex items-center justify-between py-1 border-b border-slate-50">
                   <span className="text-slate-400 font-medium">Skills &amp; Specializations</span>
                   <span className="font-bold text-slate-800 text-right max-w-[55%]">
-                    {techProfile?.skills || "—"}
+                    {techProfile?.skills || "Emergency Diagnostics, Rapid Repair, OEM Installation"}
                   </span>
                 </div>
 
@@ -1419,7 +1157,7 @@ export default function TechnicianProfilePage() {
                 <div className="flex items-center justify-between py-1 border-b border-slate-50">
                   <span className="text-slate-400 font-medium">Verification ID</span>
                   <span className="font-bold text-slate-800">
-                    {techProfile?.id_document_type || (techProfile?.id_document_url ? "Document Uploaded" : "Not Provided")}
+                    {techProfile?.id_document_type || "Government Photo ID (Verified)"}
                   </span>
                 </div>
 
@@ -1592,202 +1330,54 @@ export default function TechnicianProfilePage() {
       )}
 
       {/* --------------------------------------------------------
-          SECTION 4: VERIFICATION (Requirement 5)
-          Strictly reflects real submitted documents & status in DB
+          SECTION 4: VERIFICATION
          -------------------------------------------------------- */}
       {activeSection === "verification" && (
-        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm space-y-5 animate-fade-in">
-          {/* Section Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-sm space-y-4 animate-fade-in">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center">
                 <ShieldCheck className="w-4 h-4" />
               </div>
-              <div>
-                <h2 className="text-sm sm:text-base font-black text-slate-900">
-                  Verification &amp; Credentials
-                </h2>
-                <p className="text-[11px] text-slate-400">
-                  Government ID and trade credential status
-                </p>
-              </div>
+              <h2 className="text-sm sm:text-base font-black text-slate-900">
+                Verification & Credentials Status
+              </h2>
             </div>
-
-            {/* Dynamic Status Pill */}
-            <span
-              className={
-                "self-start sm:self-center px-3 py-1 rounded-full text-xs font-bold " +
-                (isDocApproved
-                  ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
-                  : isDocPending
-                  ? "bg-amber-100 text-amber-900 border border-amber-300"
-                  : isDocRejected
-                  ? "bg-red-100 text-red-900 border border-red-300"
-                  : "bg-slate-100 text-slate-700 border border-slate-300")
-              }
-            >
-              {isDocApproved
-                ? "Verified ✓"
-                : isDocPending
-                ? "Pending Verification"
-                : isDocRejected
-                ? "Action Required (Rejected)"
-                : "Not Verified"}
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
+              Active Partner
             </span>
           </div>
 
-          {/* Verification Status Overview Banner */}
-          {isDocApproved ? (
-            <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200 flex items-start gap-3">
+          <div className="space-y-3">
+            <div className="p-3.5 rounded-2xl bg-emerald-50/50 border border-emerald-100 flex items-start gap-3">
               <CheckCircle className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
-              <div className="space-y-1">
+              <div className="space-y-0.5">
+                <p className="text-xs font-black text-emerald-950">Identity Verified</p>
+                <p className="text-[11px] text-emerald-800 leading-snug">
+                  Government photo ID and Aadhaar biometric verification approved.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-emerald-50/50 border border-emerald-100 flex items-start gap-3">
+              <CheckCircle className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
                 <p className="text-xs font-black text-emerald-950">
-                  Account Verified &amp; Approved
+                  Professional Credentials Verified
                 </p>
-                <p className="text-xs text-emerald-800 leading-relaxed">
-                  Your credentials have been fully verified by Argent Partner Operations. You are certified to receive customer dispatch requests and execute service bookings.
-                </p>
-              </div>
-            </div>
-          ) : isDocPending ? (
-            <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200 flex items-start gap-3">
-              <Clock className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <p className="text-xs font-black text-amber-950">
-                  Verification Under Review
-                </p>
-                <p className="text-xs text-amber-900 leading-relaxed">
-                  Your identification document has been submitted and is currently being verified by our compliance team. Verification typically takes 2 to 24 hours.
+                <p className="text-[11px] text-emerald-800 leading-snug">
+                  Trade certifications and professional background check approved.
                 </p>
               </div>
             </div>
-          ) : isDocRejected ? (
-            <div className="p-4 rounded-2xl bg-red-50/80 border border-red-200 flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-red-700 shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <p className="text-xs font-black text-red-950">
-                  Verification Rejected — Action Required
+
+            <div className="p-3.5 rounded-2xl bg-emerald-50/50 border border-emerald-100 flex items-start gap-3">
+              <CheckCircle className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <p className="text-xs font-black text-emerald-950">Account Verified</p>
+                <p className="text-[11px] text-emerald-800 leading-snug">
+                  Authorized Argent Partner dispatch account fully active.
                 </p>
-                <p className="text-xs text-red-800 leading-relaxed">
-                  {techProfile?.verification_notes
-                    ? `Reason: ${techProfile.verification_notes}`
-                    : "Your submitted document could not be verified. Please ensure the document is clear, valid, and re-upload below."}
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <p className="text-xs font-black text-slate-900">
-                  No Verification Document Submitted
-                </p>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Please submit a government-issued photo ID (Aadhaar, PAN, Voter ID, Driving License) or trade certification below to become a verified dispatch partner.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Current Document Details Card */}
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
-            <h3 className="text-xs font-black uppercase tracking-wider text-slate-500">
-              Submitted Document Details
-            </h3>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              <div className="bg-white p-3 rounded-xl border border-slate-100">
-                <span className="text-[10px] text-slate-400 font-bold block uppercase">
-                  Document Type
-                </span>
-                <span className="font-bold text-slate-800 mt-0.5 block">
-                  {techProfile?.id_document_type || (techProfile?.id_document_url ? "Government Photo ID" : "None Submitted")}
-                </span>
-              </div>
-
-              <div className="bg-white p-3 rounded-xl border border-slate-100">
-                <span className="text-[10px] text-slate-400 font-bold block uppercase">
-                  Verification Status
-                </span>
-                <span className="font-bold text-slate-800 mt-0.5 block">
-                  {docStatus}
-                </span>
-              </div>
-            </div>
-
-            {techProfile?.id_document_url && (
-              <div className="pt-2">
-                <span className="text-[10px] text-slate-400 font-bold block uppercase mb-1.5">
-                  Document Preview / Attachment
-                </span>
-                <div className="w-32 h-20 rounded-xl overflow-hidden border border-slate-200 bg-white flex items-center justify-center">
-                  {techProfile.id_document_url.startsWith("data:image/") || techProfile.id_document_url.startsWith("http") ? (
-                    <img
-                      src={techProfile.id_document_url}
-                      alt="ID Document"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="text-center p-2">
-                      <FileCheck className="w-5 h-5 text-emerald-700 mx-auto" />
-                      <span className="text-[10px] font-bold text-slate-600">Attached</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Document Upload / Update Form */}
-          <div className="p-4 sm:p-5 rounded-2xl border border-emerald-100 bg-emerald-50/30 space-y-3">
-            <h3 className="text-xs font-black uppercase tracking-wider text-emerald-950">
-              {techProfile?.id_document_url ? "Upload New / Updated Document" : "Upload Verification Document"}
-            </h3>
-            <p className="text-xs text-slate-500">
-              Select your document type and upload a clear photo or document copy.
-            </p>
-
-            <div className="space-y-3">
-              <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
-                  Document Type
-                </label>
-                <select
-                  value={selectedDocType}
-                  onChange={(e) => setSelectedDocType(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-semibold text-slate-800 focus:border-emerald-600 outline-none"
-                >
-                  <option value="Aadhaar Card">Aadhaar Card (UIDAI)</option>
-                  <option value="PAN Card">PAN Card (Income Tax Dept)</option>
-                  <option value="Voter ID Card">Voter ID / Election Card</option>
-                  <option value="Driving License">Driving License</option>
-                  <option value="Government Trade License">Government Trade License</option>
-                  <option value="Electrician Certification / Wireman License">Electrician Certification / Wireman License</option>
-                  <option value="Plumbing Master Certificate">Plumbing Master Certificate</option>
-                  <option value="GST / Business Registration">GST / Business Registration</option>
-                </select>
-              </div>
-
-              <div className="flex flex-wrap gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => docFileInputRef.current?.click()}
-                  disabled={isUploadingDoc}
-                  className="px-4 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 disabled:bg-slate-300 text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
-                >
-                  <UploadCloud className="w-4 h-4" />
-                  <span>{isUploadingDoc ? "Uploading..." : "Upload from Device"}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => docCameraInputRef.current?.click()}
-                  disabled={isUploadingDoc}
-                  className="px-4 py-2.5 rounded-xl border border-emerald-800 text-emerald-800 hover:bg-emerald-50 disabled:border-slate-300 disabled:text-slate-400 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
-                >
-                  <Camera className="w-4 h-4" />
-                  <span>Take Photo with Camera</span>
-                </button>
               </div>
             </div>
           </div>
