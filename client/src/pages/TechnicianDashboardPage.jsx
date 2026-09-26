@@ -13,6 +13,7 @@ import {
   Phone,
   ShieldCheck,
   Power,
+  User,
 } from "lucide-react";
 import { useTechnician } from "../context/TechnicianContext";
 
@@ -320,25 +321,40 @@ export default function TechnicianDashboardPage() {
                 <h3 className="text-xs font-black uppercase tracking-wider text-slate-600">
                   Profile Status
                 </h3>
-                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
-                  Level 2 Verified
+                <span
+                  className={
+                    "text-[10px] font-bold px-2 py-0.5 rounded-full " +
+                    (techProfile?.status === "Approved"
+                      ? "text-emerald-700 bg-emerald-50 border border-emerald-200"
+                      : techProfile?.status === "Rejected"
+                      ? "text-red-700 bg-red-50 border border-red-200"
+                      : "text-amber-800 bg-amber-50 border border-amber-200")
+                  }
+                >
+                  {techProfile?.status === "Approved"
+                    ? "Verified ✓"
+                    : techProfile?.status || "Pending Verification"}
                 </span>
               </div>
 
               <div className="flex flex-col items-center gap-2 py-2">
-                <img
-                  src={
-                    techProfile?.avatar ||
-                    "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80"
-                  }
-                  alt={techProfile?.name || "Technician"}
-                  className="w-16 h-16 rounded-2xl object-cover border-2 border-emerald-500/40 shadow-xs"
-                />
+                <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-emerald-500/40 shadow-xs bg-emerald-50 flex items-center justify-center">
+                  {techProfile?.avatar ? (
+                    <img
+                      src={techProfile.avatar}
+                      alt={techProfile.name || "Technician"}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <User className="w-8 h-8 text-emerald-800" />
+                  )}
+                </div>
                 <h4 className="text-sm font-black text-slate-900">
                   {techProfile?.name || "Professional Partner"}
                 </h4>
                 <p className="text-xs text-emerald-700 font-bold">
-                  {techProfile?.category || "Specialist"} • Partner ID #{techProfile?.id || "TECH-101"}
+                  {techProfile?.category || "General"}
+                  {techProfile?.id ? ` • ID #${String(techProfile.id).slice(0, 8)}` : ""}
                 </p>
               </div>
 

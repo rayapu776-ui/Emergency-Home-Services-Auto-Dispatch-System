@@ -148,15 +148,15 @@ export default function TechnicianEarningsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
             <div>
               <p className="text-slate-400 font-bold uppercase text-[10px]">Bank Name</p>
-              <p className="font-bold text-slate-800 mt-0.5">{bankAccount.bankName || "HDFC Bank"}</p>
+              <p className="font-bold text-slate-800 mt-0.5">{bankAccount.bankName || "—"}</p>
             </div>
             <div>
               <p className="text-slate-400 font-bold uppercase text-[10px]">Account Number</p>
-              <p className="font-bold text-slate-800 font-mono mt-0.5">{bankAccount.accountNumberMasked || "•••• •••• 8821"}</p>
+              <p className="font-bold text-slate-800 font-mono mt-0.5">{bankAccount.accountNumberMasked || "—"}</p>
             </div>
             <div>
               <p className="text-slate-400 font-bold uppercase text-[10px]">IFSC Code</p>
-              <p className="font-bold text-slate-800 font-mono mt-0.5">{bankAccount.ifsc || "HDFC0001234"}</p>
+              <p className="font-bold text-slate-800 font-mono mt-0.5">{bankAccount.ifsc || "—"}</p>
             </div>
           </div>
         ) : (
@@ -206,7 +206,7 @@ export default function TechnicianEarningsPage() {
               >
                 <div className="space-y-1">
                   <p className="font-bold text-slate-900">
-                    {payout.title || `Payout #${payout.id || idx + 101}`}
+                    {payout.title || `Payout #${payout.id ? String(payout.id).slice(0, 8) : idx + 101}`}
                   </p>
                   <p className="text-slate-400 text-[11px]">
                     {payout.date || payout.created_at || "Recent transfer"} • Direct IMPS Deposit
@@ -214,7 +214,7 @@ export default function TechnicianEarningsPage() {
                 </div>
                 <div className="text-right">
                   <p className="font-black text-emerald-800 text-sm">
-                    +₹{payout.amount || "499"}
+                    +₹{(Number(payout.amount) || 0).toLocaleString("en-IN")}
                   </p>
                   <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
                     {payout.status || "Settled"}

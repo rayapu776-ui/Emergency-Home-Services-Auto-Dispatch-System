@@ -112,16 +112,25 @@ export function TechnicianProvider({ children, onLogout }) {
     try {
       const data = await technicianStore.getDashboardSummary();
 
-      // Merge locally saved profile data so edits are never overwritten by server on reload
-      let mergedTechnician = data.technician;
-      try {
-        const savedProfile = localStorage.getItem("argent_technician_profile");
-        if (savedProfile) {
-          const localProfile = JSON.parse(savedProfile);
-          mergedTechnician = { ...data.technician, ...localProfile };
+      // Server database is the single source of truth across all devices
+      if (data.technician) {
+        setTechProfile(data.technician);
+        try {
+          localStorage.setItem("argent_technician_profile", JSON.stringify(data.technician));
+          const existingUser = JSON.parse(localStorage.getItem("argent_technician_user") || "{}");
+          localStorage.setItem(
+            "argent_technician_user",
+            JSON.stringify({
+              ...existingUser,
+              ...data.technician,
+              avatar: data.technician.avatar || existingUser.avatar,
+              technician: data.technician,
+            })
+          );
+        } catch {
+          // ignore storage error
         }
-      } catch { /* ignore */ }
-      setTechProfile(mergedTechnician);
+      }
 
       // Sync online status: localStorage is the source of truth (prevents server lag from reverting)
       const savedOnline = localStorage.getItem("argent_technician_online");

@@ -285,16 +285,20 @@ export default function createTechnicianRouter(io) {
         [req.user.id],
       );
 
+      const techVerificationStatus =
+        tech.status ||
+        (tech.id_document_url ? "Pending Verification" : "Not Verified");
+
       res.json({
         technician: {
           ...tech,
-          status: tech.status || "Pending Verification",
+          status: techVerificationStatus,
           account_type: tech.account_type || "individual",
           company_name: tech.company_name || null,
           authorized_person: tech.authorized_person || null,
           service_areas: tech.service_areas || "",
         },
-        status: tech.status || "Pending Verification",
+        status: techVerificationStatus,
         availability: tech.is_online === 1 ? "ONLINE" : "OFFLINE",
         activeJobs,
         newRequests,
@@ -370,10 +374,17 @@ export default function createTechnicianRouter(io) {
         experience_years,
         vehicle_type,
         address,
+        service_areas,
+        additional_categories,
+        work_proofs,
+        id_document_type,
+        id_document_url,
+        bio,
+        experience_description,
       } = req.body;
 
       const tech = await query.get(
-        "SELECT id, user_id FROM technicians WHERE user_id = ?",
+        "SELECT id, user_id, category, status, id_document_url FROM technicians WHERE user_id = ?",
         [req.user.id],
       );
       if (!tech) return res.status(404).json({ error: "Technician not found" });
@@ -395,21 +406,64 @@ export default function createTechnicianRouter(io) {
         ],
       );
 
+      // Category locking rule: primary category chosen at registration is locked and cannot be changed
+      const lockedCategory = tech.category || category || null;
+
+      // Format additional_categories (array or string)
+      let formattedAdditionalCategories = undefined;
+      if (additional_categories !== undefined) {
+        if (Array.isArray(additional_categories)) {
+          formattedAdditionalCategories = JSON.stringify(additional_categories);
+        } else if (typeof additional_categories === "string") {
+          formattedAdditionalCategories = additional_categories;
+        }
+      }
+
+      // Format work_proofs (array or string)
+      let formattedWorkProofs = undefined;
+      if (work_proofs !== undefined) {
+        if (typeof work_proofs === "string") {
+          formattedWorkProofs = work_proofs;
+        } else {
+          formattedWorkProofs = JSON.stringify(work_proofs);
+        }
+      }
+
+      const bioText = bio !== undefined ? bio : experience_description;
+
+      // If document is uploaded and technician is not approved, set to Pending Verification
+      let newStatus = undefined;
+      if (id_document_url && tech.status !== "Approved") {
+        newStatus = "Pending Verification";
+      }
+
       // Update technicians table
       await query.run(
         `UPDATE technicians 
-         SET category = COALESCE(?, category),
+         SET category = ?,
              skills = COALESCE(?, skills),
              experience_years = COALESCE(?, experience_years),
              vehicle_type = COALESCE(?, vehicle_type),
-             service_areas = COALESCE(?, service_areas)
+             service_areas = COALESCE(?, service_areas),
+             additional_categories = COALESCE(?, additional_categories),
+             work_proofs = COALESCE(?, work_proofs),
+             id_document_type = COALESCE(?, id_document_type),
+             id_document_url = COALESCE(?, id_document_url),
+             experience_description = COALESCE(?, experience_description),
+             status = COALESCE(?, status)
          WHERE id = ?`,
         [
-          category || null,
+          lockedCategory,
           skills || null,
           experience_years !== undefined ? Number(experience_years) : null,
           vehicle_type || null,
-          req.body.service_areas || null,
+          service_areas || null,
+          formattedAdditionalCategories !== undefined ? formattedAdditionalCategories : null,
+          formattedWorkProofs !== undefined ? formattedWorkProofs : null,
+          id_document_type || null,
+          id_document_url || null,
+          bioText || null,
+          newStatus || null,
           tech.id,
         ],
       );
@@ -418,7 +472,9 @@ export default function createTechnicianRouter(io) {
       const updatedUser = await query.get(
         `SELECT u.id, u.name, u.email, u.role, u.phone, u.address, u.avatar,
                 t.id as tech_id, t.category, t.status, t.rating, t.total_jobs,
-                t.is_online, t.skills, t.experience_years, t.vehicle_type, t.service_areas
+                t.is_online, t.skills, t.experience_years, t.vehicle_type, t.service_areas,
+                t.additional_categories, t.work_proofs, t.id_document_type, t.id_document_url,
+                t.experience_description
          FROM users u
          JOIN technicians t ON t.user_id = u.id
          WHERE u.id = ?`,
@@ -439,7 +495,7 @@ export default function createTechnicianRouter(io) {
           technician: {
             id: updatedUser.tech_id,
             category: updatedUser.category,
-            status: updatedUser.status,
+            status: updatedUser.status || (updatedUser.id_document_url ? "Pending Verification" : "Not Verified"),
             rating: updatedUser.rating,
             total_jobs: updatedUser.total_jobs,
             is_online: updatedUser.is_online,
@@ -447,6 +503,11 @@ export default function createTechnicianRouter(io) {
             experience_years: updatedUser.experience_years,
             vehicle_type: updatedUser.vehicle_type,
             service_areas: updatedUser.service_areas || "Delhi NCR",
+            additional_categories: updatedUser.additional_categories,
+            work_proofs: updatedUser.work_proofs,
+            id_document_type: updatedUser.id_document_type,
+            id_document_url: updatedUser.id_document_url,
+            experience_description: updatedUser.experience_description,
           },
         },
       });
