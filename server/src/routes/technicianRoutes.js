@@ -1,7 +1,11 @@
 import express from "express";
 import { v4 as uuidv4 } from "uuid";
 import { query } from "../db/database.js";
-import { authenticateToken } from "../middleware/auth.js";
+import {
+  authenticateToken,
+  requireRole,
+  requireSuperAdmin,
+} from "../middleware/auth.js";
 import { calculateDistance } from "../utils/geo.js";
 import { createUserNotification } from "../services/userNotificationService.js";
 
@@ -667,6 +671,8 @@ export default function createTechnicianRouter(io) {
   router.put(
     "/:id/verification-status",
     authenticateToken,
+    requireRole("admin"),
+    requireSuperAdmin,
     async (req, res) => {
       try {
         const { status, verification_notes } = req.body;

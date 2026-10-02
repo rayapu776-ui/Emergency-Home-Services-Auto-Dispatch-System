@@ -41,22 +41,19 @@ async function createFirstAdmin() {
     );
   }
 
-  const admins = await query.get(
-    "SELECT COUNT(*) AS count FROM users WHERE role = 'admin'",
+  const id = uuidv4();
+  const passwordHash = bcrypt.hashSync(password, 12);
+  const result = await query.run(
+    `INSERT INTO users (id, name, email, password_hash, role, account_status, admin_role)
+     SELECT ?, ?, ?, ?, 'admin', 'Active', 'super_admin'
+     WHERE NOT EXISTS (SELECT 1 FROM users WHERE role = 'admin')`,
+    [id, name, email, passwordHash],
   );
-  if (admins.count > 0) {
+  if (result.changes !== 1) {
     throw new Error(
       "An admin already exists. Ask an authorized Super Admin to provision additional admins.",
     );
   }
-
-  const id = uuidv4();
-  const passwordHash = bcrypt.hashSync(password, 12);
-  await query.run(
-    `INSERT INTO users (id, name, email, password_hash, role, account_status, admin_role)
-     VALUES (?, ?, ?, ?, 'admin', 'Active', 'super_admin')`,
-    [id, name, email, passwordHash],
-  );
   console.log(`First Super Admin created for ${email}.`);
 }
 

@@ -6,10 +6,83 @@ import {
   generateToken,
   authenticateToken,
   requireRole,
+  requireSuperAdmin,
 } from "../middleware/auth.js";
 import otpService from "../services/otpService.js";
 
 const router = express.Router();
+
+router.get("/admin/setup/status", async (_req, res) => {
+  try {
+    const result = await query.get(
+      "SELECT COUNT(*) AS count FROM users WHERE role = 'admin'",
+    );
+    return res.json({ setupAvailable: result.count === 0 });
+  } catch (err) {
+    console.error("Admin setup status error:", err);
+    return res
+      .status(500)
+      .json({ error: "Could not check initial admin setup." });
+  }
+});
+
+router.post("/admin/setup", async (req, res) => {
+  try {
+    const name = String(req.body.name || "").trim();
+    const email = String(req.body.email || "")
+      .trim()
+      .toLowerCase();
+    const password = String(req.body.password || "");
+    const confirmPassword = String(req.body.confirmPassword || "");
+
+    if (!name) return res.status(400).json({ error: "Full name is required." });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res
+        .status(400)
+        .json({ error: "Enter a valid admin email address." });
+    }
+    if (password.length < 12) {
+      return res
+        .status(400)
+        .json({ error: "Password must be at least 12 characters." });
+    }
+    if (password !== confirmPassword) {
+      return res.status(400).json({ error: "Passwords do not match." });
+    }
+
+    const passwordHash = bcrypt.hashSync(password, 12);
+    const result = await query.run(
+      `INSERT INTO users
+        (id, name, email, password_hash, role, account_status, admin_role, session_version)
+       SELECT ?, ?, ?, ?, 'admin', 'Active', 'super_admin', 0
+       WHERE NOT EXISTS (SELECT 1 FROM users WHERE role = 'admin')`,
+      [uuidv4(), name, email, passwordHash],
+    );
+    if (result.changes !== 1) {
+      return res.status(409).json({
+        error: "Admin setup has already been completed.",
+      });
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: "Super Admin account created successfully.",
+    });
+  } catch (err) {
+    if (
+      err.code === "SQLITE_CONSTRAINT" ||
+      /UNIQUE constraint failed/i.test(err.message)
+    ) {
+      return res
+        .status(409)
+        .json({ error: "An account already uses this email." });
+    }
+    console.error("Admin setup error:", err);
+    return res
+      .status(500)
+      .json({ error: "Could not create the first Super Admin account." });
+  }
+});
 
 router.post("/admin/login", async (req, res) => {
   try {
@@ -24,7 +97,8 @@ router.post("/admin/login", async (req, res) => {
     }
 
     const user = await query.get(
-      "SELECT * FROM users WHERE LOWER(email) = LOWER(?) AND role = 'admin'",
+      `SELECT * FROM users
+       WHERE LOWER(email) = LOWER(?) AND role = 'admin' AND admin_role = 'super_admin'`,
       [identifier],
     );
     if (
@@ -44,6 +118,7 @@ router.post("/admin/login", async (req, res) => {
         email: user.email,
         role: "admin",
         adminRole: user.admin_role || "super_admin",
+        sessionVersion: user.session_version || 0,
         name: user.name,
       },
       { expiresIn: rememberMe ? "7d" : "8h" },
@@ -70,10 +145,12 @@ router.get(
   "/admin/me",
   authenticateToken,
   requireRole("admin"),
+  requireSuperAdmin,
   async (req, res) => {
     try {
       const user = await query.get(
-        "SELECT id, name, email, role, admin_role AS adminRole FROM users WHERE id = ? AND role = 'admin'",
+        `SELECT id, name, email, role, admin_role AS adminRole
+         FROM users WHERE id = ? AND role = 'admin' AND admin_role = 'super_admin'`,
         [req.user.id],
       );
       if (!user)
@@ -87,6 +164,137 @@ router.get(
     }
   },
 );
+
+router.post(
+  "/admin/logout",
+  authenticateToken,
+  requireRole("admin"),
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      await query.run(
+        `UPDATE users SET session_version = session_version + 1
+         WHERE id = ? AND role = 'admin' AND admin_role = 'super_admin'`,
+        [req.user.id],
+      );
+      return res.json({ success: true });
+    } catch (err) {
+      console.error("Admin logout error:", err);
+      return res
+        .status(500)
+        .json({ error: "Could not invalidate admin session." });
+    }
+  },
+);
+
+router.post("/admin/forgot-password", async (req, res) => {
+  try {
+    const email = String(req.body.email || "")
+      .trim()
+      .toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res
+        .status(400)
+        .json({ error: "Enter a valid admin email address." });
+    }
+
+    const admin = await query.get(
+      `SELECT id, name, email, role, account_status FROM users
+       WHERE LOWER(email) = ? AND role = 'admin' AND admin_role = 'super_admin'
+         AND account_status = 'Active'`,
+      [email],
+    );
+    if (!admin) {
+      return res.json({
+        success: true,
+        status: "OTP_REQUESTED",
+        message:
+          "If an active admin account matches that email, a verification code will be sent.",
+      });
+    }
+
+    const result = await otpService.createOtpSession(admin, admin.email);
+    if (!result.success) {
+      return res.status(result.rateLimited ? 429 : 503).json({
+        error: result.error || "Could not deliver a password reset code.",
+        retryAfterSeconds: result.retryAfterSeconds,
+      });
+    }
+
+    return res.json({
+      success: true,
+      status: "OTP_REQUIRED",
+      message: "A verification code was sent to the registered admin email.",
+      tempSessionToken: result.tempSessionToken,
+      maskedDestination: result.maskedDestination,
+      expiresInSeconds: result.expiresInSeconds,
+    });
+  } catch (err) {
+    console.error("Admin forgot-password error:", err);
+    return res
+      .status(500)
+      .json({ error: "Unable to start admin password recovery." });
+  }
+});
+
+router.post("/admin/reset-password", async (req, res) => {
+  try {
+    const sessionToken = String(req.body.tempSessionToken || "").trim();
+    const code = String(req.body.code || "").trim();
+    const newPassword = String(req.body.newPassword || "");
+    const confirmPassword = String(req.body.confirmPassword || "");
+    if (!sessionToken || !/^\d{6}$/.test(code)) {
+      return res
+        .status(400)
+        .json({ error: "Enter the six-digit code sent to your admin email." });
+    }
+    if (newPassword.length < 12) {
+      return res
+        .status(400)
+        .json({ error: "New password must be at least 12 characters." });
+    }
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ error: "Passwords do not match." });
+    }
+
+    const verification = await otpService.verifyOtp(sessionToken, code);
+    if (!verification.success) {
+      return res.status(400).json({
+        error: verification.error || "Invalid or expired verification code.",
+      });
+    }
+    const admin = verification.user;
+    if (
+      !admin ||
+      admin.role !== "admin" ||
+      admin.admin_role !== "super_admin" ||
+      admin.account_status !== "Active"
+    ) {
+      return res
+        .status(403)
+        .json({ error: "This code is not valid for an active admin account." });
+    }
+
+    const result = await query.run(
+      `UPDATE users SET password_hash = ?, session_version = session_version + 1
+       WHERE id = ? AND role = 'admin' AND admin_role = 'super_admin'
+         AND account_status = 'Active'`,
+      [bcrypt.hashSync(newPassword, 12), admin.id],
+    );
+    if (result.changes !== 1) {
+      return res
+        .status(403)
+        .json({ error: "This admin account is no longer active." });
+    }
+    return res.json({
+      success: true,
+      message: "Admin password updated. Sign in with the new password.",
+    });
+  } catch (err) {
+    console.error("Admin reset-password error:", err);
+    return res.status(500).json({ error: "Unable to reset admin password." });
+  }
+});
 
 // Register new user
 router.post("/register", async (req, res) => {
@@ -381,18 +589,14 @@ const handleSendCode = async (req, res) => {
     // If user exists, enforce role separation
     if (user) {
       if (user.account_status && user.account_status !== "Active") {
-        return res
-          .status(403)
-          .json({
-            error: "This account is suspended. Contact Argent Your support.",
-          });
+        return res.status(403).json({
+          error: "This account is suspended. Contact Argent Your support.",
+        });
       }
       if (user.role === "admin") {
-        return res
-          .status(403)
-          .json({
-            error: "Administrators must sign in through the Admin Portal.",
-          });
+        return res.status(403).json({
+          error: "Administrators must sign in through the Admin Portal.",
+        });
       }
       if (
         role === "technician" &&
@@ -800,19 +1004,15 @@ router.post("/login", async (req, res) => {
     }
 
     if (user.account_status && user.account_status !== "Active") {
-      return res
-        .status(403)
-        .json({
-          error: "This account is suspended. Contact Argent Your support.",
-        });
+      return res.status(403).json({
+        error: "This account is suspended. Contact Argent Your support.",
+      });
     }
 
     if (user.role === "admin") {
-      return res
-        .status(403)
-        .json({
-          error: "Administrators must sign in through the Admin Portal.",
-        });
+      return res.status(403).json({
+        error: "Administrators must sign in through the Admin Portal.",
+      });
     }
 
     // Role check: Prevent technician from logging in through Customer portal

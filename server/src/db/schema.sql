@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
   address TEXT,
   account_status TEXT NOT NULL DEFAULT 'Active',
   admin_role TEXT NOT NULL DEFAULT 'operations_admin',
+  session_version INTEGER NOT NULL DEFAULT 0,
   latitude REAL,
   longitude REAL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP

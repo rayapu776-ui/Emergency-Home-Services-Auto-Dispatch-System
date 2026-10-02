@@ -11,8 +11,22 @@ export default function AdminLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [forgotNotice, setForgotNotice] = useState(false);
+  const [resetStep, setResetStep] = useState("email");
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetCode, setResetCode] = useState("");
+  const [resetToken, setResetToken] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [resetMessage, setResetMessage] = useState("");
+  const [resetError, setResetError] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [setupMessage, setSetupMessage] = useState(
+    location.state?.setupComplete
+      ? "Super Admin account created successfully. Sign in to continue."
+      : "",
+  );
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -33,6 +47,57 @@ export default function AdminLoginPage() {
     }
   };
 
+  const handleRequestReset = async (event) => {
+    event.preventDefault();
+    setResetLoading(true);
+    setResetError("");
+    setResetMessage("");
+    try {
+      const result = await adminStore.requestPasswordReset(resetEmail.trim());
+      if (!result.tempSessionToken) {
+        setResetMessage(result.message);
+        return;
+      }
+      setResetToken(result.tempSessionToken);
+      setResetMessage(`Code sent to ${result.maskedDestination}.`);
+      setResetStep("password");
+    } catch (requestError) {
+      setResetError(
+        requestError.response?.data?.error || "Could not request a reset code.",
+      );
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (event) => {
+    event.preventDefault();
+    setResetLoading(true);
+    setResetError("");
+    setResetMessage("");
+    try {
+      await adminStore.resetPassword({
+        tempSessionToken: resetToken,
+        code: resetCode,
+        newPassword,
+        confirmPassword: confirmNewPassword,
+      });
+      setPassword("");
+      setResetCode("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+      setResetMessage("Password updated. Sign in with your new password.");
+      setResetStep("done");
+    } catch (resetError) {
+      setResetError(
+        resetError.response?.data?.error ||
+          "Could not reset the admin password.",
+      );
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   return (
     <main className="min-h-screen bg-[#101a16] text-white flex items-center justify-center px-4 py-10">
       <section className="w-full max-w-md">
@@ -48,6 +113,14 @@ export default function AdminLoginPage() {
           </div>
         </div>
         <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 sm:p-8 shadow-2xl">
+          {setupMessage && (
+            <p
+              role="status"
+              className="mb-4 rounded-lg border border-emerald-400/30 bg-emerald-950/40 p-3 text-sm text-emerald-200"
+            >
+              {setupMessage}
+            </p>
+          )}
           <div className="mb-6">
             <ShieldCheck className="h-6 w-6 text-emerald-400 mb-4" />
             <h1 className="text-2xl font-bold">Admin sign in</h1>
@@ -108,18 +181,18 @@ export default function AdminLoginPage() {
               </label>
               <button
                 type="button"
-                onClick={() => setForgotNotice((shown) => !shown)}
+                onClick={() => {
+                  setForgotNotice((shown) => !shown);
+                  setResetEmail(email);
+                  setResetStep("email");
+                  setResetMessage("");
+                  setResetError("");
+                }}
                 className="text-emerald-300 hover:text-emerald-200"
               >
                 Forgot password?
               </button>
             </div>
-            {forgotNotice && (
-              <p className="rounded-lg bg-white/5 p-3 text-xs leading-relaxed text-slate-300">
-                Contact a Super Admin to reset an administrator password.
-                Self-service admin recovery is not configured.
-              </p>
-            )}
             <button
               type="submit"
               disabled={loading}
@@ -129,6 +202,91 @@ export default function AdminLoginPage() {
               {loading ? "Signing in..." : "Sign in"}
             </button>
           </form>
+          {forgotNotice && (
+            <div className="mt-4 space-y-3 rounded-lg bg-white/5 p-3">
+              {resetStep === "email" && (
+                <form onSubmit={handleRequestReset} className="space-y-3">
+                  <label className="block text-xs font-medium text-slate-300">
+                    Admin email for password recovery
+                    <input
+                      type="email"
+                      required
+                      autoComplete="username"
+                      value={resetEmail}
+                      onChange={(event) => setResetEmail(event.target.value)}
+                      className="mt-1.5 w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2.5 text-white outline-none focus:border-emerald-400"
+                    />
+                  </label>
+                  <button
+                    disabled={resetLoading}
+                    className="rounded-lg bg-white/10 px-3 py-2 text-xs font-semibold hover:bg-white/15 disabled:opacity-60"
+                  >
+                    {resetLoading
+                      ? "Sending code..."
+                      : "Send verification code"}
+                  </button>
+                </form>
+              )}
+              {resetStep === "password" && (
+                <form onSubmit={handleResetPassword} className="space-y-3">
+                  <label className="block text-xs font-medium text-slate-300">
+                    Verification code
+                    <input
+                      inputMode="numeric"
+                      pattern="[0-9]{6}"
+                      maxLength={6}
+                      required
+                      value={resetCode}
+                      onChange={(event) => setResetCode(event.target.value)}
+                      className="mt-1.5 w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2.5 text-white outline-none focus:border-emerald-400"
+                    />
+                  </label>
+                  <label className="block text-xs font-medium text-slate-300">
+                    New password (12+ characters)
+                    <input
+                      type="password"
+                      minLength={12}
+                      autoComplete="new-password"
+                      required
+                      value={newPassword}
+                      onChange={(event) => setNewPassword(event.target.value)}
+                      className="mt-1.5 w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2.5 text-white outline-none focus:border-emerald-400"
+                    />
+                  </label>
+                  <label className="block text-xs font-medium text-slate-300">
+                    Confirm new password
+                    <input
+                      type="password"
+                      minLength={12}
+                      autoComplete="new-password"
+                      required
+                      value={confirmNewPassword}
+                      onChange={(event) =>
+                        setConfirmNewPassword(event.target.value)
+                      }
+                      className="mt-1.5 w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2.5 text-white outline-none focus:border-emerald-400"
+                    />
+                  </label>
+                  <button
+                    disabled={resetLoading}
+                    className="rounded-lg bg-white/10 px-3 py-2 text-xs font-semibold hover:bg-white/15 disabled:opacity-60"
+                  >
+                    {resetLoading ? "Updating password..." : "Update password"}
+                  </button>
+                </form>
+              )}
+              {resetMessage && (
+                <p role="status" className="text-xs text-emerald-200">
+                  {resetMessage}
+                </p>
+              )}
+              {resetError && (
+                <p role="alert" className="text-xs text-red-200">
+                  {resetError}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </section>
     </main>

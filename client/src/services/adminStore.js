@@ -9,6 +9,7 @@ const readStoredValue = (key) =>
 const adminApi = axios.create({
   baseURL: "/api",
   headers: { "Content-Type": "application/json" },
+  timeout: 8000,
 });
 
 adminApi.interceptors.request.use((config) => {
@@ -70,7 +71,35 @@ const adminStore = {
     storage.setItem(USER_KEY, JSON.stringify(data.user));
     return data.user;
   },
-  logout: clearSession,
+  async requestPasswordReset(email) {
+    const { data } = await adminApi.post("/auth/admin/forgot-password", {
+      email,
+    });
+    return data;
+  },
+  async resetPassword({
+    tempSessionToken,
+    code,
+    newPassword,
+    confirmPassword,
+  }) {
+    const { data } = await adminApi.post("/auth/admin/reset-password", {
+      tempSessionToken,
+      code,
+      newPassword,
+      confirmPassword,
+    });
+    return data;
+  },
+  async logout() {
+    try {
+      if (this.getToken()) await adminApi.post("/auth/admin/logout");
+    } catch (error) {
+      console.error("Admin server logout failed:", error);
+    } finally {
+      clearSession();
+    }
+  },
 };
 
 export default adminStore;

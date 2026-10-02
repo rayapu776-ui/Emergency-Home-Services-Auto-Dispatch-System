@@ -36,6 +36,7 @@ import TechnicianProfilePage from "./pages/TechnicianProfilePage";
 import technicianStore from "./services/technicianStore";
 import adminStore from "./services/adminStore";
 import AdminLoginPage from "./pages/AdminLoginPage";
+import AdminSetupPage from "./pages/AdminSetupPage";
 import AdminPortalLayout from "./layouts/AdminPortalLayout";
 import AdminPortalPage from "./pages/AdminPortalPage";
 
@@ -286,6 +287,7 @@ export default function App() {
       <BrowserRouter>
         <SocketProvider>
           <Routes>
+            <Route path="/admin/setup" element={<AdminSetupPage />} />
             <Route path="/admin/login" element={<AdminLoginPage />} />
             <Route path="/admin" element={<AdminProtectedRoute />}>
               <Route index element={<Navigate to="dashboard" replace />} />

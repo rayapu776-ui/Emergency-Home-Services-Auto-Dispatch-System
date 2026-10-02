@@ -9,13 +9,15 @@ export async function verifySocketToken(token) {
   try {
     const claims = jwt.verify(token, JWT_SECRET);
     const account = await query.get(
-      "SELECT id, role, account_status, admin_role FROM users WHERE id = ?",
+      "SELECT id, role, account_status, admin_role, session_version FROM users WHERE id = ?",
       [claims.id],
     );
     if (
       !account ||
       account.role !== claims.role ||
-      account.account_status !== "Active"
+      account.account_status !== "Active" ||
+      (claims.role === "admin" &&
+        Number(claims.sessionVersion || 0) !== account.session_version)
     ) {
       return null;
     }
@@ -43,7 +45,7 @@ export async function authenticateToken(req, res, next) {
   try {
     const user = jwt.verify(token, JWT_SECRET);
     const account = await query.get(
-      "SELECT id, role, account_status, admin_role FROM users WHERE id = ?",
+      "SELECT id, role, account_status, admin_role, session_version FROM users WHERE id = ?",
       [user.id],
     );
     if (!account || account.role !== user.role) {
@@ -53,6 +55,12 @@ export async function authenticateToken(req, res, next) {
     }
     if (account.account_status !== "Active") {
       return res.status(403).json({ error: "This account is suspended." });
+    }
+    if (
+      account.role === "admin" &&
+      Number(user.sessionVersion || 0) !== account.session_version
+    ) {
+      return res.status(401).json({ error: "Admin session has been revoked." });
     }
     req.user = { ...user, adminRole: account.admin_role };
     next();
@@ -76,6 +84,31 @@ export function requireRole(...allowedRoles) {
     }
     next();
   };
+}
+
+export async function requireSuperAdmin(req, res, next) {
+  if (req.user?.role !== "admin") {
+    return res.status(403).json({ error: "Super Admin access required." });
+  }
+  try {
+    const admin = await query.get(
+      "SELECT admin_role, account_status FROM users WHERE id = ? AND role = 'admin'",
+      [req.user.id],
+    );
+    if (!admin || admin.account_status !== "Active") {
+      return res.status(403).json({ error: "Admin account is inactive." });
+    }
+    if (admin.admin_role !== "super_admin") {
+      return res
+        .status(403)
+        .json({ error: "Only a Super Admin can access this portal." });
+    }
+    req.user.adminRole = admin.admin_role;
+    next();
+  } catch (err) {
+    console.error("Super Admin authorization error:", err);
+    res.status(500).json({ error: "Could not verify Super Admin access." });
+  }
 }
 
 const ADMIN_PERMISSIONS = {
@@ -133,11 +166,9 @@ export function requireAdminPermission(permission) {
       const adminRole = admin.admin_role || "operations_admin";
       const permissions = ADMIN_PERMISSIONS[adminRole] || [];
       if (!permissions.includes("*") && !permissions.includes(permission)) {
-        return res
-          .status(403)
-          .json({
-            error: "Your administrator role cannot perform this action.",
-          });
+        return res.status(403).json({
+          error: "Your administrator role cannot perform this action.",
+        });
       }
 
       req.user.adminRole = adminRole;

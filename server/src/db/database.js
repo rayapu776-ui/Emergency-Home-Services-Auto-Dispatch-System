@@ -60,6 +60,7 @@ export async function initDb() {
   const userColumnsToAdd = [
     { col: "account_status", type: "TEXT NOT NULL DEFAULT 'Active'" },
     { col: "admin_role", type: "TEXT NOT NULL DEFAULT 'operations_admin'" },
+    { col: "session_version", type: "INTEGER NOT NULL DEFAULT 0" },
   ];
 
   for (const { col, type } of userColumnsToAdd) {

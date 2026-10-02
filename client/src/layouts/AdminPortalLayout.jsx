@@ -89,8 +89,8 @@ export default function AdminPortalLayout() {
       ),
     }[user?.adminRole] || navigation.filter(({ path }) => path === "dashboard");
 
-  const logout = () => {
-    adminStore.logout();
+  const logout = async () => {
+    await adminStore.logout();
     navigate("/admin/login", { replace: true });
   };
 
