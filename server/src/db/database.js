@@ -57,8 +57,22 @@ export async function initDb() {
   const schema = fs.readFileSync(SCHEMA_PATH, "utf8");
   await query.exec(schema);
 
+  const userColumnsToAdd = [
+    { col: "account_status", type: "TEXT NOT NULL DEFAULT 'Active'" },
+    { col: "admin_role", type: "TEXT NOT NULL DEFAULT 'operations_admin'" },
+  ];
+
+  for (const { col, type } of userColumnsToAdd) {
+    try {
+      await query.run(`ALTER TABLE users ADD COLUMN ${col} ${type}`);
+    } catch {
+      // Column already exists
+    }
+  }
+
   // Safe table column upgrades for service_requests
   const columnsToAdd = [
+    { col: "review_hidden", type: "INTEGER NOT NULL DEFAULT 0" },
     { col: "service_name", type: "TEXT" },
     { col: "service_slug", type: "TEXT" },
     { col: "service_image", type: "TEXT" },
@@ -191,8 +205,12 @@ export async function initDb() {
         [userId],
       );
       for (const request of demoRequests) {
-        await query.run(`DELETE FROM status_logs WHERE request_id = ?`, [request.id]);
-        await query.run(`DELETE FROM service_requests WHERE id = ?`, [request.id]);
+        await query.run(`DELETE FROM status_logs WHERE request_id = ?`, [
+          request.id,
+        ]);
+        await query.run(`DELETE FROM service_requests WHERE id = ?`, [
+          request.id,
+        ]);
       }
     }
 
@@ -216,7 +234,9 @@ export async function initDb() {
       }
     }
     for (const u of demoUsers) {
-      await query.run(`DELETE FROM user_notifications WHERE user_id = ?`, [u.id]);
+      await query.run(`DELETE FROM user_notifications WHERE user_id = ?`, [
+        u.id,
+      ]);
       await query.run(`DELETE FROM users WHERE id = ?`, [u.id]);
     }
   } catch (cleanErr) {

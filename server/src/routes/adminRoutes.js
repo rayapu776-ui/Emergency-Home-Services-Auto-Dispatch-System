@@ -2,12 +2,14 @@ import express from "express";
 import { query } from "../db/database.js";
 import { authenticateToken, requireRole } from "../middleware/auth.js";
 import { dispatchEngine } from "../services/dispatchEngine.js";
+import createAdminManagementRouter from "./adminManagementRoutes.js";
 
 export default function createAdminRouter(io) {
   const router = express.Router();
 
   // Protect all admin routes
   router.use(authenticateToken, requireRole("admin"));
+  router.use(createAdminManagementRouter(io));
 
   // Get high-level KPI dashboard metrics
   router.get("/kpis", async (req, res) => {

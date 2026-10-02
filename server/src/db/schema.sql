@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS users (
   phone TEXT,
   avatar TEXT,
   address TEXT,
+  account_status TEXT NOT NULL DEFAULT 'Active',
+  admin_role TEXT NOT NULL DEFAULT 'operations_admin',
   latitude REAL,
   longitude REAL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -45,6 +47,7 @@ CREATE TABLE IF NOT EXISTS service_requests (
   distance_km REAL DEFAULT 3.2,
   rating INTEGER,
   feedback TEXT,
+  review_hidden INTEGER NOT NULL DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (customer_id) REFERENCES users(id),
@@ -82,4 +85,25 @@ CREATE TABLE IF NOT EXISTS otp_send_limits (
   subject TEXT PRIMARY KEY,
   window_started_at INTEGER NOT NULL,
   send_count INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS admin_activity (
+  id TEXT PRIMARY KEY,
+  admin_id TEXT NOT NULL,
+  admin_name TEXT NOT NULL,
+  action TEXT NOT NULL,
+  target_type TEXT NOT NULL,
+  target_id TEXT,
+  previous_value TEXT,
+  new_value TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (admin_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS platform_settings (
+  setting_key TEXT PRIMARY KEY,
+  setting_value TEXT NOT NULL,
+  updated_by TEXT,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (updated_by) REFERENCES users(id)
 );

@@ -18,6 +18,7 @@ export const dispatchEngine = {
        WHERE t.category = ?
          AND t.is_online = 1
          AND t.is_busy = 0
+         AND u.account_status = 'Active'
          AND (t.status = 'Approved' OR t.status IS NULL)`,
       [category],
     );
@@ -55,7 +56,10 @@ export const dispatchEngine = {
     }
 
     // Dispatch and the customer list both prefer the nearest eligible pro.
-    candidates.sort((a, b) => a.distanceKm - b.distanceKm || b.compositeScore - a.compositeScore);
+    candidates.sort(
+      (a, b) =>
+        a.distanceKm - b.distanceKm || b.compositeScore - a.compositeScore,
+    );
     return candidates;
   },
 

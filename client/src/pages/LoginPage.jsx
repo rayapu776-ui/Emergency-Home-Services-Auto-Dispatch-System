@@ -102,12 +102,20 @@ const rails = {
       image: images.massage,
       price: "From ₹1499",
     },
-    { name: "Full Body Massage & Scrub", image: images.spa, price: "From ₹1799" },
+    {
+      name: "Full Body Massage & Scrub",
+      image: images.spa,
+      price: "From ₹1799",
+    },
     { name: "Back Relief Massage", image: images.massage, price: "From ₹799" },
   ]),
   appliance: makeServices([
     { name: "AC Repair", image: images.appliance, price: "From ₹749" },
-    { name: "Foam-Jet AC Service", image: images.appliance, price: "From ₹899" },
+    {
+      name: "Foam-Jet AC Service",
+      image: images.appliance,
+      price: "From ₹899",
+    },
     {
       name: "Water Purifier Service",
       image: images.purifier,
@@ -117,14 +125,22 @@ const rails = {
   ]),
   repairs: makeServices([
     { name: "Electrician visit", image: images.repair, price: "From ₹499" },
-    { name: "Electrical Installation", image: images.smart, price: "From ₹749" },
+    {
+      name: "Electrical Installation",
+      image: images.smart,
+      price: "From ₹749",
+    },
     { name: "Plumbing service", image: images.repair, price: "From ₹599" },
     { name: "Fan Repair", image: images.repair, price: "From ₹499" },
     { name: "Fixture Installation", image: images.home, price: "From ₹649" },
     { name: "Carpenter visit", image: images.moving, price: "From ₹749" },
   ]),
   menMassage: makeServices([
-    { name: "Quick Comfort Therapy", image: images.massage, price: "From ₹899" },
+    {
+      name: "Quick Comfort Therapy",
+      image: images.massage,
+      price: "From ₹899",
+    },
     { name: "Leg Relief Massage", image: images.spa, price: "From ₹999" },
     { name: "Top-to-Toe Relief", image: images.massage, price: "From ₹1499" },
     { name: "Back Relief Massage", image: images.spa, price: "From ₹799" },
@@ -317,7 +333,15 @@ function ServiceRail({
                 className="block w-full text-left"
               >
                 <div className="relative aspect-[1.16/0.82] overflow-hidden bg-slate-100">
-                  <img src={item.image || images.cleaning} alt={item.name} draggable="false" onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = images.cleaning; }} />
+                  <img
+                    src={item.image || images.cleaning}
+                    alt={item.name}
+                    draggable="false"
+                    onError={(event) => {
+                      event.currentTarget.onerror = null;
+                      event.currentTarget.src = images.cleaning;
+                    }}
+                  />
                   {item.badge && (
                     <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider">
                       {item.badge}
@@ -369,7 +393,14 @@ function DarkImageCards({ onBook }) {
               onClick={() => onBook({ name })}
               className="image-tile"
             >
-              <img src={src || images.home} alt={name} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = images.home; }} />
+              <img
+                src={src || images.home}
+                alt={name}
+                onError={(event) => {
+                  event.currentTarget.onerror = null;
+                  event.currentTarget.src = images.home;
+                }}
+              />
               <span className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/10 to-transparent" />
               <span className="absolute bottom-4 left-4 text-left text-lg font-bold text-white">
                 {name}
@@ -657,7 +688,10 @@ function AllServicesCatalogPage({
                         src={item.image || images.cleaning}
                         alt={item.name}
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = images.cleaning; }}
+                        onError={(event) => {
+                          event.currentTarget.onerror = null;
+                          event.currentTarget.src = images.cleaning;
+                        }}
                       />
                       <span className="absolute top-3 left-3 rounded-md bg-slate-950/80 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-xs">
                         {item.category}
@@ -813,7 +847,14 @@ function DedicatedPage({
             </button>
           </div>
           <div className="hero-image">
-            <img src={category?.image || service.image || images.home} alt={title} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = images.home; }} />
+            <img
+              src={category?.image || service.image || images.home}
+              alt={title}
+              onError={(event) => {
+                event.currentTarget.onerror = null;
+                event.currentTarget.src = images.home;
+              }}
+            />
           </div>
         </div>
         <div className="mt-20">
@@ -833,7 +874,14 @@ function DedicatedPage({
                   className="block w-full text-left"
                 >
                   <div className="aspect-[1.16/0.82] overflow-hidden">
-                    <img src={item.image || images.cleaning} alt={item.name} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = images.cleaning; }} />
+                    <img
+                      src={item.image || images.cleaning}
+                      alt={item.name}
+                      onError={(event) => {
+                        event.currentTarget.onerror = null;
+                        event.currentTarget.src = images.cleaning;
+                      }}
+                    />
                   </div>
                   <div className="p-4">
                     <h3 className="font-bold capitalize">{item.name}</h3>
@@ -917,7 +965,8 @@ class CheckoutErrorBoundary extends React.Component {
             Checkout Temporary Error
           </h1>
           <p className="mx-auto mt-2 max-w-sm text-sm text-slate-600">
-            We could not display the checkout interface right now. Please return to your service and try again.
+            We could not display the checkout interface right now. Please return
+            to your service and try again.
           </p>
           <button
             type="button"
@@ -943,7 +992,9 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
   const { user, isAuthenticated: authIsAuthenticated } = useAuth();
   const isAuthenticated = Boolean(authIsAuthenticated || user);
   const [authOpen, setAuthOpen] = useState(false);
-  const [route, setRoute] = useState(() => routerLocation?.pathname || window.location.pathname || "/");
+  const [route, setRoute] = useState(
+    () => routerLocation?.pathname || window.location.pathname || "/",
+  );
   const [routeHistory, setRouteHistory] = useState(() => [
     routerLocation?.pathname || window.location.pathname || "/",
   ]);
@@ -962,16 +1013,31 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
         localStorage.getItem("argent_checkout_booking") ||
         sessionStorage.getItem("argent_pending_booking") ||
         localStorage.getItem("argent_pending_booking");
-      if (saved) return JSON.parse(saved);
+      if (!saved) return null;
+      const parsed = JSON.parse(saved);
+      if (parsed && parsed.service) return parsed;
+      return null;
     } catch {}
     return null;
   };
 
+  const restoreCheckoutDraft = (draft) => {
+    if (!draft?.service) return false;
+    setCheckoutService(draft.service);
+    if (draft.couponCode) setAppliedCoupon(draft.couponCode);
+    if (draft.location) setLocation(draft.location);
+    return true;
+  };
+
   const initialDraft = getPersistedDraft();
 
-  const [checkoutService, setCheckoutService] = useState(() => initialDraft?.service || null);
+  const [checkoutService, setCheckoutService] = useState(
+    () => initialDraft?.service || null,
+  );
   const [checkoutStateReady, setCheckoutStateReady] = useState(true);
-  const [appliedCoupon, setAppliedCoupon] = useState(() => initialDraft?.couponCode || "");
+  const [appliedCoupon, setAppliedCoupon] = useState(
+    () => initialDraft?.couponCode || "",
+  );
   const [cartOpen, setCartOpen] = useState(false);
   const [cartItems, setCartItems] = useState(() => {
     return userStore.getCart(user?.id);
@@ -1010,9 +1076,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
     try {
       const draft = getPersistedDraft();
       if (draft) {
-        if (draft.service) setCheckoutService(draft.service);
-        if (draft.couponCode) setAppliedCoupon(draft.couponCode);
-        if (draft.location) setLocation(draft.location);
+        restoreCheckoutDraft(draft);
       }
     } catch (err) {
       console.warn("Failed restoring checkout draft:", err);
@@ -1020,6 +1084,15 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
       setCheckoutStateReady(true);
     }
   }, []);
+
+  useEffect(() => {
+    if (route !== "/checkout" || checkoutService) return;
+
+    const draft = getPersistedDraft();
+    if (draft) {
+      restoreCheckoutDraft(draft);
+    }
+  }, [route, checkoutService]);
 
   const handleAddToCart = (item) => {
     const updated = userStore.addToCart(user?.id, item);
@@ -1128,8 +1201,14 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
           const pending = JSON.parse(pendingStr);
           if (pending?.service) {
             setCheckoutService(pending.service);
-            sessionStorage.setItem("argent_checkout_booking", JSON.stringify(pending));
-            localStorage.setItem("argent_checkout_booking", JSON.stringify(pending));
+            sessionStorage.setItem(
+              "argent_checkout_booking",
+              JSON.stringify(pending),
+            );
+            localStorage.setItem(
+              "argent_checkout_booking",
+              JSON.stringify(pending),
+            );
           }
           if (pending?.couponCode) {
             setAppliedCoupon(pending.couponCode);
@@ -1167,8 +1246,14 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
         const pending = JSON.parse(pendingStr);
         if (pending?.service) {
           setCheckoutService(pending.service);
-          sessionStorage.setItem("argent_checkout_booking", JSON.stringify(pending));
-          localStorage.setItem("argent_checkout_booking", JSON.stringify(pending));
+          sessionStorage.setItem(
+            "argent_checkout_booking",
+            JSON.stringify(pending),
+          );
+          localStorage.setItem(
+            "argent_checkout_booking",
+            JSON.stringify(pending),
+          );
         }
         if (pending?.couponCode) {
           setAppliedCoupon(pending.couponCode);
@@ -1214,10 +1299,7 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
       extra.bookingId ||
       item.bookingId ||
       (item.id && String(item.id).startsWith("AY-") ? item.id : "");
-    const image =
-      item.image ||
-      item.service_image ||
-      images.cleaning;
+    const image = item.image || item.service_image || images.cleaning;
     const price =
       item.price ||
       (item.inrPrice
@@ -1256,19 +1338,34 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
     };
 
     try {
-      sessionStorage.setItem("argent_checkout_booking", JSON.stringify(bookingPayload));
-      localStorage.setItem("argent_checkout_booking", JSON.stringify(bookingPayload));
+      sessionStorage.setItem(
+        "argent_checkout_booking",
+        JSON.stringify(bookingPayload),
+      );
+      localStorage.setItem(
+        "argent_checkout_booking",
+        JSON.stringify(bookingPayload),
+      );
+      sessionStorage.removeItem("argent_pending_booking");
+      localStorage.removeItem("argent_pending_booking");
     } catch (e) {
       console.warn("Storage write failed:", e);
     }
 
     setCheckoutService(checkoutDraft);
     if (couponCode) setAppliedCoupon(couponCode);
+    setLocation(customerLocation);
 
     if (!user) {
       try {
-        sessionStorage.setItem("argent_pending_booking", JSON.stringify(bookingPayload));
-        localStorage.setItem("argent_pending_booking", JSON.stringify(bookingPayload));
+        sessionStorage.setItem(
+          "argent_pending_booking",
+          JSON.stringify(bookingPayload),
+        );
+        localStorage.setItem(
+          "argent_pending_booking",
+          JSON.stringify(bookingPayload),
+        );
       } catch (e) {
         console.warn("Storage write failed:", e);
       }
@@ -1495,8 +1592,12 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
         />
         <div className="flex-1 flex flex-col items-center justify-center px-4 py-24 text-center">
           <div className="w-10 h-10 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mb-4" />
-          <h2 className="text-lg font-bold text-slate-900">Loading Checkout...</h2>
-          <p className="text-sm text-slate-500 mt-1">Preparing your booking and payment details</p>
+          <h2 className="text-lg font-bold text-slate-900">
+            Loading Checkout...
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Preparing your booking and payment details
+          </p>
         </div>
         <Footer
           onNavigate={(path) => (path === "/" ? goHome() : navigate(path))}
@@ -1969,7 +2070,14 @@ export default function LoginPage({ onNavigateAdmin, onNavigateTechnician }) {
                   className="category-card"
                 >
                   <div className="category-image">
-                    <img src={src || images.home} alt={name} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = images.home; }} />
+                    <img
+                      src={src || images.home}
+                      alt={name}
+                      onError={(event) => {
+                        event.currentTarget.onerror = null;
+                        event.currentTarget.src = images.home;
+                      }}
+                    />
                     <span>
                       <Icon className="h-4 w-4" />
                     </span>

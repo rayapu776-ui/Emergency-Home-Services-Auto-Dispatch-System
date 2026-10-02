@@ -1,14 +1,11 @@
 import React, { useState } from "react";
 import {
-  Wrench,
   User,
   Building2,
   Mail,
   Phone,
   MapPin,
-  Briefcase,
   FileText,
-  Camera,
   ShieldCheck,
   Lock,
   Eye,
@@ -17,8 +14,6 @@ import {
   AlertCircle,
   Clock,
   ArrowRight,
-  ExternalLink,
-  Sparkles,
 } from "lucide-react";
 import technicianStore from "../../services/technicianStore";
 
@@ -49,44 +44,6 @@ const ID_DOC_TYPES = [
   "Authorized OEM / Brand Training Certificate",
 ];
 
-const PRESET_AVATARS = [
-  {
-    name: "Professional 1",
-    url: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=400&q=80",
-  },
-  {
-    name: "Professional 2",
-    url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80",
-  },
-  {
-    name: "Professional 3",
-    url: "https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=400&q=80",
-  },
-  {
-    name: "Professional 4",
-    url: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80",
-  },
-];
-
-const COMPANY_LOGOS = [
-  {
-    name: "Corporate Crest",
-    url: "https://images.unsplash.com/photo-1572021335469-31706a17aaef?auto=format&fit=crop&w=400&q=80",
-  },
-  {
-    name: "Tech Solutions",
-    url: "https://images.unsplash.com/photo-1560179707-f14e90ef3623?auto=format&fit=crop&w=400&q=80",
-  },
-  {
-    name: "Home Service Co",
-    url: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=400&q=80",
-  },
-  {
-    name: "Elite Maintenance",
-    url: "https://images.unsplash.com/photo-1554469384-e58fac16e23a?auto=format&fit=crop&w=400&q=80",
-  },
-];
-
 export default function ProfessionalRegisterForm({ onNavigate }) {
   const [accountType, setAccountType] = useState("individual"); // 'individual' | 'company'
   const [formData, setFormData] = useState({
@@ -100,7 +57,6 @@ export default function ProfessionalRegisterForm({ onNavigate }) {
     skills: "",
     experience_years: 3,
     experience_description: "",
-    avatar: PRESET_AVATARS[0].url,
     id_document_type: ID_DOC_TYPES[0],
     id_document_url: "",
     // Company fields
@@ -111,7 +67,6 @@ export default function ProfessionalRegisterForm({ onNavigate }) {
     business_address: "",
     service_areas: "Delhi NCR (All Zones)",
     business_registration_number: "",
-    company_logo: COMPANY_LOGOS[0].url,
     // Auth credentials
     password: "",
     confirmPassword: "",
@@ -207,7 +162,6 @@ export default function ProfessionalRegisterForm({ onNavigate }) {
             skills: formData.skills,
             business_registration_number:
               formData.business_registration_number.trim(),
-            avatar: formData.company_logo,
             id_document_type: "GSTIN / Trade License",
             id_document_url: formData.business_registration_number.trim(),
             password: formData.password,
@@ -224,7 +178,6 @@ export default function ProfessionalRegisterForm({ onNavigate }) {
             skills: formData.skills,
             experience_years: formData.experience_years,
             experience_description: formData.experience_description.trim(),
-            avatar: formData.avatar,
             id_document_type: formData.id_document_type,
             id_document_url: formData.id_document_url.trim(),
             password: formData.password,
@@ -268,17 +221,14 @@ export default function ProfessionalRegisterForm({ onNavigate }) {
         <div>
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-900 border border-amber-300">
             <Clock className="w-3.5 h-3.5 text-amber-700 animate-spin" />
-            <span>Status: Pending Verification</span>
+            <span>Pending verification</span>
           </span>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mt-3">
-            Application Submitted Successfully
+            Application submitted
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-md mx-auto leading-relaxed">
-            Thank you for registering with Argent Your. Your{" "}
-            <strong>
-              {isCompany ? "Service Company" : "Professional Technician"}
-            </strong>{" "}
-            profile is now under review by our onboarding operations team.
+            Thank you for applying to join Argent Your. Your application is
+            awaiting review.
           </p>
         </div>
 
@@ -334,26 +284,14 @@ export default function ProfessionalRegisterForm({ onNavigate }) {
           </div>
         </div>
 
-        {/* Notice on Verification Policy */}
         <div className="rounded-xl sm:rounded-2xl bg-emerald-50/70 border border-emerald-200/80 p-3.5 sm:p-4 text-xs text-emerald-950 text-left space-y-1.5">
           <div className="flex items-center gap-2 font-bold text-emerald-900">
             <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
-            <span>What happens next?</span>
+            <span>What happens next</span>
           </div>
           <p className="text-slate-600 leading-relaxed text-[11px]">
-            1. Our partner operations team will verify your trade certificates,
-            identity documents, and business credentials within{" "}
-            <strong>24–48 hours</strong>.
-          </p>
-          <p className="text-slate-600 leading-relaxed text-[11px]">
-            2. Once <strong>Approved</strong>, you can sign in via the dedicated
-            <strong> Professional Login</strong> with your registered
-            credentials.
-          </p>
-          <p className="text-slate-600 leading-relaxed text-[11px]">
-            3. After logging in, switch your status to <strong>ONLINE</strong>{" "}
-            in the Professional Dashboard to start accepting customer job
-            requests.
+            We’ll review your details. Once approved, sign in with your
+            registered email and password.
           </p>
         </div>
 
@@ -385,33 +323,9 @@ export default function ProfessionalRegisterForm({ onNavigate }) {
     <div className="rounded-2xl sm:rounded-3xl border border-slate-200/90 bg-white p-4 sm:p-8 md:p-10 shadow-sm max-w-3xl mx-auto space-y-5 sm:space-y-6 w-full box-border">
       {/* Form Header */}
       <div className="border-b border-slate-100 pb-4 sm:pb-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
-          <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-emerald-800">
-            <Wrench className="w-4 h-4 text-emerald-700 shrink-0" />
-            <span>Professional Partner Registration</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => onNavigate("/technician/login")}
-            className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 text-slate-700 hover:text-emerald-800 text-xs font-bold transition-all cursor-pointer shadow-2xs"
-          >
-            <span>Professional Login</span>
-            <ArrowRight className="w-3.5 h-3.5 text-emerald-700" />
-          </button>
-        </div>
-        <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-snug">
-          Join Argent Your Service Network
-        </h2>
-        <p className="text-xs sm:text-sm text-slate-500 mt-1 leading-relaxed">
-          Register your independent technician profile or professional service
-          company. Create a dedicated partner account and receive verified
-          doorstep customer dispatches.
-        </p>
-
-        {/* Account Type Selector: Individual vs Company */}
-        <div className="mt-4 pt-4 border-t border-slate-100">
+        <div>
           <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-2">
-            Select Registration Type <span className="text-red-500">*</span>
+            Account type
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-1.5 bg-slate-100 rounded-2xl">
             <button
@@ -639,46 +553,13 @@ export default function ProfessionalRegisterForm({ onNavigate }) {
               </div>
             </div>
 
-            {/* Section 3: Profile Photo & Verification Documents */}
+            {/* Section 3: Identity Verification */}
             <div className="space-y-4 pt-4 border-t border-slate-100">
               <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
-                3. Profile Photo & Identity Verification
+                3. Identity Verification
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
-                    Upload Profile Photo
-                  </label>
-                  <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
-                    <img
-                      src={formData.avatar}
-                      alt="Avatar preview"
-                      className="w-12 h-12 rounded-xl sm:rounded-2xl object-cover border-2 border-emerald-600 shadow-sm shrink-0"
-                    />
-                    <div className="flex items-center gap-1.5 sm:gap-2">
-                      {PRESET_AVATARS.map((av, idx) => (
-                        <button
-                          key={av.name}
-                          type="button"
-                          onClick={() => handleChange("avatar", av.url)}
-                          className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl overflow-hidden border-2 transition-transform cursor-pointer shrink-0 ${
-                            formData.avatar === av.url
-                              ? "border-emerald-700 scale-105"
-                              : "border-slate-200 hover:border-slate-400"
-                          }`}
-                        >
-                          <img
-                            src={av.url}
-                            alt={`Preset ${idx + 1}`}
-                            className="w-full h-full object-cover"
-                          />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
                 <div>
                   <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
                     Government ID Type <span className="text-red-500">*</span>
@@ -907,51 +788,15 @@ export default function ProfessionalRegisterForm({ onNavigate }) {
                     <FileText className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-400 pointer-events-none" />
                   </div>
                 </div>
-
-                {/* Company Logo Selection */}
-                <div className="sm:col-span-2">
-                  <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
-                    Company Logo
-                  </label>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <img
-                      src={formData.company_logo}
-                      alt="Company logo preview"
-                      className="w-12 h-12 rounded-xl object-cover border-2 border-emerald-600 shadow-sm shrink-0"
-                    />
-                    <div className="flex items-center gap-2">
-                      {COMPANY_LOGOS.map((logo, idx) => (
-                        <button
-                          key={logo.name}
-                          type="button"
-                          onClick={() => handleChange("company_logo", logo.url)}
-                          className={`w-10 h-10 rounded-xl overflow-hidden border-2 transition-transform cursor-pointer shrink-0 ${
-                            formData.company_logo === logo.url
-                              ? "border-emerald-700 scale-105"
-                              : "border-slate-200 hover:border-slate-400"
-                          }`}
-                        >
-                          <img
-                            src={logo.url}
-                            alt={`Logo ${idx + 1}`}
-                            className="w-full h-full object-cover"
-                          />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           </>
         )}
 
-        {/* SECTION 4: Dedicated Security Credentials (Password) */}
+        {/* Account security */}
         <div className="space-y-4 pt-4 border-t border-slate-100">
           <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
-            {isCompany
-              ? "3. Security Credentials (Professional Company Login)"
-              : "4. Security Credentials (Separate Technician Login)"}
+            Account security
           </h3>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1026,32 +871,11 @@ export default function ProfessionalRegisterForm({ onNavigate }) {
               <span>Submitting Application...</span>
             ) : (
               <>
-                <span>
-                  Create {isCompany ? "Company" : "Individual"} Account
-                </span>
+                <span>Submit application</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}
           </button>
-
-          {/* Already have an account login option */}
-          <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-center gap-1.5 text-center text-xs">
-            <span className="text-slate-500 font-medium">
-              Already have an account?
-            </span>
-            <button
-              type="button"
-              onClick={() => onNavigate("/technician/login")}
-              className="text-emerald-700 hover:text-emerald-900 font-bold underline underline-offset-4 decoration-emerald-500/50 hover:decoration-emerald-800 transition-colors cursor-pointer"
-            >
-              Log in
-            </button>
-          </div>
-
-          <p className="text-[11px] text-slate-400 text-center mt-2.5">
-            By submitting, you agree to Argent Your's Partner Terms of Service &
-            Quality Code.
-          </p>
         </div>
       </form>
     </div>

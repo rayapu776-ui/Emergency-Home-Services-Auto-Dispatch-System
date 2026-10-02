@@ -61,6 +61,19 @@ const handleSendOtp = async (req, res) => {
     // Look up existing user
     let user = await otpService.findUserByIdentifier(normalizedIdentifier);
 
+    if (user && user.account_status && user.account_status !== "Active") {
+      return res
+        .status(403)
+        .json({ error: "This professional account is suspended." });
+    }
+    if (user?.role === "admin") {
+      return res
+        .status(403)
+        .json({
+          error: "Administrators must sign in through the Admin Portal.",
+        });
+    }
+
     // If password was provided, verify credentials
     if (password) {
       if (!user) {
@@ -183,6 +196,19 @@ const handleVerifyOtp = async (req, res) => {
     }
 
     const user = verifyResult.user;
+
+    if (user.account_status && user.account_status !== "Active") {
+      return res.status(403).json({
+        success: false,
+        error: "This professional account is suspended.",
+      });
+    }
+    if (user.role === "admin") {
+      return res.status(403).json({
+        success: false,
+        error: "Administrators must sign in through the Admin Portal.",
+      });
+    }
 
     // Verify account has professional privileges
     if (user.role !== "technician" && user.role !== "admin") {
@@ -325,8 +351,14 @@ const handleProfessionalLogin = async (req, res) => {
       });
     }
 
+    if (user.account_status && user.account_status !== "Active") {
+      return res
+        .status(403)
+        .json({ error: "This professional account is suspended." });
+    }
+
     // Role check: Ensure user is a technician or admin
-    if (user.role !== "technician" && user.role !== "admin") {
+    if (user.role !== "technician") {
       return res.status(403).json({
         error:
           "This account is registered as a customer. Please use Customer login or register as a professional.",

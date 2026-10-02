@@ -2,15 +2,55 @@ import { v4 as uuidv4 } from "uuid";
 import { query } from "../db/database.js";
 import { calculateDistance, calculateETA } from "../utils/geo.js";
 import { dispatchEngine } from "../services/dispatchEngine.js";
+import { verifySocketToken } from "../middleware/auth.js";
 
 export function setupSockets(io) {
   io.on("connection", (socket) => {
     console.log(`[Socket] Connected: ${socket.id}`);
 
     // Join specific rooms
-    socket.on("join_room", ({ room }) => {
+    socket.on("join_room", async ({ room, token }) => {
+      const user = await verifySocketToken(token);
+      if (!user || typeof room !== "string") {
+        socket.emit("socket_room_denied", { room });
+        return;
+      }
+
+      let permitted =
+        room === `user_${user.id}` || room === `role_${user.role}`;
+      if (room === "role_admin") {
+        permitted =
+          user.role === "admin" &&
+          ["super_admin", "operations_admin"].includes(user.adminRole);
+      }
+      if (room.startsWith("request_")) {
+        const requestId = room.slice("request_".length);
+        const request = await query.get(
+          "SELECT customer_id, technician_id FROM service_requests WHERE id = ?",
+          [requestId],
+        );
+        if (user.role === "admin") {
+          permitted = Boolean(request);
+        } else if (user.role === "customer") {
+          permitted = request?.customer_id === user.id;
+        } else if (user.role === "technician") {
+          const technician = await query.get(
+            "SELECT id FROM technicians WHERE user_id = ?",
+            [user.id],
+          );
+          permitted = Boolean(
+            technician && request?.technician_id === technician.id,
+          );
+        }
+      }
+
+      if (!permitted) {
+        socket.emit("socket_room_denied", { room });
+        return;
+      }
+      socket.data.user = user;
       socket.join(room);
-      console.log(`[Socket] ${socket.id} joined room: ${room}`);
+      console.log(`[Socket] ${socket.id} joined authorized room: ${room}`);
     });
 
     socket.on("leave_room", ({ room }) => {

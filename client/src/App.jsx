@@ -4,6 +4,7 @@ import {
   Routes,
   Route,
   Navigate,
+  Outlet,
   useNavigate,
   useLocation,
 } from "react-router-dom";
@@ -33,6 +34,10 @@ import TechnicianEarningsPage from "./pages/TechnicianEarningsPage";
 import TechnicianNotificationsPage from "./pages/TechnicianNotificationsPage";
 import TechnicianProfilePage from "./pages/TechnicianProfilePage";
 import technicianStore from "./services/technicianStore";
+import adminStore from "./services/adminStore";
+import AdminLoginPage from "./pages/AdminLoginPage";
+import AdminPortalLayout from "./layouts/AdminPortalLayout";
+import AdminPortalPage from "./pages/AdminPortalPage";
 
 const infoRoutePrefixes = [
   "/about",
@@ -67,7 +72,9 @@ function TechnicianProtectedRoute() {
   const navigate = useNavigate();
 
   if (!isLogged) {
-    return <Navigate to="/technician/login" state={{ from: location }} replace />;
+    return (
+      <Navigate to="/technician/login" state={{ from: location }} replace />
+    );
   }
 
   return (
@@ -101,6 +108,43 @@ function TechnicianLoginRoute() {
       }}
     />
   );
+}
+
+function AdminProtectedRoute() {
+  const location = useLocation();
+  const [session, setSession] = useState("checking");
+
+  useEffect(() => {
+    let mounted = true;
+    const validate = () => {
+      if (!adminStore.getToken()) {
+        if (mounted) setSession("signed-out");
+        return;
+      }
+      adminStore
+        .validateSession()
+        .then(() => mounted && setSession("signed-in"))
+        .catch(() => mounted && setSession("signed-out"));
+    };
+    validate();
+    const intervalId = window.setInterval(validate, 60_000);
+    return () => {
+      mounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
+  if (session === "checking") {
+    return (
+      <div className="min-h-screen bg-[#101a16] grid place-items-center text-emerald-300">
+        Checking administrator session...
+      </div>
+    );
+  }
+  if (session !== "signed-in") {
+    return <Navigate to="/admin/login" state={{ from: location }} replace />;
+  }
+  return <AdminPortalLayout />;
 }
 
 // Customer and Admin application views
@@ -148,7 +192,7 @@ function CustomerAndAdminApp() {
   if (activePage === "argent-home" || !isAuthenticated) {
     return (
       <LoginPage
-        onNavigateAdmin={() => setActivePage("admin-dashboard")}
+        onNavigateAdmin={() => navigate("/admin/dashboard")}
         onNavigateTechnician={(path) => {
           navigate(path || "/technician/dashboard");
         }}
@@ -160,7 +204,8 @@ function CustomerAndAdminApp() {
   if (
     infoRoutePrefixes.some(
       (prefix) =>
-        location.pathname === prefix || location.pathname.startsWith(`${prefix}/`)
+        location.pathname === prefix ||
+        location.pathname.startsWith(`${prefix}/`),
     )
   ) {
     return (
@@ -241,18 +286,41 @@ export default function App() {
       <SocketProvider>
         <BrowserRouter>
           <Routes>
+            <Route path="/admin/login" element={<AdminLoginPage />} />
+            <Route path="/admin" element={<AdminProtectedRoute />}>
+              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route
+                path="professionals/verification"
+                element={<Navigate to="/admin/verification" replace />}
+              />
+              <Route path=":section" element={<AdminPortalPage />} />
+              <Route path="*" element={<Navigate to="dashboard" replace />} />
+            </Route>
+
             {/* 1. Dedicated Professional Portal Login */}
-            <Route path="/technician/login" element={<TechnicianLoginRoute />} />
+            <Route
+              path="/technician/login"
+              element={<TechnicianLoginRoute />}
+            />
 
             {/* 2. Professional Portal Layout & Nested Routes */}
             <Route path="/technician" element={<TechnicianProtectedRoute />}>
-              <Route index element={<Navigate to="/technician/dashboard" replace />} />
+              <Route
+                index
+                element={<Navigate to="/technician/dashboard" replace />}
+              />
               <Route path="dashboard" element={<TechnicianDashboardPage />} />
               <Route path="jobs" element={<TechnicianJobsPage />} />
               <Route path="earnings" element={<TechnicianEarningsPage />} />
-              <Route path="notifications" element={<TechnicianNotificationsPage />} />
+              <Route
+                path="notifications"
+                element={<TechnicianNotificationsPage />}
+              />
               <Route path="profile" element={<TechnicianProfilePage />} />
-              <Route path="*" element={<Navigate to="/technician/dashboard" replace />} />
+              <Route
+                path="*"
+                element={<Navigate to="/technician/dashboard" replace />}
+              />
             </Route>
 
             {/* Explicit Customer Checkout Route */}

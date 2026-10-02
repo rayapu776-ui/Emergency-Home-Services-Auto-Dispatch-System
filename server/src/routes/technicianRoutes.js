@@ -624,10 +624,22 @@ export default function createTechnicianRouter(io) {
     try {
       const { is_online } = req.body;
       const tech = await query.get(
-        "SELECT id, status FROM technicians WHERE user_id = ?",
+        `SELECT t.id, t.status, u.account_status
+         FROM technicians t JOIN users u ON u.id = t.user_id WHERE t.user_id = ?`,
         [req.user.id],
       );
       if (!tech) return res.status(404).json({ error: "Technician not found" });
+
+      if (
+        is_online &&
+        (tech.account_status !== "Active" || tech.status !== "Approved")
+      ) {
+        return res
+          .status(403)
+          .json({
+            error: "Only active, approved professionals can go online.",
+          });
+      }
 
       const newOnlineStatus = is_online ? 1 : 0;
 
@@ -744,9 +756,16 @@ export default function createTechnicianRouter(io) {
           .json({ error: `Job is already ${request.status.toLowerCase()}` });
       }
 
-      const distanceKm = calculateDistance(request.latitude, request.longitude, tech.latitude, tech.longitude);
+      const distanceKm = calculateDistance(
+        request.latitude,
+        request.longitude,
+        tech.latitude,
+        tech.longitude,
+      );
       if (distanceKm > 15 || tech.is_busy !== 0) {
-        return res.status(409).json({ error: "This job is no longer available for acceptance." });
+        return res
+          .status(409)
+          .json({ error: "This job is no longer available for acceptance." });
       }
 
       // Conditional update is the claim. SQLite applies it atomically, so the
@@ -760,7 +779,11 @@ export default function createTechnicianRouter(io) {
         [tech.id, req.params.id, tech.id],
       );
       if (claim.changes !== 1) {
-        return res.status(409).json({ error: "Another professional has already claimed this job." });
+        return res
+          .status(409)
+          .json({
+            error: "Another professional has already claimed this job.",
+          });
       }
 
       // Update technician status

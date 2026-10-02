@@ -11,6 +11,26 @@ import { playEmergencyAlertSound } from "../utils/audio";
 
 const SocketContext = createContext(null);
 
+function getSocketAuthToken(fallbackToken, room = "") {
+  if (room === "role_admin" || window.location.pathname.startsWith("/admin")) {
+    return (
+      localStorage.getItem("argent_admin_token") ||
+      sessionStorage.getItem("argent_admin_token") ||
+      fallbackToken
+    );
+  }
+  if (
+    room === "role_technician" ||
+    window.location.pathname.startsWith("/technician")
+  ) {
+    return (
+      localStorage.getItem("argent_technician_token") ||
+      sessionStorage.getItem("argent_technician_token") ||
+      fallbackToken
+    );
+  }
+  return fallbackToken || localStorage.getItem("emergency_token");
+}
 export function SocketProvider({ children }) {
   const { user, token } = useAuth();
   const [socket, setSocket] = useState(null);
@@ -55,17 +75,25 @@ export function SocketProvider({ children }) {
   // Join rooms when user or socket changes
   useEffect(() => {
     if (socket && connected && user) {
+      const authToken = getSocketAuthToken(token, `user_${user.id}`);
       // Join personal room
-      socket.emit("join_room", { room: `user_${user.id}` });
+      socket.emit("join_room", { room: `user_${user.id}`, token: authToken });
       // Join role room
-      socket.emit("join_room", { room: `role_${user.role}` });
+      const roleRoom = `role_${user.role}`;
+      socket.emit("join_room", {
+        room: roleRoom,
+        token: getSocketAuthToken(token, roleRoom),
+      });
       console.log(`[Socket] Joined user_${user.id} and role_${user.role}`);
     }
-  }, [socket, connected, user]);
+  }, [socket, connected, user, token]);
 
   const joinRoom = (room) => {
     if (socket && connected) {
-      socket.emit("join_room", { room });
+      socket.emit("join_room", {
+        room,
+        token: getSocketAuthToken(token, room),
+      });
     }
   };
 

@@ -132,13 +132,13 @@ When an emergency request is logged, the Auto-Dispatch Engine executes the follo
    npm run install:all
    ```
 
-2. **Seed Initial Database**:
+2. **Initialize Database**:
 
    ```bash
    npm run seed
    ```
 
-   _(Seeds realistic demo customers, 6 certified technicians with Delhi NCR GPS coordinates, and historical completed requests)_
+   _(Initializes the schema without creating demo users, technicians, or bookings.)_
 
 3. **Start Full-Stack Development Server**:
 
@@ -152,21 +152,20 @@ When an emergency request is logged, the Auto-Dispatch Engine executes the follo
 
 ---
 
-## 🔑 Demo Login Credentials
+## Admin Account Setup
 
-You can use the **1-Click Demo Switcher** directly on the Login page or in the top navigation bar, or manually sign in with:
+The application does not seed demo accounts. Start the server once to initialize its database, then provision the first administrator explicitly with environment variables. Use a unique password of at least 12 characters and do not commit it to source control.
 
-| Role                        | Name                   | Email                     | Password      |
-| --------------------------- | ---------------------- | ------------------------- | ------------- |
-| **Admin Supervisor**        | Chief Dispatch Officer | `admin@demo.com`          | `admin123`    |
-| **Customer**                | Michael Sterling       | `customer@demo.com`       | `customer123` |
-| **Customer**                | Sarah Jenkins          | `sarah@demo.com`          | `customer123` |
-| **Technician (Plumbing)**   | Alex Rivera            | `tech.plumber@demo.com`   | `tech123`     |
-| **Technician (Electrical)** | David Chen             | `tech.electric@demo.com`  | `tech123`     |
-| **Technician (HVAC)**       | Marcus Johnson         | `tech.hvac@demo.com`      | `tech123`     |
-| **Technician (Locksmith)**  | Carlos Gomez           | `tech.locksmith@demo.com` | `tech123`     |
-| **Technician (Gas Leak)**   | Samira Khan            | `tech.gas@demo.com`       | `tech123`     |
-| **Technician (Appliance)**  | Elena Rostova          | `tech.appliance@demo.com` | `tech123`     |
+```powershell
+$env:ADMIN_BOOTSTRAP_EMAIL = "admin@example.com"
+$env:ADMIN_BOOTSTRAP_NAME = "Platform Administrator"
+$securePassword = Read-Host "Enter a unique password (12+ characters)" -AsSecureString
+$env:ADMIN_BOOTSTRAP_PASSWORD = (New-Object System.Net.NetworkCredential("", $securePassword)).Password
+npm --prefix server run admin:create
+Remove-Item Env:ADMIN_BOOTSTRAP_PASSWORD
+```
+
+The command creates only the first Super Admin and refuses to overwrite an account or create another admin. Sign in at `/admin/login`.
 
 ---
 

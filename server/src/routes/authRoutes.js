@@ -2,10 +2,91 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
 import { query } from "../db/database.js";
-import { generateToken, authenticateToken } from "../middleware/auth.js";
+import {
+  generateToken,
+  authenticateToken,
+  requireRole,
+} from "../middleware/auth.js";
 import otpService from "../services/otpService.js";
 
 const router = express.Router();
+
+router.post("/admin/login", async (req, res) => {
+  try {
+    const identifier = String(
+      req.body.identifier || req.body.email || "",
+    ).trim();
+    const password = String(req.body.password || "");
+    if (!identifier || !password) {
+      return res
+        .status(400)
+        .json({ error: "Email and password are required." });
+    }
+
+    const user = await query.get(
+      "SELECT * FROM users WHERE LOWER(email) = LOWER(?) AND role = 'admin'",
+      [identifier],
+    );
+    if (
+      !user ||
+      user.account_status !== "Active" ||
+      !bcrypt.compareSync(password, user.password_hash)
+    ) {
+      return res
+        .status(401)
+        .json({ error: "Invalid admin email or password." });
+    }
+
+    const rememberMe = req.body.rememberMe === true;
+    const token = generateToken(
+      {
+        id: user.id,
+        email: user.email,
+        role: "admin",
+        adminRole: user.admin_role || "super_admin",
+        name: user.name,
+      },
+      { expiresIn: rememberMe ? "7d" : "8h" },
+    );
+
+    return res.json({
+      token,
+      expiresIn: rememberMe ? 604800 : 28800,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: "admin",
+        adminRole: user.admin_role || "super_admin",
+      },
+    });
+  } catch (err) {
+    console.error("Admin login error:", err);
+    return res.status(500).json({ error: "Failed to authenticate admin." });
+  }
+});
+
+router.get(
+  "/admin/me",
+  authenticateToken,
+  requireRole("admin"),
+  async (req, res) => {
+    try {
+      const user = await query.get(
+        "SELECT id, name, email, role, admin_role AS adminRole FROM users WHERE id = ? AND role = 'admin'",
+        [req.user.id],
+      );
+      if (!user)
+        return res.status(401).json({ error: "Admin session is invalid." });
+      return res.json({ user });
+    } catch (err) {
+      console.error("Admin session error:", err);
+      return res
+        .status(500)
+        .json({ error: "Failed to validate admin session." });
+    }
+  },
+);
 
 // Register new user
 router.post("/register", async (req, res) => {
@@ -299,6 +380,20 @@ const handleSendCode = async (req, res) => {
 
     // If user exists, enforce role separation
     if (user) {
+      if (user.account_status && user.account_status !== "Active") {
+        return res
+          .status(403)
+          .json({
+            error: "This account is suspended. Contact Argent Your support.",
+          });
+      }
+      if (user.role === "admin") {
+        return res
+          .status(403)
+          .json({
+            error: "Administrators must sign in through the Admin Portal.",
+          });
+      }
       if (
         role === "technician" &&
         user.role !== "technician" &&
@@ -436,6 +531,18 @@ const handleVerifyCode = async (req, res) => {
     }
 
     const user = verifyResult.user;
+    if (user.account_status && user.account_status !== "Active") {
+      return res.status(403).json({
+        success: false,
+        error: "This account is suspended. Contact Argent Your support.",
+      });
+    }
+    if (user.role === "admin") {
+      return res.status(403).json({
+        success: false,
+        error: "Administrators must sign in through the Admin Portal.",
+      });
+    }
     const role =
       rawRole === "professional" || rawRole === "technician"
         ? "technician"
@@ -690,6 +797,22 @@ router.post("/login", async (req, res) => {
     const isMatch = bcrypt.compareSync(password, user.password_hash);
     if (!isMatch) {
       return res.status(401).json({ error: "Invalid email/phone or password" });
+    }
+
+    if (user.account_status && user.account_status !== "Active") {
+      return res
+        .status(403)
+        .json({
+          error: "This account is suspended. Contact Argent Your support.",
+        });
+    }
+
+    if (user.role === "admin") {
+      return res
+        .status(403)
+        .json({
+          error: "Administrators must sign in through the Admin Portal.",
+        });
     }
 
     // Role check: Prevent technician from logging in through Customer portal
