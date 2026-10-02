@@ -30,8 +30,10 @@ export default {
         "ping-slow": "ping 2s cubic-bezier(0, 0, 0.2, 1) infinite",
       },
       fontFamily: {
+        nunito: ['"Nunito"', "sans-serif"],
         comic: ['"Comic Neue"', "cursive", "sans-serif"],
         sans: [
+          '"Nunito"',
           '"Google Sans"',
           '"Google Sans Text"',
           "Inter",
@@ -49,6 +51,7 @@ export default {
           "sans-serif",
         ],
         highlight: [
+          '"Nunito"',
           "Inter",
           '"Google Sans"',
           "system-ui",
