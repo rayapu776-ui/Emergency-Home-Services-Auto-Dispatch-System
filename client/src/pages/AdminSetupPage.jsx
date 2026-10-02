@@ -80,7 +80,9 @@ export default function AdminSetupPage() {
           {setupAvailable === null ? (
             <p
               role={error ? "alert" : "status"}
-              className={error ? "text-sm text-red-200" : "text-sm text-slate-300"}
+              className={
+                error ? "text-sm text-red-200" : "text-sm text-slate-300"
+              }
             >
               {error || "Checking initial admin setup..."}
             </p>
