@@ -53,6 +53,7 @@ export default function LiveTrackingPage({ requestId, onNavigateRequest }) {
     return () => {
       socket.off("request_updated", handleUpdate);
       socket.off("technician_moved", handleMovement);
+      socket.emit("leave_room", { room: `request_${request.id}` });
     };
   }, [socket, request?.id, joinRoom]);
 

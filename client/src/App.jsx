@@ -283,8 +283,8 @@ function CustomerAndAdminApp() {
 export default function App() {
   return (
     <AuthProvider>
-      <SocketProvider>
-        <BrowserRouter>
+      <BrowserRouter>
+        <SocketProvider>
           <Routes>
             <Route path="/admin/login" element={<AdminLoginPage />} />
             <Route path="/admin" element={<AdminProtectedRoute />}>
@@ -329,8 +329,8 @@ export default function App() {
             {/* 3. Customer & Admin Portal Routes */}
             <Route path="*" element={<CustomerAndAdminApp />} />
           </Routes>
-        </BrowserRouter>
-      </SocketProvider>
+        </SocketProvider>
+      </BrowserRouter>
     </AuthProvider>
   );
 }

@@ -38,7 +38,10 @@ export const userStore = {
         return bookings;
       }
     } catch (err) {
-      throw new Error(err.response?.data?.error || "Could not load your bookings. Please refresh and try again.");
+      throw new Error(
+        err.response?.data?.error ||
+          "Could not load your bookings. Please refresh and try again.",
+      );
     }
     return [];
   },
@@ -96,7 +99,9 @@ export const userStore = {
     try {
       await api.post(`/requests/${bookingId}/complete`);
     } catch (err) {
-      throw new Error(err.response?.data?.error || "Could not save the booking completion.");
+      throw new Error(
+        err.response?.data?.error || "Could not save the booking completion.",
+      );
     }
     const updated = this.updateBooking(userId, bookingId, {
       status: "Completed",
@@ -120,7 +125,9 @@ export const userStore = {
         feedback: feedback || "",
       });
     } catch (err) {
-      throw new Error(err.response?.data?.error || "Could not save your rating.");
+      throw new Error(
+        err.response?.data?.error || "Could not save your rating.",
+      );
     }
 
     const updated = this.updateBooking(userId, bookingId, {
@@ -146,7 +153,10 @@ export const userStore = {
         scheduledTime,
       });
     } catch (err) {
-      throw new Error(err.response?.data?.error || "Could not save the rescheduled appointment");
+      throw new Error(
+        err.response?.data?.error ||
+          "Could not save the rescheduled appointment",
+      );
     }
     const updated = this.updateBooking(userId, bookingId, {
       scheduledDate,
@@ -165,7 +175,9 @@ export const userStore = {
     try {
       await api.post(`/requests/${bookingId}/cancel`, { reason });
     } catch (err) {
-      throw new Error(err.response?.data?.error || "Could not cancel this booking.");
+      throw new Error(
+        err.response?.data?.error || "Could not cancel this booking.",
+      );
     }
     const updated = this.updateBooking(userId, bookingId, {
       status: "Cancelled",
@@ -294,12 +306,27 @@ export const userStore = {
     if (!userId) return this.getNotifications(userId);
     try {
       const res = await api.get("/user/notifications");
-      if (Array.isArray(res.data) && res.data.length > 0) {
-        this.saveNotifications(userId, res.data);
-        return res.data;
-      }
-    } catch {}
-    return this.getNotifications(userId);
+      const notifications = Array.isArray(res.data)
+        ? res.data
+        : res.data?.notifications;
+      if (!Array.isArray(notifications)) return this.getNotifications(userId);
+      const normalized = notifications.map((notification) => ({
+        ...notification,
+        read: notification.read ?? !Boolean(notification.unread),
+        time:
+          notification.time ||
+          (notification.created_at
+            ? new Date(notification.created_at).toLocaleString()
+            : ""),
+      }));
+      this.saveNotifications(userId, normalized);
+      return normalized;
+    } catch (err) {
+      throw new Error(
+        err.response?.data?.error ||
+          "Could not load notifications. Please retry when the service is available.",
+      );
+    }
   },
 
   saveNotifications(userId, notifications) {

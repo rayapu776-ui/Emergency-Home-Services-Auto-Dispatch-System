@@ -477,14 +477,27 @@ export default function ProfilePage({
   const { socket, joinRoom } = useSocket();
 
   const formatBookingDate = (date) =>
-    new Intl.DateTimeFormat(undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric" }).format(date);
+    new Intl.DateTimeFormat(undefined, {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }).format(date);
   const availableRescheduleDates = Array.from({ length: 7 }, (_, index) => {
     const date = new Date();
     date.setHours(0, 0, 0, 0);
     date.setDate(date.getDate() + index);
-    return { value: date.toISOString().slice(0, 10), label: formatBookingDate(date) };
+    return {
+      value: date.toISOString().slice(0, 10),
+      label: formatBookingDate(date),
+    };
   });
-  const rescheduleSlots = ["09:00 AM - 10:30 AM", "12:00 PM - 01:30 PM", "03:30 PM - 05:00 PM", "06:00 PM - 07:30 PM"];
+  const rescheduleSlots = [
+    "09:00 AM - 10:30 AM",
+    "12:00 PM - 01:30 PM",
+    "03:30 PM - 05:00 PM",
+    "06:00 PM - 07:30 PM",
+  ];
 
   // Active Menu Navigation Tab
   // 'overview' | 'bookings' | 'addresses' | 'payments' | 'saved' | 'notifications' | 'offers' | 'support' | 'settings' | 'logout'
@@ -618,7 +631,8 @@ export default function ProfilePage({
 
   useEffect(() => {
     if (user?.id) {
-      userStore.fetchBookingsFromApi(user.id)
+      userStore
+        .fetchBookingsFromApi(user.id)
         .then(setBookings)
         .catch((error) => showToast(error.message));
     } else {
@@ -657,16 +671,19 @@ export default function ProfilePage({
   const [notifications, setNotifications] = useState(() => {
     return userStore.getNotifications(user?.id);
   });
+  const [notificationLoadError, setNotificationLoadError] = useState("");
 
   useEffect(() => {
     const localNotifs = userStore.getNotifications(user?.id);
     setNotifications(localNotifs);
+    setNotificationLoadError("");
     if (user?.id) {
-      userStore.fetchNotificationsFromApi(user.id).then((apiNotifs) => {
-        if (Array.isArray(apiNotifs) && apiNotifs.length > 0) {
-          setNotifications(apiNotifs);
-        }
-      });
+      userStore
+        .fetchNotificationsFromApi(user.id)
+        .then((apiNotifs) => {
+          if (Array.isArray(apiNotifs)) setNotifications(apiNotifs);
+        })
+        .catch((error) => setNotificationLoadError(error.message));
     }
   }, [user?.id]);
 
@@ -738,7 +755,9 @@ export default function ProfilePage({
   });
 
   // Reschedule Form state
-  const [rescheduleDate, setRescheduleDate] = useState(availableRescheduleDates[0].value);
+  const [rescheduleDate, setRescheduleDate] = useState(
+    availableRescheduleDates[0].value,
+  );
   const [rescheduleTime, setRescheduleTime] = useState("12:00 PM - 01:30 PM");
 
   // Cancel Form state
@@ -984,9 +1003,16 @@ export default function ProfilePage({
   const handleConfirmReschedule = async () => {
     if (!rescheduleBookingTarget) return;
     try {
-      const updated = await userStore.rescheduleBooking(user?.id, rescheduleBookingTarget.id, rescheduleDate, rescheduleTime);
+      const updated = await userStore.rescheduleBooking(
+        user?.id,
+        rescheduleBookingTarget.id,
+        rescheduleDate,
+        rescheduleTime,
+      );
       if (updated) setBookings(updated);
-      showToast(`Booking #${rescheduleBookingTarget.id} rescheduled to ${rescheduleDate} (${rescheduleTime})!`);
+      showToast(
+        `Booking #${rescheduleBookingTarget.id} rescheduled to ${rescheduleDate} (${rescheduleTime})!`,
+      );
       setRescheduleBookingTarget(null);
     } catch (error) {
       showToast(error.message);
@@ -994,9 +1020,19 @@ export default function ProfilePage({
   };
 
   const openReschedule = (booking) => {
-    const savedDate = /^\d{4}-\d{2}-\d{2}$/.test(booking.scheduledDate || "") ? booking.scheduledDate : availableRescheduleDates[0].value;
-    setRescheduleDate(availableRescheduleDates.some((d) => d.value === savedDate) ? savedDate : availableRescheduleDates[0].value);
-    setRescheduleTime(rescheduleSlots.includes(booking.scheduledTime) ? booking.scheduledTime : rescheduleSlots[0]);
+    const savedDate = /^\d{4}-\d{2}-\d{2}$/.test(booking.scheduledDate || "")
+      ? booking.scheduledDate
+      : availableRescheduleDates[0].value;
+    setRescheduleDate(
+      availableRescheduleDates.some((d) => d.value === savedDate)
+        ? savedDate
+        : availableRescheduleDates[0].value,
+    );
+    setRescheduleTime(
+      rescheduleSlots.includes(booking.scheduledTime)
+        ? booking.scheduledTime
+        : rescheduleSlots[0],
+    );
     setRescheduleBookingTarget(booking);
   };
 
@@ -1004,18 +1040,47 @@ export default function ProfilePage({
     if (!socket || !user?.id) return undefined;
     const activeIds = bookings.map((booking) => booking.id);
     activeIds.forEach((id) => joinRoom(`request_${id}`));
-    const refreshBookings = () => userStore.fetchBookingsFromApi(user.id).then(setBookings);
+    const refreshBookings = () =>
+      userStore.fetchBookingsFromApi(user.id).then(setBookings);
+    const handleNotification = (notification) => {
+      setNotifications((current) => {
+        const updated = [
+          notification,
+          ...current.filter((item) => item.id !== notification.id),
+        ];
+        userStore.saveNotifications(user.id, updated);
+        return updated;
+      });
+    };
     socket.on("request_updated", refreshBookings);
-    return () => socket.off("request_updated", refreshBookings);
-  }, [socket, user?.id, bookings.map((booking) => booking.id).join(",")]);
+    socket.on("user_notification", handleNotification);
+    return () => {
+      socket.off("request_updated", refreshBookings);
+      socket.off("user_notification", handleNotification);
+      activeIds.forEach((id) =>
+        socket.emit("leave_room", { room: `request_${id}` }),
+      );
+    };
+  }, [
+    socket,
+    joinRoom,
+    user?.id,
+    bookings.map((booking) => booking.id).join(","),
+  ]);
 
   // Cancel Booking Handler
   const handleConfirmCancellation = async () => {
     if (!cancelBookingTarget) return;
     try {
-      const updated = await userStore.cancelBooking(user?.id, cancelBookingTarget.id, cancelReason);
+      const updated = await userStore.cancelBooking(
+        user?.id,
+        cancelBookingTarget.id,
+        cancelReason,
+      );
       if (updated) setBookings(updated);
-      showToast(`Booking #${cancelBookingTarget.id} has been cancelled. Refund initiated if applicable.`);
+      showToast(
+        `Booking #${cancelBookingTarget.id} has been cancelled. Refund initiated if applicable.`,
+      );
       setCancelBookingTarget(null);
     } catch (error) {
       showToast(error.message);
@@ -1029,9 +1094,15 @@ export default function ProfilePage({
       const updated = await userStore.completeBooking(user?.id, target.id);
       if (updated) setBookings(updated);
       if (selectedBookingForDetails?.id === target.id) {
-        setSelectedBookingForDetails((prev) => ({ ...prev, status: "Completed", statusStep: 4 }));
+        setSelectedBookingForDetails((prev) => ({
+          ...prev,
+          status: "Completed",
+          statusStep: 4,
+        }));
       }
-      showToast(`Booking #${target.id} marked as completed! You can now rate your technician.`);
+      showToast(
+        `Booking #${target.id} marked as completed! You can now rate your technician.`,
+      );
     } catch (error) {
       showToast(error.message);
     }
@@ -1223,9 +1294,7 @@ export default function ProfilePage({
     e?.preventDefault();
     const query = guestTrackingInput.trim().toLowerCase();
     if (!query) {
-      setGuestTrackingError(
-        "Please enter your Booking ID or service name.",
-      );
+      setGuestTrackingError("Please enter your Booking ID or service name.");
       return;
     }
     const found = bookings.find(
@@ -1362,8 +1431,8 @@ export default function ProfilePage({
               </span>
             </div>
             <p className="text-xs text-slate-500">
-              Enter your Booking ID or service name
-              to track technician dispatch and view receipts without signing in.
+              Enter your Booking ID or service name to track technician dispatch
+              and view receipts without signing in.
             </p>
             <div className="flex flex-col sm:flex-row gap-2">
               <input
@@ -2141,9 +2210,7 @@ export default function ProfilePage({
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() =>
-                                    openReschedule(nextBooking)
-                                  }
+                                  onClick={() => openReschedule(nextBooking)}
                                   className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
                                 >
                                   Reschedule
@@ -2525,6 +2592,14 @@ export default function ProfilePage({
             =============================================================== */}
                 {activeTab === "notifications" && (
                   <div className="space-y-6 animate-rise-in">
+                    {notificationLoadError && (
+                      <p
+                        role="alert"
+                        className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800"
+                      >
+                        {notificationLoadError}
+                      </p>
+                    )}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div>
                         <div className="flex items-center gap-2">
@@ -3512,29 +3587,34 @@ export default function ProfilePage({
                   Select New Time Slot
                 </label>
                 <div className="grid grid-cols-2 gap-2">
-                  {rescheduleSlots.filter((timeOption) => {
-                    if (rescheduleDate !== availableRescheduleDates[0].value) return true;
-                    const match = timeOption.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-                    if (!match) return false;
-                    let hour = Number(match[1]) % 12;
-                    if (match[3].toUpperCase() === "PM") hour += 12;
-                    const start = new Date();
-                    start.setHours(hour, Number(match[2]), 0, 0);
-                    return start > new Date();
-                  }).map((timeOption) => (
-                    <button
-                      key={timeOption}
-                      type="button"
-                      onClick={() => setRescheduleTime(timeOption)}
-                      className={`rounded-2xl p-2.5 font-bold border transition-all text-center cursor-pointer ${
-                        rescheduleTime === timeOption
-                          ? "bg-emerald-800 text-white border-emerald-800"
-                          : "bg-white text-slate-700 border-slate-200 hover:border-slate-300"
-                      }`}
-                    >
-                      {timeOption}
-                    </button>
-                  ))}
+                  {rescheduleSlots
+                    .filter((timeOption) => {
+                      if (rescheduleDate !== availableRescheduleDates[0].value)
+                        return true;
+                      const match = timeOption.match(
+                        /(\d{1,2}):(\d{2})\s*(AM|PM)/i,
+                      );
+                      if (!match) return false;
+                      let hour = Number(match[1]) % 12;
+                      if (match[3].toUpperCase() === "PM") hour += 12;
+                      const start = new Date();
+                      start.setHours(hour, Number(match[2]), 0, 0);
+                      return start > new Date();
+                    })
+                    .map((timeOption) => (
+                      <button
+                        key={timeOption}
+                        type="button"
+                        onClick={() => setRescheduleTime(timeOption)}
+                        className={`rounded-2xl p-2.5 font-bold border transition-all text-center cursor-pointer ${
+                          rescheduleTime === timeOption
+                            ? "bg-emerald-800 text-white border-emerald-800"
+                            : "bg-white text-slate-700 border-slate-200 hover:border-slate-300"
+                        }`}
+                      >
+                        {timeOption}
+                      </button>
+                    ))}
                 </div>
               </div>
 
@@ -4242,7 +4322,9 @@ export default function ProfilePage({
                         const val = e.target.value
                           .replace(/\D/g, "")
                           .slice(0, 16);
-                        const formatted = val.replace(/.{4}/g, (group) => `${group} `).trim();
+                        const formatted = val
+                          .replace(/.{4}/g, (group) => `${group} `)
+                          .trim();
                         setNewPaymentForm({
                           ...newPaymentForm,
                           cardNumber: formatted,

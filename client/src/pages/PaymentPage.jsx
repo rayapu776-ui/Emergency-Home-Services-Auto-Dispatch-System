@@ -31,7 +31,13 @@ import { validateCoupon } from "../data/promotionsData";
 import api from "../services/api";
 import { useSocket } from "../context/SocketContext";
 
-const formatServiceDate = (date) => new Intl.DateTimeFormat(undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric" }).format(date);
+const formatServiceDate = (date) =>
+  new Intl.DateTimeFormat(undefined, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(date);
 const makeServiceDates = (customDate) => {
   const dates = Array.from({ length: 4 }, (_, index) => {
     const date = new Date();
@@ -210,8 +216,8 @@ export default function PaymentPage({
       ? service.selectedDate
       : dates[0].value;
   });
-  const [selectedTime, setSelectedTime] = useState(() =>
-    service?.selectedTime || serviceSlots[0],
+  const [selectedTime, setSelectedTime] = useState(
+    () => service?.selectedTime || serviceSlots[0],
   );
   const [selectedPackage, setSelectedPackage] = useState(
     service?.selectedPackage ||
@@ -222,13 +228,16 @@ export default function PaymentPage({
   );
 
   const [address, setAddress] = useState(
-    user?.address || service?.location || service?.customerLocation || "Flat 402, Green Glen Heights, " + initialLocation,
+    user?.address ||
+      service?.location ||
+      service?.customerLocation ||
+      "Flat 402, Green Glen Heights, " + initialLocation,
   );
   const [coords, setCoords] = useState(() => {
     if (user?.latitude && user?.longitude) {
       return { lat: Number(user.latitude), lon: Number(user.longitude) };
     }
-    return { lat: 28.6139, lon: 77.2090 };
+    return { lat: 28.6139, lon: 77.209 };
   });
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   const [locationStatus, setLocationStatus] = useState("");
@@ -243,19 +252,46 @@ export default function PaymentPage({
     joinRoom(`request_${confirmedOrder.id}`);
     const updateOrder = (update) => {
       if (update.id && update.id !== confirmedOrder.id) return;
-      const statusLabels = { REQUESTED: "Searching for nearby professionals", AUTO_DISPATCHED: "Professionals notified", ACCEPTED: "Professional assigned", ON_THE_WAY: "Professional on the way", ARRIVED: "Professional arrived", IN_PROGRESS: "Service started", COMPLETED: "Service completed", CANCELLED: "Request cancelled" };
-      setConfirmedOrder((current) => current ? { ...current, ...update, status: statusLabels[update.status] || current.status, dispatchMessage: update.message || current.dispatchMessage, technician: update.technician ? { ...current.technician, ...update.technician } : current.technician } : current);
+      const statusLabels = {
+        REQUESTED: "Searching for nearby professionals",
+        AUTO_DISPATCHED: "Professionals notified",
+        ACCEPTED: "Professional assigned",
+        ON_THE_WAY: "Professional on the way",
+        ARRIVED: "Professional arrived",
+        IN_PROGRESS: "Service started",
+        COMPLETED: "Service completed",
+        CANCELLED: "Request cancelled",
+      };
+      setConfirmedOrder((current) =>
+        current
+          ? {
+              ...current,
+              ...update,
+              status: statusLabels[update.status] || current.status,
+              dispatchMessage: update.message || current.dispatchMessage,
+              technician: update.technician
+                ? { ...current.technician, ...update.technician }
+                : current.technician,
+            }
+          : current,
+      );
     };
     socket.on("request_updated", updateOrder);
-    return () => socket.off("request_updated", updateOrder);
-  }, [socket, confirmedOrder?.id]);
+    return () => {
+      socket.off("request_updated", updateOrder);
+      socket.emit("leave_room", { room: `request_${confirmedOrder.id}` });
+    };
+  }, [socket, confirmedOrder?.id, joinRoom]);
 
   // Coupon state
-  const initialValid = (initialPromoCode || service?.couponCode)
-    ? validateCoupon(initialPromoCode || service?.couponCode)
-    : null;
+  const initialValid =
+    initialPromoCode || service?.couponCode
+      ? validateCoupon(initialPromoCode || service?.couponCode)
+      : null;
   const [couponAccordionOpen, setCouponAccordionOpen] = useState(false);
-  const [promoCode, setPromoCode] = useState(initialPromoCode || service?.couponCode || "");
+  const [promoCode, setPromoCode] = useState(
+    initialPromoCode || service?.couponCode || "",
+  );
   const [promoApplied, setPromoApplied] = useState(Boolean(initialValid));
   const [appliedCouponData, setAppliedCouponData] = useState(initialValid);
   const [promoError, setPromoError] = useState("");
@@ -462,15 +498,19 @@ export default function PaymentPage({
           }
         } catch (err) {
           console.warn("Geocoding failed:", err);
-            setCoords({ lat, lon });
-            setLocationStatus("GPS coordinates captured. Please enter your service address.");
+          setCoords({ lat, lon });
+          setLocationStatus(
+            "GPS coordinates captured. Please enter your service address.",
+          );
         } finally {
           setIsDetectingLocation(false);
         }
       },
       () => {
         setIsDetectingLocation(false);
-        setLocationStatus("Location permission was denied. Enable location or enter and select a service address before requesting service.");
+        setLocationStatus(
+          "Location permission was denied. Enable location or enter and select a service address before requesting service.",
+        );
       },
       { timeout: 10000, enableHighAccuracy: true },
     );
@@ -479,14 +519,29 @@ export default function PaymentPage({
   const resolveManualAddress = async () => {
     if (coords || address.trim().length < 5) return;
     try {
-      const response = await fetch(`/api/location/search?query=${encodeURIComponent(address.trim())}`);
-      const match = (await response.json()).suggestions?.find((item) => Number.isFinite(Number(item.lat)) && Number.isFinite(Number(item.lon)));
+      const response = await fetch(
+        `/api/location/search?query=${encodeURIComponent(address.trim())}`,
+      );
+      const match = (await response.json()).suggestions?.find(
+        (item) =>
+          Number.isFinite(Number(item.lat)) &&
+          Number.isFinite(Number(item.lon)),
+      );
       if (match) {
         setAddress(match.formattedAddress);
         setCoords({ lat: Number(match.lat), lon: Number(match.lon) });
-        setLocationStatus("Service address matched. You can request a professional.");
-      } else setLocationStatus("We could not map that address. Enable location or enter a more specific address.");
-    } catch { setLocationStatus("We could not map that address. Enable location or enter a more specific address."); }
+        setLocationStatus(
+          "Service address matched. You can request a professional.",
+        );
+      } else
+        setLocationStatus(
+          "We could not map that address. Enable location or enter a more specific address.",
+        );
+    } catch {
+      setLocationStatus(
+        "We could not map that address. Enable location or enter a more specific address.",
+      );
+    }
   };
 
   // Execute payment & create real order
@@ -495,8 +550,15 @@ export default function PaymentPage({
       if (onAuthRequired) onAuthRequired();
       return;
     }
-    const currentCoords = coords || (user?.latitude && user?.longitude ? { lat: Number(user.latitude), lon: Number(user.longitude) } : { lat: 28.6139, lon: 77.2090 });
-    const currentAddress = (address && address.trim()) || user?.address || "Flat 402, Green Glen Heights, " + initialLocation;
+    const currentCoords =
+      coords ||
+      (user?.latitude && user?.longitude
+        ? { lat: Number(user.latitude), lon: Number(user.longitude) }
+        : { lat: 28.6139, lon: 77.209 });
+    const currentAddress =
+      (address && address.trim()) ||
+      user?.address ||
+      "Flat 402, Green Glen Heights, " + initialLocation;
 
     setIsProcessing(true);
 
@@ -525,9 +587,7 @@ export default function PaymentPage({
         longitude: currentCoords.lon,
         service_name: service?.name || "Home Service",
         service_slug: service?.slug || "home-cleaning",
-        service_image:
-          service?.image ||
-          FALLBACK_SERVICE_IMAGE,
+        service_image: service?.image || FALLBACK_SERVICE_IMAGE,
         scheduled_date: selectedDate,
         scheduled_time: selectedTime,
         package_name: selectedPackage,
@@ -538,7 +598,9 @@ export default function PaymentPage({
       createdRecord = res.data;
     } catch (err) {
       setIsProcessing(false);
-      setLocationStatus(err.response?.data?.error || "We could not create the service request.");
+      setLocationStatus(
+        err.response?.data?.error || "We could not create the service request.",
+      );
       return;
     }
 
@@ -546,27 +608,29 @@ export default function PaymentPage({
     const orderId = createdRecord.id;
 
     const orderData = {
-        id: orderId,
-        orderId: orderId,
-        serviceName: createdRecord.serviceName || service?.name || "Home Service",
-        category: createdRecord.category || service?.category || "Home Service",
-        package: selectedPackage,
-        image: createdRecord.image || service?.image || FALLBACK_SERVICE_IMAGE,
-        slug: createdRecord.slug || service?.slug || "home-cleaning",
-        scheduledDate: createdRecord.scheduledDate || selectedDate,
-        scheduledTime: createdRecord.scheduledTime || selectedTime,
-        address: createdRecord.address || currentAddress,
-        price: createdRecord.price || `₹${basePrice}`,
-        totalPaid: createdRecord.totalPaid || `₹${totalAmount}`,
-        customerName: user?.name || "Valued Customer",
-        paymentMethod: paymentMethodLabel,
-        paymentMethodUsed: paymentMethodLabel,
-        status: createdRecord.status || "Searching for nearby professionals",
-        statusStep: createdRecord.statusStep || 1,
-        technician: null,
-        nearbyProfessionals: createdRecord.nearbyProfessionals || [],
-        dispatchMessage: createdRecord.dispatchMessage || "Professionals in your area have been notified.",
-        createdAt: new Date().toISOString(),
+      id: orderId,
+      orderId: orderId,
+      serviceName: createdRecord.serviceName || service?.name || "Home Service",
+      category: createdRecord.category || service?.category || "Home Service",
+      package: selectedPackage,
+      image: createdRecord.image || service?.image || FALLBACK_SERVICE_IMAGE,
+      slug: createdRecord.slug || service?.slug || "home-cleaning",
+      scheduledDate: createdRecord.scheduledDate || selectedDate,
+      scheduledTime: createdRecord.scheduledTime || selectedTime,
+      address: createdRecord.address || currentAddress,
+      price: createdRecord.price || `₹${basePrice}`,
+      totalPaid: createdRecord.totalPaid || `₹${totalAmount}`,
+      customerName: user?.name || "Valued Customer",
+      paymentMethod: paymentMethodLabel,
+      paymentMethodUsed: paymentMethodLabel,
+      status: createdRecord.status || "Searching for nearby professionals",
+      statusStep: createdRecord.statusStep || 1,
+      technician: null,
+      nearbyProfessionals: createdRecord.nearbyProfessionals || [],
+      dispatchMessage:
+        createdRecord.dispatchMessage ||
+        "Professionals in your area have been notified.",
+      createdAt: new Date().toISOString(),
     };
 
     setConfirmedOrder(orderData);
@@ -583,10 +647,24 @@ export default function PaymentPage({
   const increaseOffer = async (amount) => {
     if (!confirmedOrder?.id) return;
     try {
-      const response = await api.post(`/requests/${confirmedOrder.id}/increase-offer`, { offerAmount: amount });
-      setConfirmedOrder((current) => ({ ...current, price: `₹${amount}`, status: "Searching for professional", dispatchMessage: response.data.dispatch?.success ? "Updated offer sent to nearby professionals." : "No available professional found within 15 km." }));
+      const response = await api.post(
+        `/requests/${confirmedOrder.id}/increase-offer`,
+        { offerAmount: amount },
+      );
+      setConfirmedOrder((current) => ({
+        ...current,
+        price: `₹${amount}`,
+        status: "Searching for professional",
+        dispatchMessage: response.data.dispatch?.success
+          ? "Updated offer sent to nearby professionals."
+          : "No available professional found within 15 km.",
+      }));
     } catch (error) {
-      setConfirmedOrder((current) => ({ ...current, dispatchMessage: error.response?.data?.error || "Could not update the service offer." }));
+      setConfirmedOrder((current) => ({
+        ...current,
+        dispatchMessage:
+          error.response?.data?.error || "Could not update the service offer.",
+      }));
     }
   };
 
@@ -594,9 +672,16 @@ export default function PaymentPage({
     if (!confirmedOrder?.id) return;
     try {
       await api.post(`/requests/${confirmedOrder.id}/cancel`);
-      setConfirmedOrder((current) => ({ ...current, status: "Request cancelled", dispatchMessage: "Your request was cancelled." }));
+      setConfirmedOrder((current) => ({
+        ...current,
+        status: "Request cancelled",
+        dispatchMessage: "Your request was cancelled.",
+      }));
     } catch {
-      setConfirmedOrder((current) => ({ ...current, dispatchMessage: "Could not cancel the request. Please try again." }));
+      setConfirmedOrder((current) => ({
+        ...current,
+        dispatchMessage: "Could not cancel the request. Please try again.",
+      }));
     }
   };
 
@@ -628,7 +713,10 @@ export default function PaymentPage({
                   src={confirmedOrder.image || FALLBACK_SERVICE_IMAGE}
                   alt={confirmedOrder.serviceName}
                   className="h-16 w-16 rounded-xl object-cover border border-slate-200 shrink-0"
-                  onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = FALLBACK_SERVICE_IMAGE; }}
+                  onError={(event) => {
+                    event.currentTarget.onerror = null;
+                    event.currentTarget.src = FALLBACK_SERVICE_IMAGE;
+                  }}
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
@@ -683,40 +771,119 @@ export default function PaymentPage({
               </div>
 
               {/* Live dispatch status. No placeholder professional is shown. */}
-              {confirmedOrder.technician ? <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
-                    Assigned Professional
-                  </span>
-                  <span className="text-[11px] font-bold text-emerald-700 flex items-center gap-1">
-                    <ShieldCheck className="h-3.5 w-3.5" /> Verified &
-                    Vaccinated
-                  </span>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={confirmedOrder.technician.avatar}
-                      alt={confirmedOrder.technician.name}
-                      className="h-11 w-11 rounded-full object-cover border-2 border-white shadow-xs"
-                    />
-                    <div>
-                      <h4 className="text-sm font-bold text-slate-900">
-                        {confirmedOrder.technician.name}
-                      </h4>
-                      <p className="text-xs text-slate-500">
-                        ★ {confirmedOrder.technician.rating} (
-                        {confirmedOrder.technician.reviews} reviews) ·{" "}
-                        {confirmedOrder.technician.experience}
-                      </p>
+              {confirmedOrder.technician ? (
+                <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                      Assigned Professional
+                    </span>
+                    <span className="text-[11px] font-bold text-emerald-700 flex items-center gap-1">
+                      <ShieldCheck className="h-3.5 w-3.5" /> Verified &
+                      Vaccinated
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={confirmedOrder.technician.avatar}
+                        alt={confirmedOrder.technician.name}
+                        className="h-11 w-11 rounded-full object-cover border-2 border-white shadow-xs"
+                      />
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-900">
+                          {confirmedOrder.technician.name}
+                        </h4>
+                        <p className="text-xs text-slate-500">
+                          ★ {confirmedOrder.technician.rating} (
+                          {confirmedOrder.technician.reviews} reviews) ·{" "}
+                          {confirmedOrder.technician.experience}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div> : <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4 space-y-3">
-                <div className="flex items-center gap-2 text-sm font-bold text-emerald-950"><RefreshCw className="h-4 w-4 animate-spin" /> Finding nearby professionals...</div>
-                <p className="text-xs text-slate-600">{confirmedOrder.dispatchMessage || "Professionals notified. Waiting for acceptance."}</p>
-                {confirmedOrder.nearbyProfessionals?.length > 0 ? <div className="space-y-2">{confirmedOrder.nearbyProfessionals.map((pro) => <div key={pro.id} className="flex items-center gap-3 rounded-xl bg-white/80 p-2.5 text-xs"><div className="h-9 w-9 rounded-full bg-emerald-100 flex items-center justify-center font-black text-emerald-800">{pro.avatar ? <img src={pro.avatar} alt="" className="h-9 w-9 rounded-full object-cover" /> : pro.name?.slice(0, 1)}</div><div className="min-w-0 flex-1"><p className="font-bold text-slate-900 truncate">{pro.name}</p><p className="text-slate-500">{pro.category} · {pro.distanceKm} km · ★ {pro.rating}</p></div><div className="text-right text-slate-500"><p>Verified</p><p>~{pro.etaMinutes} min</p></div></div>)}</div> : <div className="space-y-2"><p className="rounded-xl bg-white/80 p-3 text-xs font-semibold text-slate-600">No professional accepted the request yet. You can wait, cancel, or increase your offer.</p><div className="flex flex-wrap gap-2">{[50, 100, 150].map((extra) => { const amount = Number(String(confirmedOrder.price).replace(/[^0-9.]/g, "")) + extra; return <button type="button" key={amount} onClick={() => increaseOffer(amount)} className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-bold text-emerald-800">₹{amount}</button>; })}<button type="button" onClick={cancelPendingRequest} className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-bold text-red-700">Cancel request</button></div></div>}
-              </div>}
+              ) : (
+                <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-sm font-bold text-emerald-950">
+                    <RefreshCw className="h-4 w-4 animate-spin" /> Finding
+                    nearby professionals...
+                  </div>
+                  <p className="text-xs text-slate-600">
+                    {confirmedOrder.dispatchMessage ||
+                      "Professionals notified. Waiting for acceptance."}
+                  </p>
+                  {confirmedOrder.nearbyProfessionals?.length > 0 ? (
+                    <div className="space-y-2">
+                      {confirmedOrder.nearbyProfessionals.map((pro) => (
+                        <div
+                          key={pro.id}
+                          className="flex items-center gap-3 rounded-xl bg-white/80 p-2.5 text-xs"
+                        >
+                          <div className="h-9 w-9 rounded-full bg-emerald-100 flex items-center justify-center font-black text-emerald-800">
+                            {pro.avatar ? (
+                              <img
+                                src={pro.avatar}
+                                alt=""
+                                className="h-9 w-9 rounded-full object-cover"
+                              />
+                            ) : (
+                              pro.name?.slice(0, 1)
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-bold text-slate-900 truncate">
+                              {pro.name}
+                            </p>
+                            <p className="text-slate-500">
+                              {pro.category} · {pro.distanceKm} km · ★{" "}
+                              {pro.rating}
+                            </p>
+                          </div>
+                          <div className="text-right text-slate-500">
+                            <p>Verified</p>
+                            <p>~{pro.etaMinutes} min</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="rounded-xl bg-white/80 p-3 text-xs font-semibold text-slate-600">
+                        No professional accepted the request yet. You can wait,
+                        cancel, or increase your offer.
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {[50, 100, 150].map((extra) => {
+                          const amount =
+                            Number(
+                              String(confirmedOrder.price).replace(
+                                /[^0-9.]/g,
+                                "",
+                              ),
+                            ) + extra;
+                          return (
+                            <button
+                              type="button"
+                              key={amount}
+                              onClick={() => increaseOffer(amount)}
+                              className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-bold text-emerald-800"
+                            >
+                              ₹{amount}
+                            </button>
+                          );
+                        })}
+                        <button
+                          type="button"
+                          onClick={cancelPendingRequest}
+                          className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-bold text-red-700"
+                        >
+                          Cancel request
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Action Buttons */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
@@ -796,12 +963,13 @@ export default function PaymentPage({
               {/* Service Details Preview */}
               <div className="flex gap-4 items-center">
                 <img
-                  src={
-                    service?.image || FALLBACK_SERVICE_IMAGE
-                  }
+                  src={service?.image || FALLBACK_SERVICE_IMAGE}
                   alt={service?.name || "Service"}
                   className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl object-cover border border-slate-200 shrink-0 shadow-2xs"
-                  onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = FALLBACK_SERVICE_IMAGE; }}
+                  onError={(event) => {
+                    event.currentTarget.onerror = null;
+                    event.currentTarget.src = FALLBACK_SERVICE_IMAGE;
+                  }}
                 />
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex items-center gap-2">
@@ -858,7 +1026,9 @@ export default function PaymentPage({
                       const now = new Date();
                       const futureSlots = serviceSlots.filter((slot) => {
                         if (slot === service?.selectedTime) return true;
-                        const match = slot.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+                        const match = slot.match(
+                          /(\d{1,2}):(\d{2})\s*(AM|PM)/i,
+                        );
                         if (!match) return true;
                         let hour = Number(match[1]) % 12;
                         if (match[3].toUpperCase() === "PM") hour += 12;
@@ -866,7 +1036,9 @@ export default function PaymentPage({
                         start.setHours(hour, Number(match[2]), 0, 0);
                         return start > now;
                       });
-                      return futureSlots.length > 0 ? futureSlots : serviceSlots;
+                      return futureSlots.length > 0
+                        ? futureSlots
+                        : serviceSlots;
                     })().map((slot) => (
                       <button
                         key={slot}

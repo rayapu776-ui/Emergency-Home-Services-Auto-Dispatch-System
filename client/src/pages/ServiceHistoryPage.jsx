@@ -20,13 +20,19 @@ export default function ServiceHistoryPage({ onInspectRequest }) {
   const [categoryFilter, setCategoryFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [selectedDetail, setSelectedDetail] = useState(null);
+  const [error, setError] = useState("");
 
   const fetchHistory = async () => {
     try {
       const res = await api.get("/requests/my");
       setRequests(res.data);
+      setError("");
     } catch (err) {
       console.error("Error fetching history:", err);
+      setError(
+        err.response?.data?.error ||
+          "Could not load service history. Please try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -70,6 +76,15 @@ export default function ServiceHistoryPage({ onInspectRequest }) {
           </p>
         </div>
       </div>
+
+      {error && (
+        <p
+          role="alert"
+          className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800"
+        >
+          {error}
+        </p>
+      )}
 
       {/* Filter Toolbar */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-3 items-center justify-between">

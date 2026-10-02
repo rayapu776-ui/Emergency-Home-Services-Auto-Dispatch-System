@@ -32,6 +32,18 @@ export function AuthProvider({ children }) {
     }
   }, [token]);
 
+  useEffect(() => {
+    const clearExpiredSession = () => {
+      if (!localStorage.getItem("emergency_token")) {
+        setToken(null);
+        setUser(null);
+      }
+    };
+    window.addEventListener("argent:session-changed", clearExpiredSession);
+    return () =>
+      window.removeEventListener("argent:session-changed", clearExpiredSession);
+  }, []);
+
   const loginStep1 = async (identifier, password) => {
     const res = await api.post("/auth/login-step1", { identifier, password });
     return res.data;
@@ -53,6 +65,7 @@ export function AuthProvider({ children }) {
     setUser(newUser);
     localStorage.setItem("emergency_token", newToken);
     localStorage.setItem("emergency_user", JSON.stringify(newUser));
+    window.dispatchEvent(new Event("argent:session-changed"));
     return newUser;
   };
 
@@ -74,6 +87,7 @@ export function AuthProvider({ children }) {
       setUser(newUser);
       localStorage.setItem("emergency_token", newToken);
       localStorage.setItem("emergency_user", JSON.stringify(newUser));
+      window.dispatchEvent(new Event("argent:session-changed"));
     }
     return res.data;
   };
@@ -103,6 +117,7 @@ export function AuthProvider({ children }) {
     setUser(newUser);
     localStorage.setItem("emergency_token", newToken);
     localStorage.setItem("emergency_user", JSON.stringify(newUser));
+    window.dispatchEvent(new Event("argent:session-changed"));
     return newUser;
   };
 
@@ -113,6 +128,7 @@ export function AuthProvider({ children }) {
     setUser(newUser);
     localStorage.setItem("emergency_token", newToken);
     localStorage.setItem("emergency_user", JSON.stringify(newUser));
+    window.dispatchEvent(new Event("argent:session-changed"));
     return newUser;
   };
 
@@ -121,6 +137,7 @@ export function AuthProvider({ children }) {
     setUser(null);
     localStorage.removeItem("emergency_token");
     localStorage.removeItem("emergency_user");
+    window.dispatchEvent(new Event("argent:session-changed"));
   };
 
   const updateUser = (updated) => {

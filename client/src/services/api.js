@@ -21,6 +21,7 @@ api.interceptors.response.use(
     if (error.response && error.response.status === 401) {
       localStorage.removeItem("emergency_token");
       localStorage.removeItem("emergency_user");
+      window.dispatchEvent(new Event("argent:session-changed"));
       // Optional redirect or event
     }
     return Promise.reject(error);

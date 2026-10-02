@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { query } from "../db/database.js";
 import { authenticateToken } from "../middleware/auth.js";
 import { calculateDistance } from "../utils/geo.js";
+import { createUserNotification } from "../services/userNotificationService.js";
 
 export default function createTechnicianRouter(io) {
   const router = express.Router();
@@ -22,23 +23,7 @@ export default function createTechnicianRouter(io) {
     type = "dispatch",
   ) => {
     try {
-      const notifId = uuidv4();
-      await query.run(
-        `INSERT INTO user_notifications (id, user_id, title, description, type, unread)
-         VALUES (?, ?, ?, ?, ?, 1)`,
-        [notifId, userId, title, description, type],
-      );
-      if (io) {
-        io.to(`user_${userId}`).emit("technician_notification", {
-          id: notifId,
-          user_id: userId,
-          title,
-          description,
-          type,
-          unread: 1,
-          created_at: new Date().toISOString(),
-        });
-      }
+      await createUserNotification(io, userId, { title, description, type });
     } catch (e) {
       console.warn("Error creating technician notification:", e);
     }
@@ -634,11 +619,9 @@ export default function createTechnicianRouter(io) {
         is_online &&
         (tech.account_status !== "Active" || tech.status !== "Approved")
       ) {
-        return res
-          .status(403)
-          .json({
-            error: "Only active, approved professionals can go online.",
-          });
+        return res.status(403).json({
+          error: "Only active, approved professionals can go online.",
+        });
       }
 
       const newOnlineStatus = is_online ? 1 : 0;
@@ -779,11 +762,9 @@ export default function createTechnicianRouter(io) {
         [tech.id, req.params.id, tech.id],
       );
       if (claim.changes !== 1) {
-        return res
-          .status(409)
-          .json({
-            error: "Another professional has already claimed this job.",
-          });
+        return res.status(409).json({
+          error: "Another professional has already claimed this job.",
+        });
       }
 
       // Update technician status
@@ -806,16 +787,11 @@ export default function createTechnicianRouter(io) {
 
       // Send real customer notification
       try {
-        await query.run(
-          `INSERT INTO user_notifications (id, user_id, title, description, type, unread)
-           VALUES (?, ?, ?, ?, 'dispatch', 1)`,
-          [
-            uuidv4(),
-            request.customer_id,
-            `Technician Confirmed: ${tech.name}`,
-            `${tech.name} (${tech.phone || "+91 98101 11223"}) has accepted your booking #${req.params.id}.`,
-          ],
-        );
+        await createUserNotification(io, request.customer_id, {
+          title: `Technician Confirmed: ${tech.name}`,
+          description: `${tech.name} has accepted your booking #${req.params.id}.`,
+          type: "dispatch",
+        });
       } catch (notifErr) {
         console.warn("Notification insert error on accept:", notifErr);
       }
@@ -1095,11 +1071,11 @@ export default function createTechnicianRouter(io) {
       // Send real customer notification
       if (meta) {
         try {
-          await query.run(
-            `INSERT INTO user_notifications (id, user_id, title, description, type, unread)
-             VALUES (?, ?, ?, ?, ?, 1)`,
-            [uuidv4(), request.customer_id, meta.title, meta.desc, meta.type],
-          );
+          await createUserNotification(io, request.customer_id, {
+            title: meta.title,
+            description: meta.desc,
+            type: meta.type,
+          });
         } catch (notifErr) {
           console.warn("Notification insert error on status update:", notifErr);
         }
@@ -1215,16 +1191,12 @@ export default function createTechnicianRouter(io) {
       );
 
       try {
-        await query.run(
-          `INSERT INTO user_notifications (id, user_id, title, description, type, unread)
-           VALUES (?, ?, ?, ?, 'completed', 1)`,
-          [
-            uuidv4(),
-            request.customer_id,
-            `Service Completed: #${req.params.id}`,
-            `Your service has been successfully completed. Tap to rate your professional.`,
-          ],
-        );
+        await createUserNotification(io, request.customer_id, {
+          title: `Service Completed: #${req.params.id}`,
+          description:
+            "Your service has been completed. You can now rate your professional.",
+          type: "completed",
+        });
       } catch (notifErr) {
         console.warn("Notification insert error on complete:", notifErr);
       }

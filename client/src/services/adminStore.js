@@ -22,6 +22,7 @@ const clearSession = () => {
   localStorage.removeItem(USER_KEY);
   sessionStorage.removeItem(TOKEN_KEY);
   sessionStorage.removeItem(USER_KEY);
+  window.dispatchEvent(new Event("argent:session-changed"));
 };
 
 adminApi.interceptors.response.use(
@@ -58,6 +59,7 @@ const adminStore = {
     const storage = rememberMe ? localStorage : sessionStorage;
     storage.setItem(TOKEN_KEY, data.token);
     storage.setItem(USER_KEY, JSON.stringify(data.user));
+    window.dispatchEvent(new Event("argent:session-changed"));
     return data.user;
   },
   async validateSession() {

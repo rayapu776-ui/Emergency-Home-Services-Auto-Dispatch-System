@@ -26,6 +26,8 @@ techApi.interceptors.response.use(
     if (error.response && error.response.status === 401) {
       localStorage.removeItem(TECH_TOKEN_KEY);
       localStorage.removeItem(TECH_USER_KEY);
+      localStorage.removeItem(TECH_ONLINE_KEY);
+      window.dispatchEvent(new Event("argent:session-changed"));
     }
     return Promise.reject(error);
   },
@@ -79,17 +81,17 @@ class TechnicianStore {
         user.technician.is_online ? "ONLINE" : "OFFLINE",
       );
     }
+    window.dispatchEvent(new Event("argent:session-changed"));
   }
 
   logout() {
     localStorage.removeItem(TECH_TOKEN_KEY);
     localStorage.removeItem(TECH_USER_KEY);
     localStorage.removeItem(TECH_ONLINE_KEY);
-    try {
-      sessionStorage.clear();
-    } catch {
-      // Ignore if sessionStorage is disabled
-    }
+    sessionStorage.removeItem(TECH_TOKEN_KEY);
+    sessionStorage.removeItem(TECH_USER_KEY);
+    sessionStorage.removeItem(TECH_ONLINE_KEY);
+    window.dispatchEvent(new Event("argent:session-changed"));
   }
 
   async login(identifier, password) {

@@ -114,7 +114,7 @@ router.get("/notifications", authenticateToken, async (req, res) => {
       "SELECT * FROM user_notifications WHERE user_id = ? ORDER BY created_at DESC",
       [req.user.id],
     );
-    res.json(notifs);
+    res.json({ success: true, notifications: notifs });
   } catch (err) {
     console.error("Fetch notifications error:", err);
     res.status(500).json({ error: "Failed to fetch notifications" });

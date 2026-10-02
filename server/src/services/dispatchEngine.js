@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { query } from "../db/database.js";
 import { calculateDistance, calculateETA } from "../utils/geo.js";
+import { createUserNotification } from "./userNotificationService.js";
 
 // In-memory active dispatch timers and rejection tracking
 // Map: requestId -> { timer, candidateQueue: [], currentTechId: null, rejectedTechIds: Set }
@@ -239,6 +240,16 @@ export const dispatchEngine = {
        WHERE sr.id = ?`,
       [requestId],
     );
+
+    try {
+      await createUserNotification(io, fullRequest.customer_id, {
+        title: `Professional Confirmed: ${fullRequest.technician_name}`,
+        description: `${fullRequest.technician_name} accepted booking #${requestId}.`,
+        type: "dispatch",
+      });
+    } catch (err) {
+      console.warn("Dispatch acceptance notification error:", err);
+    }
 
     io.to(`request_${requestId}`).emit("request_updated", fullRequest);
     io.to("role_admin").emit("admin_dispatch_event", {

@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useRef,
+} from "react";
 import technicianStore from "../services/technicianStore";
 import { useSocket } from "./SocketContext";
 
@@ -13,13 +19,13 @@ export const useTechnician = () => {
 };
 
 export function TechnicianProvider({ children, onLogout }) {
-  const { socket } = useSocket();
+  const { socket, connected } = useSocket();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [techProfile, setTechProfile] = useState(null);
   const [isOnline, setIsOnline] = useState(
-    technicianStore.getAvailability() === "ONLINE"
+    technicianStore.getAvailability() === "ONLINE",
   );
 
   const [activeJobs, setActiveJobs] = useState([]);
@@ -97,6 +103,7 @@ export function TechnicianProvider({ children, onLogout }) {
   // File upload refs
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
+  const joinedRoomsRef = useRef({ socketId: null, rooms: new Set() });
 
   const showToast = (msg, type = "success") => {
     setToastMessage({ text: msg, message: msg, type });
@@ -111,6 +118,19 @@ export function TechnicianProvider({ children, onLogout }) {
 
     try {
       const data = await technicianStore.getDashboardSummary();
+      if (socket?.connected && data.technician?.id) {
+        if (joinedRoomsRef.current.socketId !== socket.id) {
+          joinedRoomsRef.current = { socketId: socket.id, rooms: new Set() };
+        }
+        const token = technicianStore.getToken();
+        const rooms = (data.activeJobs || []).map((job) => `request_${job.id}`);
+        for (const room of rooms) {
+          if (!joinedRoomsRef.current.rooms.has(room)) {
+            socket.emit("join_room", { room, token });
+            joinedRoomsRef.current.rooms.add(room);
+          }
+        }
+      }
 
       // Merge locally saved profile data so edits are never overwritten by server on reload
       let mergedTechnician = data.technician;
@@ -120,7 +140,9 @@ export function TechnicianProvider({ children, onLogout }) {
           const localProfile = JSON.parse(savedProfile);
           mergedTechnician = { ...data.technician, ...localProfile };
         }
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
       setTechProfile(mergedTechnician);
 
       // Sync online status: localStorage is the source of truth (prevents server lag from reverting)
@@ -140,7 +162,8 @@ export function TechnicianProvider({ children, onLogout }) {
       if (data.metrics) setMetrics(data.metrics);
       if (data.bankAccount) setBankAccount(data.bankAccount);
       if (data.payoutHistory) setPayoutHistory(data.payoutHistory);
-      if (data.recentTransactions) setRecentTransactions(data.recentTransactions);
+      if (data.recentTransactions)
+        setRecentTransactions(data.recentTransactions);
       if (data.notifications) setNotifications(data.notifications);
     } catch (err) {
       console.error("Error loading technician dashboard:", err);
@@ -163,32 +186,65 @@ export function TechnicianProvider({ children, onLogout }) {
   }, []);
 
   useEffect(() => {
-    if (!socket) return;
+    if (!socket || !connected) return undefined;
+
+    const sessionUser = technicianStore.getTechnician();
+    const sessionToken = technicianStore.getToken();
+    if (sessionUser?.id && sessionToken) {
+      socket.emit("join_room", {
+        room: `user_${sessionUser.id}`,
+        token: sessionToken,
+      });
+      socket.emit("join_room", {
+        room: "role_technician",
+        token: sessionToken,
+      });
+    }
 
     const handleJobUpdate = () => {
       loadDashboardData(true);
     };
+    const handleOffer = () => loadDashboardData(true);
+    const handleNotification = (notification) => {
+      setNotifications((current) => [
+        notification,
+        ...current.filter((item) => item.id !== notification.id),
+      ]);
+    };
 
     socket.on("new_emergency_alert", handleJobUpdate);
     socket.on("request_updated", handleJobUpdate);
+    socket.on("emergency_dispatch_offer", handleOffer);
+    socket.on("technician_notification", handleNotification);
+    loadDashboardData(true);
 
     return () => {
       socket.off("new_emergency_alert", handleJobUpdate);
       socket.off("request_updated", handleJobUpdate);
+      socket.off("emergency_dispatch_offer", handleOffer);
+      socket.off("technician_notification", handleNotification);
+      if (sessionUser?.id) {
+        socket.emit("leave_room", { room: `user_${sessionUser.id}` });
+        socket.emit("leave_room", { room: "role_technician" });
+      }
+      for (const room of joinedRoomsRef.current.rooms) {
+        socket.emit("leave_room", { room });
+      }
+      joinedRoomsRef.current = { socketId: null, rooms: new Set() };
     };
-  }, [socket]);
+  }, [connected, socket]);
 
   const hasActiveJob = (activeJobs || []).some((j) =>
     ["ACCEPTED", "ON_THE_WAY", "ARRIVED", "IN_PROGRESS", "ASSIGNED"].includes(
-      j.status
-    )
+      j.status,
+    ),
   );
 
   const handleToggleOnline = async () => {
     if (hasActiveJob && isOnline) {
       showToast(
         "You have an active service. Complete the current service before going offline.",
-        "error"
+        "error",
       );
       return;
     }
@@ -203,13 +259,16 @@ export function TechnicianProvider({ children, onLogout }) {
         newStatus === "ONLINE"
           ? "You are now ONLINE and ready to receive dispatches!"
           : "You are now OFFLINE. New requests will not be dispatched.",
-        newStatus === "ONLINE" ? "success" : "info"
+        newStatus === "ONLINE" ? "success" : "info",
       );
       await loadDashboardData(true);
     } catch {
       // Revert optimistic update on failure
       setIsOnline(isOnline);
-      localStorage.setItem("argent_technician_online", isOnline ? "ONLINE" : "OFFLINE");
+      localStorage.setItem(
+        "argent_technician_online",
+        isOnline ? "ONLINE" : "OFFLINE",
+      );
       showToast("Failed to change availability status", "error");
     }
   };
@@ -264,7 +323,7 @@ export function TechnicianProvider({ children, onLogout }) {
     } catch (err) {
       showToast(
         err.response?.data?.error || "Failed to mark doorstep arrival",
-        "error"
+        "error",
       );
     } finally {
       setActionLoadingId(null);
@@ -280,7 +339,7 @@ export function TechnicianProvider({ children, onLogout }) {
     } catch (err) {
       showToast(
         err.response?.data?.error || "Failed to start service",
-        "error"
+        "error",
       );
     } finally {
       setActionLoadingId(null);
@@ -291,13 +350,16 @@ export function TechnicianProvider({ children, onLogout }) {
     setActionLoadingId(jobId);
     try {
       await technicianStore.updateJobStatus(jobId, "COMPLETED");
-      showToast("Service successfully completed! Earnings recorded.", "success");
+      showToast(
+        "Service successfully completed! Earnings recorded.",
+        "success",
+      );
       setCompleteConfirmJob(null);
       await loadDashboardData(true);
     } catch (err) {
       showToast(
         err.response?.data?.error || "Failed to complete service",
-        "error"
+        "error",
       );
     } finally {
       setActionLoadingId(null);
@@ -317,7 +379,7 @@ export function TechnicianProvider({ children, onLogout }) {
 
   const markNotificationAsRead = (id) => {
     setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, unread: 0 } : n))
+      prev.map((n) => (n.id === id ? { ...n, unread: 0 } : n)),
     );
   };
 
@@ -373,7 +435,9 @@ export function TechnicianProvider({ children, onLogout }) {
       skills: techProfile?.skills || "",
       vehicle_type: techProfile?.vehicle_type || "Rapid Response Van",
       avatar: techProfile?.avatar || "",
-      bio: techProfile?.bio || "Certified emergency home services technician committed to swift arrival, accurate diagnostics, and quality craftsmanship across all service zones.",
+      bio:
+        techProfile?.bio ||
+        "Certified emergency home services technician committed to swift arrival, accurate diagnostics, and quality craftsmanship across all service zones.",
       service_areas: techProfile?.service_areas || "Delhi NCR",
     });
     setShowEditProfile(true);
@@ -391,7 +455,7 @@ export function TechnicianProvider({ children, onLogout }) {
     } catch (err) {
       showToast(
         err.response?.data?.error || "Failed to update profile",
-        "error"
+        "error",
       );
     } finally {
       setIsSavingProfile(false);
@@ -424,7 +488,7 @@ export function TechnicianProvider({ children, onLogout }) {
     ) {
       showToast(
         "Please enter a valid bank account number (min 8 digits)",
-        "error"
+        "error",
       );
       return;
     }
@@ -438,14 +502,14 @@ export function TechnicianProvider({ children, onLogout }) {
       await technicianStore.connectBankAccount(bankFormData);
       showToast(
         "Bank account connected and verified for instant payouts!",
-        "success"
+        "success",
       );
       setShowBankModal(false);
       await loadDashboardData(true);
     } catch (err) {
       showToast(
         err.response?.data?.error || "Failed to connect bank account",
-        "error"
+        "error",
       );
     } finally {
       setIsSavingBank(false);
@@ -462,7 +526,7 @@ export function TechnicianProvider({ children, onLogout }) {
     if (amountNum > (metrics.availableBalance || 0)) {
       showToast(
         `Requested amount exceeds available balance of ₹${(metrics.availableBalance || 0).toLocaleString("en-IN")}`,
-        "error"
+        "error",
       );
       return;
     }
@@ -472,7 +536,7 @@ export function TechnicianProvider({ children, onLogout }) {
       const res = await technicianStore.requestPayout(amountNum);
       showToast(
         res.message || "Payout request submitted successfully!",
-        "success"
+        "success",
       );
       setShowPayoutModal(false);
       setPayoutAmount("");
@@ -480,7 +544,7 @@ export function TechnicianProvider({ children, onLogout }) {
     } catch (err) {
       showToast(
         err.response?.data?.error || "Failed to request payout",
-        "error"
+        "error",
       );
     } finally {
       setIsSubmittingPayout(false);
@@ -497,7 +561,7 @@ export function TechnicianProvider({ children, onLogout }) {
       if (currentAreas.length === 1) {
         showToast(
           "At least one operational service area must remain active.",
-          "error"
+          "error",
         );
         return;
       }
@@ -529,7 +593,7 @@ export function TechnicianProvider({ children, onLogout }) {
   };
 
   const unreadNotificationsCount = (notifications || []).filter(
-    (n) => n.unread
+    (n) => n.unread,
   ).length;
 
   const techFirstName = techProfile?.name

@@ -435,6 +435,7 @@ export default function AdminPortalPage() {
       socket.off("admin_dispatch_event", refresh);
       socket.off("new_emergency_alert", refresh);
       socket.off("technician_status_changed", refresh);
+      socket.emit("leave_room", { room: "role_admin" });
     };
   }, [joinRoom, load, socket]);
 

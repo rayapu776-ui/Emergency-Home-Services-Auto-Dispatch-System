@@ -9,24 +9,53 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { useSocket } from "../../context/SocketContext";
 import userStore from "../../services/userStore";
 
 export default function NotificationDropdown({ onClose }) {
   const { user } = useAuth();
+  const { socket } = useSocket();
   const [notifications, setNotifications] = useState(() =>
     userStore.getNotifications(user?.id),
   );
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     setNotifications(userStore.getNotifications(user?.id));
+    setLoadError("");
     if (user?.id) {
-      userStore.fetchNotificationsFromApi(user.id).then((apiNotifs) => {
-        if (Array.isArray(apiNotifs) && apiNotifs.length > 0) {
-          setNotifications(apiNotifs);
-        }
-      });
+      userStore
+        .fetchNotificationsFromApi(user.id)
+        .then(setNotifications)
+        .catch((error) => setLoadError(error.message));
     }
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!socket || !user?.id) return undefined;
+    const handleNotification = (notification) => {
+      const normalized = {
+        ...notification,
+        read: notification.read ?? !Boolean(notification.unread),
+        time:
+          notification.time ||
+          (notification.created_at
+            ? new Date(notification.created_at).toLocaleString()
+            : "Just now"),
+      };
+      setNotifications((current) => {
+        const updated = [
+          normalized,
+          ...current.filter((item) => item.id !== normalized.id),
+        ];
+        userStore.saveNotifications(user.id, updated);
+        return updated;
+      });
+      setLoadError("");
+    };
+    socket.on("user_notification", handleNotification);
+    return () => socket.off("user_notification", handleNotification);
+  }, [socket, user?.id]);
 
   const markAllAsRead = async () => {
     const updated = await userStore.markAllNotificationsRead(user?.id);
@@ -98,6 +127,15 @@ export default function NotificationDropdown({ onClose }) {
           </button>
         </div>
       </div>
+
+      {loadError && (
+        <p
+          role="alert"
+          className="mt-3 rounded-lg bg-red-50 p-2 text-xs text-red-700"
+        >
+          {loadError}
+        </p>
+      )}
 
       <div className="mt-2 max-h-80 overflow-y-auto divide-y divide-slate-100 space-y-1 pr-1">
         {notifications.length === 0 ? (
