@@ -8,6 +8,7 @@ import {
   useNavigate,
   useLocation,
 } from "react-router-dom";
+import { Analytics } from '@vercel/analytics/react';
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { SocketProvider } from "./context/SocketContext";
 import Navbar from "./components/common/Navbar";
@@ -331,6 +332,7 @@ export default function App() {
             {/* 3. Customer & Admin Portal Routes */}
             <Route path="*" element={<CustomerAndAdminApp />} />
           </Routes>
+          <Analytics />
         </SocketProvider>
       </BrowserRouter>
     </AuthProvider>
